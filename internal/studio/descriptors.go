@@ -43,6 +43,7 @@ func ActionDescriptors() []ActionDescriptor {
 	descriptions[OpRetargetAnimation] = "Retarget a stable bone clip through a validated armature map."
 	descriptions[OpSetAnimationParameter] = "Set a declared animation-state-machine parameter."
 	descriptions[OpStepAnimationMachine] = "Advance an Arbiter-governed animation state machine and sample its active clip."
+	descriptions[OpSetRenderGraph] = "Replace the retained render/resource graph after deterministic schedule and lifetime validation."
 	required := map[OperationKind][]string{OpSetField: {"target", "field", "value"}, OpSetTransform: {"target", "transform"}, OpAssignMaterial: {"target", "material"}, OpRenameEntity: {"target", "name"}, OpCreateEntity: {"entity"}, OpDeleteEntity: {"target"}, OpReparentEntity: {"target", "parent"}, OpDuplicateEntity: {"target", "newId"}, OpExtrudeFaces: {"target", "faces", "distance"}, OpInsetFaces: {"target", "faces", "amount"}, OpTriangulateFaces: {"target", "faces"}, OpWeldVertices: {"target", "vertices", "tolerance"}, OpFillFace: {"target", "vertices", "newId"}, OpRecalculateNormals: {"target"}, OpProjectPlanarUV: {"target", "projection"}, OpDissolveEdges: {"target", "edges"}, OpBridgeLoops: {"target", "loops", "newId", "closed"}, OpLoopCut: {"target", "edges", "amount", "newId"}, OpSetCurveControlPoint: {"target", "controlPoint"}}
 	required[OpSetModifier] = []string{"target", "modifier"}
 	required[OpRemoveModifier] = []string{"target", "modifierId"}
@@ -66,6 +67,7 @@ func ActionDescriptors() []ActionDescriptor {
 	required[OpRetargetAnimation] = []string{"retargetMapId", "sourceClipId", "newId", "name"}
 	required[OpSetAnimationParameter] = []string{"machineId", "parameter", "number"}
 	required[OpStepAnimationMachine] = []string{"machineId", "deltaTime"}
+	required[OpSetRenderGraph] = []string{"renderGraph"}
 	out := make([]ActionDescriptor, 0, len(descriptions))
 	for _, capability := range ActionCatalog() {
 		kind := OperationKind(capability.ID)
@@ -99,6 +101,7 @@ func operationSchemaProperties() map[string]any {
 		"physics":      map[string]any{"type": "object"}, "simulationId": map[string]any{"type": "string", "minLength": 1}, "ticks": map[string]any{"type": "integer", "minimum": 1, "maximum": 1000000}, "inputs": map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
 		"retargetMapId": map[string]any{"type": "string", "minLength": 1}, "sourceClipId": map[string]any{"type": "string", "minLength": 1}, "machineId": map[string]any{"type": "string", "minLength": 1},
 		"parameter": map[string]any{"type": "string", "minLength": 1}, "number": map[string]any{"type": "number"}, "deltaTime": map[string]any{"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
+		"renderGraph": map[string]any{"type": "object"},
 	}
 	return properties
 }
@@ -127,6 +130,7 @@ func ComponentCatalog() []ComponentDescriptor {
 		{Type: "simulation", Version: 1, Fields: []FieldDescriptor{{Name: "tickRate", Type: "integer", Editable: true, Semantic: "simulation"}, {Name: "gravity", Type: "vec3", Editable: true, Semantic: "simulation"}, {Name: "bodies", Type: "entity-refs", Editable: true, Semantic: "simulation"}}},
 		{Type: "retarget-map", Version: 1, Fields: []FieldDescriptor{{Name: "source", Type: "armature-ref", Editable: true, Semantic: "animation"}, {Name: "target", Type: "armature-ref", Editable: true, Semantic: "animation"}, {Name: "bones", Type: "bone-map", Editable: true, Semantic: "animation"}}},
 		{Type: "animation-state-machine", Version: 1, Fields: []FieldDescriptor{{Name: "states", Type: "state-map", Editable: true, Semantic: "animation"}, {Name: "transitions", Type: "arbiter-transitions", Editable: true, Semantic: "governed-runtime"}, {Name: "parameters", Type: "number-map", Editable: true, Semantic: "runtime"}}},
+		{Type: "render-graph", Version: 1, Fields: []FieldDescriptor{{Name: "resources", Type: "resource-map", Editable: true, Semantic: "authoring"}, {Name: "passes", Type: "pass-dag", Editable: true, Semantic: "runtime"}, {Name: "allocations", Type: "lifetime-plan", Editable: false, Semantic: "observed"}}},
 	}
 }
 
@@ -157,6 +161,7 @@ func Certification() CertificationReport {
 		"riggingAnimation":         {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, normalized skin weights, hierarchical linear-blend deformation, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, incremental invalidation, typed SceneIR lowering, retarget maps, governed state transitions, and a recorded physics interaction are certified; richer editors, blend spaces, layered clips, dual-quaternion skinning, and advanced physics remain pending"},
 		"simulation":               {ID: "simulation", Status: "partial", Evidence: "stable physics bodies, sphere/plane colliders, fixed-step gravity/contact response, tick-addressed impulses, exact snapshots, recording/replay, shared simulate actions, and browser-free evidence are available; general rigid-body pairs, constraints, broad phase, CCD, fields, particles, audio, caches, and runtime editors remain pending"},
 		"retargetingStateMachines": {ID: "retargetingStateMachines", Status: "partial", Evidence: "stable one-to-one armature maps, rest-relative scaled clip transfer, Arbiter-compiled transition rules, deterministic priority/ID selection, transition traces, exact clip sampling, shared actions, and browser-free evidence are available; masks, blend spaces, crossfades, layered graphs, root motion, and full editors remain pending"},
+		"renderResourceGraph":      {ID: "renderResourceGraph", Status: "partial", Evidence: "stable retained resources/passes, deterministic DAG scheduling, transient read-before-write diagnostics, lifetime intervals, alias slots, shared SceneIR transport, revision-safe agent action, and browser-free tests are available; backend execution, MRT/reflections, human graph editing, leak telemetry, and profiler UI remain pending"},
 	}}
 }
 

@@ -224,7 +224,54 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m2-retarget-state-machine", animationRuntimeOK, animationRuntimeEvidence)
+	renderGraphEvidence, renderGraphOK, err := certifyRenderGraphFoundation(document)
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m2-render-resource-graph", renderGraphOK, renderGraphEvidence)
 	return report, nil
+}
+
+func certifyRenderGraphFoundation(document Document) (string, bool, error) {
+	graph := RenderGraph{Resources: map[ID]RenderResource{
+		"swap":    {ID: "swap", Kind: "texture", Ownership: "imported", Format: "rgba8"},
+		"hdr":     {ID: "hdr", Kind: "render-target", Ownership: "transient", Format: "rgba16f", Width: 720, Height: 480},
+		"scratch": {ID: "scratch", Kind: "render-target", Ownership: "transient", Format: "rgba16f", Width: 720, Height: 480},
+	}, Passes: map[ID]RenderPass{
+		"scene":   {ID: "scene", Kind: "scene", Writes: []ID{"hdr"}},
+		"tone":    {ID: "tone", Kind: "fullscreen", Reads: []ID{"hdr"}, Writes: []ID{"swap"}, Depends: []ID{"scene"}},
+		"inspect": {ID: "inspect", Kind: "copy", Writes: []ID{"scratch"}, Depends: []ID{"tone"}},
+	}}
+	workspace, err := NewWorkspace(document)
+	if err != nil {
+		return "", false, err
+	}
+	tx := Transaction{ID: "certify:m2-render-graph", Actor: "agent://studio-certifier", Mode: ModePropose, ExpectedRevision: document.Revision, Operations: []Operation{{Kind: OpSetRenderGraph, RenderGraph: &graph}}}
+	_, preview, err := workspace.Execute(tx)
+	if err != nil {
+		return "", false, err
+	}
+	tx.Mode = ModeDirect
+	_, direct, err := workspace.Execute(tx)
+	if err != nil {
+		return "", false, err
+	}
+	previewFingerprint, _ := preview.Fingerprint()
+	directFingerprint, _ := direct.Fingerprint()
+	ir, err := CompileIR(direct)
+	if err != nil {
+		return "", false, err
+	}
+	if ir.RenderGraph == nil {
+		return "shared SceneIR graph missing", false, nil
+	}
+	plan := ir.RenderGraph
+	alias := len(plan.Allocations) == 2 && plan.Allocations[0].Slot == plan.Allocations[1].Slot
+	bad := graph
+	bad.Passes = map[ID]RenderPass{"read": {ID: "read", Kind: "copy", Reads: []ID{"hdr"}}}
+	_, diagnostic := CompileRenderGraph(bad)
+	ok := previewFingerprint == directFingerprint && len(plan.Passes) == 3 && alias && diagnostic != nil
+	return fmt.Sprintf("resources=%d passes=%d ordered=%s>%s>%s transientSlots=1 alias=%t readBeforeWriteRejected=%t previewEquivalent=%t sharedSceneIR=true", len(plan.Resources), len(plan.Passes), plan.Passes[0].ID, plan.Passes[1].ID, plan.Passes[2].ID, alias, diagnostic != nil, previewFingerprint == directFingerprint), ok, nil
 }
 
 func certifyAnimationRuntimeFoundation() (string, bool, error) {

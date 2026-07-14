@@ -87,6 +87,7 @@ func DefaultManifest() Manifest {
 			{ID: "human-rig-timeline", Status: "partial", Evidence: "live SceneDoc armature/clip/simulation view plus human set-pose, insert-key, solve-IK, and advance-ticks forms converge on shared revision-safe actions; playhead scrubbing, dope sheet, curve editor, transport, selection, and richer diagnostics remain pending"},
 			{ID: "animation-retargeting", Status: "available", Evidence: "stable validated one-to-one armature maps, automatic or authored scale, rest-relative position/rotation transfer, stable target track IDs, shared propose/direct action, semantic receipt, undo, human timeline form, and browser-free certification"},
 			{ID: "animation-state-machine", Status: "partial", Evidence: "stable states/parameters/transitions, six numeric operators compiled from embedded .arb rules, deterministic priority/ID arbitration, decision traces, exact active-clip sampling, shared parameter/step actions, preview parity, undo, human timeline forms, and browser-free certification; crossfades, masks, blend spaces, layers, root motion, and graph editor remain pending"},
+			{ID: "render-resource-graph", Status: "partial", Evidence: "stable retained resource/pass records, deterministic dependency scheduling, cycle and transient read-before-write diagnostics, exact lifetime intervals, non-overlap alias planning, revision-safe agent action, and shared SceneIR transport; backend execution, MRT/reflections, human editing, leak telemetry, and profiler UI remain pending"},
 		},
 		Actions: ActionCatalog(),
 		NextSlice: []string{

@@ -66,6 +66,13 @@ func CompileIR(document Document) (scene.SceneIR, error) {
 	}
 	ir := props.SceneIR()
 	ir.Schema = scene.SceneIRSchema
+	if document.RenderGraph != nil {
+		plan, err := CompileRenderGraph(*document.RenderGraph)
+		if err != nil {
+			return scene.SceneIR{}, err
+		}
+		ir.RenderGraph = &plan
+	}
 	return ir, nil
 }
 

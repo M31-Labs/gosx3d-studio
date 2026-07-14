@@ -238,6 +238,19 @@ operations are revision-safe and shared by agents and Timeline forms. Crossfade,
 masks, blend spaces, layered graphs, root motion, and a graph editor remain
 partial.
 
+SceneDoc may retain editable render-resource and pass records, but it does not
+own a renderer-only graph. `CompileRenderGraph` validates and deterministically
+lowers those records into `scene.RenderGraphIR` on the canonical GoSX SceneIR.
+The portable plan contains stable resources, a topologically ordered pass
+schedule, and exact transient allocation intervals. Resources declare
+`imported`, `persistent`, or `transient` ownership. Missing references,
+dependency cycles, and transient reads before their first scheduled write are
+rejected. Non-overlapping transient lifetimes share deterministic allocation
+slots; overlapping lifetimes never do. The revision-safe `set-render-graph`
+operation is shared by human adapters and agents. Backend pass execution,
+MRT/reflections, human graph editing, leak telemetry, and profiler visualization
+remain honestly partial.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest

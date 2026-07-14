@@ -29,6 +29,7 @@ type Document struct {
 	Simulations       map[ID]SimulationProfile     `json:"simulations,omitempty"`
 	RetargetMaps      map[ID]RetargetMap           `json:"retargetMaps,omitempty"`
 	AnimationMachines map[ID]AnimationStateMachine `json:"animationMachines,omitempty"`
+	RenderGraph       *RenderGraph                 `json:"renderGraph,omitempty"`
 	Camera            Camera                       `json:"camera"`
 	Environment       Environment                  `json:"environment"`
 	Metadata          map[string]string            `json:"metadata,omitempty"`
