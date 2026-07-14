@@ -386,6 +386,9 @@ func (d Document) Validate() error {
 			if entity.Mesh == nil {
 				return fmt.Errorf("skinned entity %q requires indexed mesh geometry", key)
 			}
+			if len(entity.Mesh.Modifiers) != 0 {
+				return fmt.Errorf("entity %q skin/modifier ordering is not implemented", key)
+			}
 			armature, ok := d.Armatures[entity.Skin.Armature]
 			if !ok {
 				return fmt.Errorf("entity %q references missing armature %q", key, entity.Skin.Armature)

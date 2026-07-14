@@ -58,6 +58,7 @@ func (compiler *IncrementalCompiler) Compile(document Document, selected ID) (sc
 		var material *Material
 		var prefab *PrefabDefinition
 		var asset *AssetRecord
+		var armature *Armature
 		if entity.Mesh != nil {
 			value := document.Materials[entity.Mesh.Material]
 			material = &value
@@ -70,14 +71,19 @@ func (compiler *IncrementalCompiler) Compile(document Document, selected ID) (sc
 			value := document.Assets[entity.Model.Asset]
 			asset = &value
 		}
+		if entity.Skin != nil {
+			value := document.Armatures[entity.Skin.Armature]
+			armature = &value
+		}
 		payload, err := json.Marshal(struct {
 			Entity   Entity
 			Material *Material
 			Prefab   *PrefabDefinition
 			Asset    *AssetRecord
+			Armature *Armature
 			Selected bool
 			Children []string
-		}{entity, material, prefab, asset, id == selected, children})
+		}{entity, material, prefab, asset, armature, id == selected, children})
 		if err != nil {
 			return "", fmt.Errorf("fingerprint entity %q: %w", id, err)
 		}

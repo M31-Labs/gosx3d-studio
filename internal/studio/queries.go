@@ -23,6 +23,20 @@ type ViewportSelection struct {
 	Source   string `json:"source"`
 }
 
+type SkinInspection struct {
+	Revision uint64                `json:"revision"`
+	Report   SkinDeformationReport `json:"report"`
+	Geometry Geometry              `json:"geometry"`
+}
+
+func InspectSkinDeformation(document Document, entity ID) (SkinInspection, error) {
+	geometry, report, err := DeformSkinnedGeometry(document, entity)
+	if err != nil {
+		return SkinInspection{}, err
+	}
+	return SkinInspection{Revision: document.Revision, Report: report, Geometry: geometry}, nil
+}
+
 // ValidateViewportSelection accepts the stable object ID emitted by the
 // mounted Scene3D picker only when it still denotes a visible, pickable mesh in
 // the current canonical document. This prevents stale browser hits from

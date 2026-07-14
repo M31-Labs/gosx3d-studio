@@ -126,7 +126,15 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 	position := toSceneVec(entity.Transform.Position)
 	rotation := toSceneEuler(entity.Transform.Rotation)
 	if entity.Mesh != nil {
-		evaluated, err := evaluateModifiers(entity.Mesh.Geometry, entity.Mesh.Modifiers)
+		authored := entity.Mesh.Geometry
+		var err error
+		if entity.Skin != nil {
+			authored, _, err = deformSkinGeometry(document, entity, runtimeID)
+			if err != nil {
+				return nil, fmt.Errorf("entity %q: %w", runtimeID, err)
+			}
+		}
+		evaluated, err := evaluateModifiers(authored, entity.Mesh.Modifiers)
 		if err != nil {
 			return nil, fmt.Errorf("entity %q: %w", runtimeID, err)
 		}

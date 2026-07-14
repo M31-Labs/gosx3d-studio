@@ -192,9 +192,15 @@ two-bone IK constraint records, and stable transform clips. `set-bone-pose`,
 `set-animation-key`, and deterministic CPU `solve-ik` use the same propose/direct revision-safe transaction path
 as human-authored state, including semantic rig/animation receipts and undo.
 Exact-time sampling is deterministic and writes articulated part transforms
-into a cloned SceneDoc before compiling through typed Scene3D and shared
-SceneIR. This foundation deliberately does not claim deforming skin execution,
-weight-paint UI, retargeting, animation state machines, or physics
+and bone poses into a cloned SceneDoc. Hierarchical rest and pose matrices,
+inverse-bind transforms, and normalized one-to-four bone influences evaluate
+linear-blend positions and normals without mutating authored geometry. The
+deformed indexed mesh preserves stable IDs, faces, and UVs and compiles through
+typed `BufferGeometry` and shared SceneIR; incremental fingerprints include the
+referenced armature so pose changes cannot reuse stale nodes. Skin/modifier
+ordering currently fails explicitly rather than guessing. This foundation
+deliberately does not claim weight-paint UI, dual-quaternion skinning,
+retargeting, animation state machines, or physics
 interaction yet; those remain partial and are named in certification evidence.
 
 Proposals do not mutate. Direct operations require an exact revision and append

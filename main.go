@@ -147,6 +147,14 @@ func main() {
 		}
 		return studio.AnalyzeEntityCurve(document, studio.ID(ctx.Request.URL.Query().Get("target")))
 	})
+	app.API("GET /api/studio/rig/skin", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		return studio.InspectSkinDeformation(document, studio.ID(ctx.Request.URL.Query().Get("target")))
+	})
 	app.API("POST /api/studio/selection", func(ctx *server.Context) (any, error) {
 		if err := authorizeAction(ctx.Request, actionToken); err != nil {
 			return nil, err

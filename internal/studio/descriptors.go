@@ -138,7 +138,7 @@ func Certification() CertificationReport {
 		"csg":              {ID: "csg", Status: "partial", Evidence: "bounded deterministic voxel union/intersection/subtraction is certified for closed manifold meshes; analytic and interactive CSG tooling pending"},
 		"materials":        {ID: "materials", Status: "partial", Evidence: "validated PBR/Selena shared actions and last-good shader preservation are certified; texture/node/bake/human tooling pending"},
 		"prefabs":          {ID: "prefabs", Status: "partial", Evidence: "linked stable instances, overrides, provenance, incremental invalidation, and shared actions are certified; nested/variant/package tooling pending"},
-		"riggingAnimation": {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, skin weights, bone poses, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, and SceneIR-compatible articulated entity lowering are certified; deforming skin renderer, editors, retargeting, state machines, and physics remain pending"},
+		"riggingAnimation": {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, normalized skin weights, hierarchical linear-blend deformation, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, incremental invalidation, and typed SceneIR lowering are certified; editors, retargeting, state machines, dual-quaternion skinning, and physics remain pending"},
 	}}
 }
 

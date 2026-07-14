@@ -1,6 +1,7 @@
 package studio
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -232,6 +233,11 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	firstFingerprint, _ := evaluated.Fingerprint()
 	secondFingerprint, _ := repeated.Fingerprint()
 	_, compileErr := Compile(evaluated)
+	deformed, deformation, deformationErr := DeformSkinnedGeometry(evaluated, "skinned")
+	authoredIR, authoredCompileErr := Compile(document)
+	deformedIR, deformedCompileErr := Compile(evaluated)
+	authoredIRJSON, _ := json.Marshal(authoredIR.SceneIR())
+	deformedIRJSON, _ := json.Marshal(deformedIR.SceneIR())
 	workspace, err := NewWorkspace(document)
 	if err != nil {
 		return "", false, err
@@ -252,8 +258,9 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	directFingerprint, _ := direct.Fingerprint()
 	ikResult, _, ikErr := SolveTwoBoneIK(document, "arm", "reach-ik")
 	semanticReceipt := len(directReceipt.RigChanges) == 3 && len(directReceipt.AnimationChanges) == 1
-	ok := firstFingerprint == secondFingerprint && reflect.DeepEqual(first, second) && compileErr == nil && previewFingerprint == directFingerprint && semanticReceipt && len(previewReceipt.RigChanges) == 3 && ikErr == nil && ikResult.Error < 1e-8
-	return fmt.Sprintf("armatures=1 bones=3 normalizedWeights=3 ik=two-bone-cpu ikError=%.9f clips=1 sample=0.5 deterministic=%t agentActor=%s previewEquivalent=%t semanticRigReceipt=%t sceneIR=%t", ikResult.Error, firstFingerprint == secondFingerprint, directReceipt.Actor, previewFingerprint == directFingerprint, semanticReceipt, compileErr == nil), ok, nil
+	skinOK := deformationErr == nil && authoredCompileErr == nil && deformedCompileErr == nil && len(deformed.Vertices) == 3 && deformation.MovedVertices > 0 && !bytes.Equal(authoredIRJSON, deformedIRJSON)
+	ok := firstFingerprint == secondFingerprint && reflect.DeepEqual(first, second) && compileErr == nil && previewFingerprint == directFingerprint && semanticReceipt && len(previewReceipt.RigChanges) == 3 && ikErr == nil && ikResult.Error < 1e-8 && skinOK
+	return fmt.Sprintf("armatures=1 bones=3 normalizedWeights=3 skin=LBS movedVertices=%d maxDelta=%.9f sceneIRChanged=%t ik=two-bone-cpu ikError=%.9f clips=1 sample=0.5 deterministic=%t agentActor=%s previewEquivalent=%t semanticRigReceipt=%t sceneIR=%t", deformation.MovedVertices, deformation.MaximumDelta, !bytes.Equal(authoredIRJSON, deformedIRJSON), ikResult.Error, firstFingerprint == secondFingerprint, directReceipt.Actor, previewFingerprint == directFingerprint, semanticReceipt, compileErr == nil), ok, nil
 }
 
 func certifyAssetPipeline(document Document) (ID, string, bool, error) {

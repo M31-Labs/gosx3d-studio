@@ -48,6 +48,8 @@ released GoSX version.
   contract.
 - `GET /api/studio/document` for the current canonical SceneDoc snapshot.
 - `GET /api/studio/scene-ir` for the shared compiled SceneIR snapshot.
+- `GET /api/studio/rig/skin?target=<stable-id>` for revision-tagged,
+  browser-free deformed geometry and influence telemetry.
 - `GET /api/studio/actions`, `/descriptors`, and `/certification` for discovery.
 - `GET /api/studio/project/status` plus authenticated
   `POST /api/studio/project/save` for explicit-save and recovery state.
