@@ -96,6 +96,11 @@ func inspectAsset(path string, data []byte) (AssetRecord, error) {
 			return AssetRecord{}, fmt.Errorf("invalid GLB header version=%d declared=%d actual=%d", version, declared, len(data))
 		}
 		metadata["gltfVersion"] = "2"
+		inspection, err := InspectGLTF(data, "glb")
+		if err != nil {
+			return AssetRecord{}, err
+		}
+		applyGLTFMetadata(metadata, inspection)
 	case extension == "gltf":
 		var root map[string]any
 		if err := json.Unmarshal(data, &root); err != nil {
@@ -108,6 +113,11 @@ func inspectAsset(path string, data []byte) (AssetRecord, error) {
 		}
 		format, kind, media = "gltf", "model", "model/gltf+json"
 		metadata["gltfVersion"] = version
+		inspection, err := InspectGLTF(data, "gltf")
+		if err != nil {
+			return AssetRecord{}, err
+		}
+		applyGLTFMetadata(metadata, inspection)
 	case len(data) >= 8 && string(data[:8]) == "\x89PNG\r\n\x1a\n":
 		format, kind, media = "png", "image", "image/png"
 	case len(data) >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff:
@@ -143,6 +153,17 @@ func inspectAsset(path string, data []byte) (AssetRecord, error) {
 	id := ID("asset-sha256-" + hash)
 	storePath := filepath.ToSlash(filepath.Join("assets", "sha256", hash+"."+format))
 	return AssetRecord{ID: id, Kind: kind, Format: format, MediaType: media, ContentHash: hash, Bytes: int64(len(data)), URI: "/api/studio/assets/content/" + string(id), StorePath: storePath, SourceName: name, Metadata: metadata}, nil
+}
+
+func applyGLTFMetadata(metadata map[string]string, inspection GLTFInspection) {
+	metadata["gltfMatrixSchema"] = GLTFMatrixSchema
+	metadata["gltfInspectionSchema"] = inspection.Schema
+	metadata["gltfCompatibilityFingerprint"] = inspection.Fingerprint
+	metadata["gltfExtensionsUsed"] = strings.Join(inspection.ExtensionsUsed, ",")
+	metadata["gltfExtensionsRequired"] = strings.Join(inspection.ExtensionsRequired, ",")
+	for _, target := range inspection.Targets {
+		metadata["gltfTarget."+target.Target] = target.Status
+	}
 }
 
 func (w *Workspace) ImportAsset(request AssetImportRequest) (Receipt, Document, AssetRecord, error) {

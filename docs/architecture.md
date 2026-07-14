@@ -251,6 +251,19 @@ operation is shared by human adapters and agents. Backend pass execution,
 MRT/reflections, human graph editing, leak telemetry, and profiler visualization
 remain honestly partial.
 
+glTF and GLB imports pass through a versioned compatibility control plane before
+they become content-addressed asset records. GLB inspection reads and validates
+the JSON chunk instead of trusting only its twelve-byte header. Used and
+required extensions are canonicalized separately, checked against target rows
+for SceneIR, native/headless, WebGPU, and WebGL, and hashed into a stable
+compatibility fingerprint. A required extension is compatible only when its
+target row is `available`; partial, planned, unknown, and migration-only rows
+remain incompatible until their actual conversion or decoder path exists.
+Optional gaps produce explicit degradation. The stable corpus manifest gives
+each equivalence, migration, degradation, or unsupported-required proof a
+domain-addressable ID. Matrix and corpus are exposed at
+`/api/studio/gltf/capabilities` and `/api/studio/gltf/corpus`.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest

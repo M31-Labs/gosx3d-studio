@@ -229,7 +229,36 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m2-render-resource-graph", renderGraphOK, renderGraphEvidence)
+	gltfEvidence, gltfOK, err := certifyGLTFCompatibility()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m2-gltf-capability-matrix", gltfOK, gltfEvidence)
 	return report, nil
+}
+
+func certifyGLTFCompatibility() (string, bool, error) {
+	payload := []byte(`{"asset":{"version":"2.0"},"extensionsUsed":["EXT_meshopt_compression","KHR_draco_mesh_compression","KHR_materials_unlit"],"extensionsRequired":["KHR_draco_mesh_compression"]}`)
+	inspection, err := InspectGLTF(payload, "gltf")
+	if err != nil {
+		return "", false, err
+	}
+	incompatible := true
+	for _, target := range inspection.Targets {
+		incompatible = incompatible && target.Status == "incompatible"
+	}
+	optional, err := InspectGLTF([]byte(`{"asset":{"version":"2.0"},"extensionsUsed":["EXT_meshopt_compression"]}`), "gltf")
+	if err != nil {
+		return "", false, err
+	}
+	degraded := true
+	for _, target := range optional.Targets {
+		degraded = degraded && target.Status == "degraded"
+	}
+	matrix := DefaultGLTFCapabilityMatrix()
+	corpus := DefaultGLTFCorpusManifest()
+	ok := len(matrix.Entries) >= 20 && len(corpus.Cases) >= 7 && incompatible && degraded && inspection.Fingerprint != ""
+	return fmt.Sprintf("schema=%s targets=%d extensions=%d corpusCases=%d requiredDracoRejected=%t optionalMeshoptDegraded=%t fingerprint=%s", matrix.Schema, len(matrix.Targets), len(matrix.Entries), len(corpus.Cases), incompatible, degraded, shortHash(inspection.Fingerprint)), ok, nil
 }
 
 func certifyRenderGraphFoundation(document Document) (string, bool, error) {

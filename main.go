@@ -86,6 +86,16 @@ func main() {
 		ctx.CacheTag("studio-manifest")
 		return studio.DefaultManifest(), nil
 	})
+	app.API("GET /api/studio/gltf/capabilities", func(ctx *server.Context) (any, error) {
+		ctx.CachePublic(30 * time.Second)
+		ctx.CacheTag("studio-gltf-capabilities")
+		return studio.DefaultGLTFCapabilityMatrix(), nil
+	})
+	app.API("GET /api/studio/gltf/corpus", func(ctx *server.Context) (any, error) {
+		ctx.CachePublic(30 * time.Second)
+		ctx.CacheTag("studio-gltf-corpus")
+		return studio.DefaultGLTFCorpusManifest(), nil
+	})
 	app.API("GET /api/studio/document", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
 		return workspace.Snapshot()

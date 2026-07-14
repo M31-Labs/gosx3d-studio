@@ -10,13 +10,14 @@ import (
 )
 
 func testGLB() []byte {
-	data := make([]byte, 24)
+	jsonChunk := []byte(`{"asset":{"version":"2.0"}} `)
+	data := make([]byte, 20+len(jsonChunk))
 	copy(data[:4], "glTF")
 	binary.LittleEndian.PutUint32(data[4:8], 2)
 	binary.LittleEndian.PutUint32(data[8:12], uint32(len(data)))
-	binary.LittleEndian.PutUint32(data[12:16], 4)
+	binary.LittleEndian.PutUint32(data[12:16], uint32(len(jsonChunk)))
 	copy(data[16:20], "JSON")
-	copy(data[20:], "{}  ")
+	copy(data[20:], jsonChunk)
 	return data
 }
 
