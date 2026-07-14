@@ -37,7 +37,7 @@ func DefaultManifest() Manifest {
 			{ID: "hierarchy", Label: "Scene Hierarchy", Status: "available"},
 			{ID: "viewport", Label: "Scene3D Viewport", Status: "available"},
 			{ID: "inspector", Label: "Inspector", Status: "partial"},
-			{ID: "timeline", Label: "Timeline", Status: "scaffolded"},
+			{ID: "timeline", Label: "Timeline", Status: "partial"},
 			{ID: "telemetry", Label: "Telemetry", Status: "scaffolded"},
 			{ID: "agent-actions", Label: "Agent Actions", Status: "api-partial"},
 		},
@@ -81,8 +81,10 @@ func DefaultManifest() Manifest {
 			{ID: "agent-actions", Status: "partial", Evidence: "authenticated discovery, semantic preview/direct receipts, undo and redo APIs"},
 			{ID: "desktop-host", Status: "partial", Evidence: "Windows-default WebView2 entrypoint, native project/asset dialogs, native menus, bridge wiring, loopback server, offline PE cross-build, and staged MSIX manifest; Windows runtime, MakeAppx, signing, install, update, and recovery evidence pending"},
 			{ID: "native-project-open", Status: "partial", Evidence: "native gosxDesktop OpenFile bridge, canonical-path validation, dirty-discard policy, revision safety, agent endpoint, and switch tests; live Windows dialog evidence pending"},
-			{ID: "rig-animation-foundation", Status: "partial", Evidence: "stable three-bone armature graph, normalized four-influence skin contract, hierarchical linear-blend deformation, deterministic two-bone CPU IK, bone pose/animation-key/IK actions, semantic receipts, deterministic transform sampling, armature-aware incremental invalidation, typed SceneIR lowering, undo, and browser-free certification; editors, retargeting, state machines, dual-quaternion skinning, and physics interaction remain pending"},
+			{ID: "rig-animation-foundation", Status: "partial", Evidence: "stable three-bone armature graph, normalized four-influence skin contract, hierarchical linear-blend deformation, deterministic two-bone CPU IK, bone pose/animation-key/IK actions, semantic receipts, deterministic transform sampling, recorded fixed-step physics interaction, armature-aware incremental invalidation, typed SceneIR lowering, undo, and browser-free certification; richer editors, retargeting, state machines, dual-quaternion skinning, and advanced physics remain pending"},
 			{ID: "linear-blend-skinning", Status: "available", Evidence: "hierarchical rest/pose matrices, inverse bind transforms, normalized one-to-four influence blending, normal deformation, stable topology/UV preservation, non-mutating evaluation, armature-aware incremental invalidation, typed BufferGeometry/SceneIR lowering, and browser-free deterministic certification"},
+			{ID: "fixed-step-physics", Status: "available", Evidence: "stable body/profile schemas, 60 Hz semi-implicit Euler reference, gravity, sphere/plane contact response, tick-addressed impulse recording, exact state hashes, replay divergence detection, shared propose/direct simulate action, semantic receipt, undo, human timeline control, and browser-free certification"},
+			{ID: "human-rig-timeline", Status: "partial", Evidence: "live SceneDoc armature/clip/simulation view plus human set-pose, insert-key, solve-IK, and advance-ticks forms converge on shared revision-safe actions; playhead scrubbing, dope sheet, curve editor, transport, selection, and richer diagnostics remain pending"},
 		},
 		Actions: ActionCatalog(),
 		NextSlice: []string{
@@ -91,7 +93,7 @@ func DefaultManifest() Manifest {
 			"complete external asset dependency packaging, thumbnails, optimization, conversion, automatic file watching, and garbage collection",
 			"bind M1 human tools through the normalized action catalog",
 			"package and recovery-test the Windows desktop host",
-			"complete the articulated proof with timeline tooling, retargeting, state machines, and physics interaction",
+			"complete timeline transport/scrubbing, retargeting, state machines, and advanced physics authoring",
 		},
 	}
 }

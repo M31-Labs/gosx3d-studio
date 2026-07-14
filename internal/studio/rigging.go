@@ -103,11 +103,19 @@ func ArticulatedProofDocument() Document {
 	skinned.Skin = &SkinComponent{Armature: "arm", Weights: map[ID][]VertexInfluence{
 		"v0": {{Bone: "root", Weight: 1}}, "v1": {{Bone: "lower", Weight: 1}}, "v2": {{Bone: "tip", Weight: 1}},
 	}}
-	root.Children = append(root.Children, upper.ID, forearm.ID, skinned.ID)
+	ground := meshEntity("physics-ground", "Physics ground", Vec3{}, Geometry{Kind: "plane", Width: 4, Height: 4}, "pedestal-material", true)
+	ground.Parent = root.ID
+	ground.Physics = &PhysicsBody{Kind: "static", Collider: Collider{Kind: "plane", Normal: Vec3{Y: 1}}}
+	payload := meshEntity("physics-payload", "Physics payload", Vec3{X: 0.5, Y: 3}, Geometry{Kind: "sphere", Radius: 0.2, Segments: 16}, "player-1-material", true)
+	payload.Parent = root.ID
+	payload.Physics = &PhysicsBody{Kind: "dynamic", Mass: 1, GravityScale: 1, Restitution: 0.35, Collider: Collider{Kind: "sphere", Radius: 0.2}}
+	root.Children = append(root.Children, upper.ID, forearm.ID, skinned.ID, ground.ID, payload.ID)
 	document.Entities[root.ID] = root
 	document.Entities[upper.ID] = upper
 	document.Entities[forearm.ID] = forearm
 	document.Entities[skinned.ID] = skinned
+	document.Entities[ground.ID] = ground
+	document.Entities[payload.ID] = payload
 	document.Armatures = map[ID]Armature{"arm": {ID: "arm", Name: "Robot arm", RootBones: []ID{"root"}, Bones: map[ID]Bone{
 		"root":  {ID: "root", Name: "Shoulder", Children: []ID{"lower"}, Rest: IdentityTransform(), Entity: upper.ID},
 		"lower": {ID: "lower", Name: "Elbow", Parent: "root", Children: []ID{"tip"}, Rest: Transform{Position: Vec3{Y: 1}, Scale: Vec3{X: 1, Y: 1, Z: 1}}, Entity: forearm.ID},
@@ -119,6 +127,7 @@ func ArticulatedProofDocument() Document {
 	document.Animations = map[ID]AnimationClip{"reach": {ID: "reach", Name: "Reach", Duration: 1, Tracks: map[ID]TransformTrack{
 		"lower-track": {ID: "lower-track", Armature: "arm", Bone: "lower", Keys: []TransformKey{{Time: 0, Transform: start}, {Time: 1, Transform: end}}},
 	}}}
+	document.Simulations = map[ID]SimulationProfile{"articulated-physics": {ID: "articulated-physics", Name: "Articulated payload interaction", TickRate: 60, Gravity: Vec3{Y: -9.81}, Bodies: []ID{ground.ID, payload.ID}}}
 	return document
 }
 

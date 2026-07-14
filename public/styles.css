@@ -899,6 +899,64 @@ time,
 .track-line.runtime i { background: var(--color-runtime); left: 35%; }
 .track-line.runtime i:nth-child(2) { left: 72%; }
 
+.timeline-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+  overflow: auto;
+}
+
+.timeline-form {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-xs);
+  align-items: end;
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.timeline-form strong {
+  grid-column: 1 / -1;
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  font-weight: 600;
+}
+
+.timeline-form label {
+  display: grid;
+  gap: var(--space-2xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+}
+
+.timeline-form input {
+  min-width: 0;
+  padding: var(--space-2xs) var(--space-xs);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-panel-sunken);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.timeline-form button {
+  min-height: 1.75rem;
+  padding: var(--space-2xs) var(--space-xs);
+  border-color: color-mix(in srgb, var(--color-author) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-author) 14%, var(--color-panel));
+  color: var(--color-text-primary);
+}
+
+.timeline-form.compact {
+  grid-template-columns: 1fr auto;
+}
+
+.timeline-form.compact strong {
+  grid-column: 1 / -1;
+}
+
 .agent-panel {
   display: flex;
   flex-direction: column;

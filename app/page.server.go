@@ -223,6 +223,125 @@ func executeHumanModifierOperation(workspace *studio.Workspace, values map[strin
 	return receipt, err
 }
 
+func executeHumanBonePose(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	document, err := workspace.Snapshot()
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	armatureID, boneID := studio.ID(strings.TrimSpace(values["armatureId"])), studio.ID(strings.TrimSpace(values["boneId"]))
+	armature, ok := document.Armatures[armatureID]
+	if !ok {
+		return studio.Receipt{}, fmt.Errorf("armature %q does not exist", armatureID)
+	}
+	bone, ok := armature.Bones[boneID]
+	if !ok {
+		return studio.Receipt{}, fmt.Errorf("bone %q does not exist", boneID)
+	}
+	pose := bone.Rest
+	if value, exists := armature.Pose[boneID]; exists {
+		pose = value
+	}
+	pose.Rotation, err = parseHumanVec3(values, "rx", "ry", "rz")
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-bone-pose-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSetBonePose, ArmatureID: armatureID, BoneID: boneID, Transform: &pose}}})
+	return receipt, err
+}
+
+func executeHumanAnimationKey(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	document, err := workspace.Snapshot()
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	clipID, trackID := studio.ID(strings.TrimSpace(values["clipId"])), studio.ID(strings.TrimSpace(values["trackId"]))
+	clip, ok := document.Animations[clipID]
+	if !ok {
+		return studio.Receipt{}, fmt.Errorf("animation %q does not exist", clipID)
+	}
+	track, ok := clip.Tracks[trackID]
+	if !ok || len(track.Keys) == 0 {
+		return studio.Receipt{}, fmt.Errorf("track %q does not exist", trackID)
+	}
+	keyTime, err := strconv.ParseFloat(strings.TrimSpace(values["time"]), 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("time: %w", err)
+	}
+	transform := track.Keys[0].Transform
+	transform.Rotation, err = parseHumanVec3(values, "rx", "ry", "rz")
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	key := studio.TransformKey{Time: keyTime, Transform: transform}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-animation-key-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSetAnimationKey, ClipID: clipID, TrackID: trackID, Key: &key}}})
+	return receipt, err
+}
+
+func executeHumanSolveIK(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-solve-ik-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSolveIK, ArmatureID: studio.ID(strings.TrimSpace(values["armatureId"])), ConstraintID: studio.ID(strings.TrimSpace(values["constraintId"]))}}})
+	return receipt, err
+}
+
+func executeHumanSimulation(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	ticks, err := strconv.ParseUint(strings.TrimSpace(values["ticks"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("ticks: %w", err)
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-simulate-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSimulateTicks, SimulationID: studio.ID(strings.TrimSpace(values["simulationId"])), Ticks: ticks}}})
+	return receipt, err
+}
+
+func parseHumanVec3(values map[string]string, xName, yName, zName string) (studio.Vec3, error) {
+	parse := func(name string) (float64, error) {
+		value, err := strconv.ParseFloat(strings.TrimSpace(values[name]), 64)
+		if err != nil {
+			return 0, fmt.Errorf("%s: %w", name, err)
+		}
+		return value, nil
+	}
+	x, err := parse(xName)
+	if err != nil {
+		return studio.Vec3{}, err
+	}
+	y, err := parse(yName)
+	if err != nil {
+		return studio.Vec3{}, err
+	}
+	z, err := parse(zName)
+	if err != nil {
+		return studio.Vec3{}, err
+	}
+	return studio.Vec3{X: x, Y: y, Z: z}, nil
+}
+
 func currentSelection(requested string) (studio.Document, studio.ID, error) {
 	document, err := currentDocument()
 	if err != nil {
@@ -328,6 +447,38 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["target"])
 				return nil
 			},
+			"setBonePose": func(ctx *action.Context) error {
+				if _, err := executeHumanBonePose(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"rig": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
+			"setAnimationKey": func(ctx *action.Context) error {
+				if _, err := executeHumanAnimationKey(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"animation": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
+			"solveIK": func(ctx *action.Context) error {
+				if _, err := executeHumanSolveIK(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"rig": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
+			"simulateTicks": func(ctx *action.Context) error {
+				if _, err := executeHumanSimulation(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"simulation": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
 		},
 		Load: func(ctx *route.RouteContext, page route.FilePage) (any, error) {
 			appName := os.Getenv("APP_NAME")
@@ -356,6 +507,7 @@ func init() {
 				"project":       projectView(boundWorkspace()),
 				"assets":        assetView(document, boundWorkspace()),
 				"assetCount":    fmt.Sprint(len(document.Assets)),
+				"timeline":      timelineView(document),
 			}, nil
 		},
 		Metadata: func(ctx *route.RouteContext, page route.FilePage, data any) (server.Metadata, error) {

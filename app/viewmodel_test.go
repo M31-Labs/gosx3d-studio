@@ -31,3 +31,10 @@ func TestHierarchyAndInspectorReflectCanonicalDocument(t *testing.T) {
 		t.Fatalf("inspector = %#v", inspector)
 	}
 }
+
+func TestTimelineViewReflectsCanonicalRigClipAndSimulation(t *testing.T) {
+	view := timelineView(studio.ArticulatedProofDocument())
+	if view["armatureId"] != "arm" || view["clipId"] != "reach" || view["trackId"] != "lower-track" || view["simulationId"] != "articulated-physics" || view["tickRate"] != "60" {
+		t.Fatalf("timeline view = %#v", view)
+	}
+}

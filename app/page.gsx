@@ -316,30 +316,60 @@ func Page() Node {
 			<section class="timeline-panel" aria-labelledby="timeline-title">
 				<header class="panel-heading">
 					<h2 id="timeline-title">Timeline</h2>
-					<span class="panel-note">Scaffold tracks</span>
+					<span class="panel-note">{data.timeline.state}</span>
 				</header>
 				<div class="timeline-ruler">
-					<span>0</span>
-					<span>24</span>
-					<span>48</span>
-					<span>72</span>
-					<span>96</span>
-					<span>120</span>
+					<span>0.000</span>
+					<span>Clip</span>
+					<span>{data.timeline.clipName}</span>
+					<span>{data.timeline.duration}s</span>
+					<span>{data.timeline.tickRate} Hz</span>
+					<span>rev {data.revision}</span>
 				</div>
-				<div class="track">
-					<strong>Transform</strong>
-					<div class="track-line">
-						<i></i>
-						<i></i>
-						<i></i>
-					</div>
-				</div>
-				<div class="track">
-					<strong>Agent Events</strong>
-					<div class="track-line runtime">
-						<i></i>
-						<i></i>
-					</div>
+				<div class="timeline-tools">
+					<form method="post" action={actionPath("setBonePose")} class="timeline-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="armatureId" value={data.timeline.armatureId}></input>
+						<input type="hidden" name="boneId" value={data.timeline.boneId}></input>
+						<strong>Pose · {data.timeline.boneName}</strong>
+						<label>RX <input name="rx" value={data.timeline.rx} inputmode="decimal"></input></label>
+						<label>RY <input name="ry" value={data.timeline.ry} inputmode="decimal"></input></label>
+						<label>RZ <input name="rz" value={data.timeline.rz} inputmode="decimal"></input></label>
+						<button type="submit">Set pose</button>
+					</form>
+					<form method="post" action={actionPath("setAnimationKey")} class="timeline-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="clipId" value={data.timeline.clipId}></input>
+						<input type="hidden" name="trackId" value={data.timeline.trackId}></input>
+						<strong>Key · {data.timeline.clipName}</strong>
+						<label>Time <input name="time" value={data.timeline.keyTime} inputmode="decimal"></input></label>
+						<label>RX <input name="rx" value={data.timeline.rx} inputmode="decimal"></input></label>
+						<label>RY <input name="ry" value={data.timeline.ry} inputmode="decimal"></input></label>
+						<label>RZ <input name="rz" value={data.timeline.rz} inputmode="decimal"></input></label>
+						<button type="submit">Insert key</button>
+					</form>
+					<form method="post" action={actionPath("solveIK")} class="timeline-form compact">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="armatureId" value={data.timeline.armatureId}></input>
+						<input type="hidden" name="constraintId" value={data.timeline.constraintId}></input>
+						<strong>IK · {data.timeline.constraintId}</strong>
+						<button type="submit">Solve deterministically</button>
+					</form>
+					<form method="post" action={actionPath("simulateTicks")} class="timeline-form compact">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="simulationId" value={data.timeline.simulationId}></input>
+						<strong>Sim · {data.timeline.simulationName}</strong>
+						<label>Ticks <input name="ticks" value={data.timeline.ticks} inputmode="numeric"></input></label>
+						<button type="submit">Advance fixed ticks</button>
+					</form>
 				</div>
 			</section>
 			<aside class="agent-panel" aria-labelledby="agent-title">

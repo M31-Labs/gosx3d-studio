@@ -38,6 +38,8 @@ func ActionDescriptors() []ActionDescriptor {
 	descriptions[OpSetBonePose] = "Pose a stable armature bone and its bound articulated entity."
 	descriptions[OpSetAnimationKey] = "Insert or replace a deterministic transform key on a stable animation track."
 	descriptions[OpSolveIK] = "Solve a stable two-bone IK constraint with the deterministic CPU reference evaluator."
+	descriptions[OpSetPhysicsBody] = "Set a validated rigid-body and collider component on a stable entity."
+	descriptions[OpSimulateTicks] = "Advance a deterministic fixed-step simulation with recorded inputs."
 	required := map[OperationKind][]string{OpSetField: {"target", "field", "value"}, OpSetTransform: {"target", "transform"}, OpAssignMaterial: {"target", "material"}, OpRenameEntity: {"target", "name"}, OpCreateEntity: {"entity"}, OpDeleteEntity: {"target"}, OpReparentEntity: {"target", "parent"}, OpDuplicateEntity: {"target", "newId"}, OpExtrudeFaces: {"target", "faces", "distance"}, OpInsetFaces: {"target", "faces", "amount"}, OpTriangulateFaces: {"target", "faces"}, OpWeldVertices: {"target", "vertices", "tolerance"}, OpFillFace: {"target", "vertices", "newId"}, OpRecalculateNormals: {"target"}, OpProjectPlanarUV: {"target", "projection"}, OpDissolveEdges: {"target", "edges"}, OpBridgeLoops: {"target", "loops", "newId", "closed"}, OpLoopCut: {"target", "edges", "amount", "newId"}, OpSetCurveControlPoint: {"target", "controlPoint"}}
 	required[OpSetModifier] = []string{"target", "modifier"}
 	required[OpRemoveModifier] = []string{"target", "modifierId"}
@@ -56,6 +58,8 @@ func ActionDescriptors() []ActionDescriptor {
 	required[OpSetBonePose] = []string{"armatureId", "boneId", "transform"}
 	required[OpSetAnimationKey] = []string{"clipId", "trackId", "key"}
 	required[OpSolveIK] = []string{"armatureId", "constraintId"}
+	required[OpSetPhysicsBody] = []string{"target", "physics"}
+	required[OpSimulateTicks] = []string{"simulationId", "ticks"}
 	out := make([]ActionDescriptor, 0, len(descriptions))
 	for _, capability := range ActionCatalog() {
 		kind := OperationKind(capability.ID)
@@ -86,6 +90,7 @@ func operationSchemaProperties() map[string]any {
 		"armatureId": map[string]any{"type": "string", "minLength": 1}, "boneId": map[string]any{"type": "string", "minLength": 1},
 		"clipId": map[string]any{"type": "string", "minLength": 1}, "trackId": map[string]any{"type": "string", "minLength": 1}, "key": map[string]any{"type": "object"},
 		"constraintId": map[string]any{"type": "string", "minLength": 1},
+		"physics":      map[string]any{"type": "object"}, "simulationId": map[string]any{"type": "string", "minLength": 1}, "ticks": map[string]any{"type": "integer", "minimum": 1, "maximum": 1000000}, "inputs": map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
 	}
 	return properties
 }
@@ -111,6 +116,8 @@ func ComponentCatalog() []ComponentDescriptor {
 		{Type: "armature", Version: 1, Fields: []FieldDescriptor{{Name: "bones", Type: "bone-graph", Editable: true, Semantic: "rigging"}, {Name: "pose", Type: "bone-transforms", Editable: true, Semantic: "animation"}, {Name: "constraints", Type: "constraint-list", Editable: true, Semantic: "runtime"}}},
 		{Type: "skin", Version: 1, Fields: []FieldDescriptor{{Name: "armature", Type: "armature-ref", Editable: true, Semantic: "rigging"}, {Name: "weights", Type: "vertex-influences", Editable: true, Semantic: "deformation"}}},
 		{Type: "animation", Version: 1, Fields: []FieldDescriptor{{Name: "tracks", Type: "transform-tracks", Editable: true, Semantic: "animation"}, {Name: "duration", Type: "seconds", Editable: true, Semantic: "animation"}}},
+		{Type: "physics", Version: 1, Fields: []FieldDescriptor{{Name: "kind", Type: "enum", Editable: true, Semantic: "simulation"}, {Name: "mass", Type: "number", Editable: true, Semantic: "simulation"}, {Name: "velocity", Type: "vec3", Editable: true, Semantic: "runtime"}, {Name: "collider", Type: "collider", Editable: true, Semantic: "simulation"}}},
+		{Type: "simulation", Version: 1, Fields: []FieldDescriptor{{Name: "tickRate", Type: "integer", Editable: true, Semantic: "simulation"}, {Name: "gravity", Type: "vec3", Editable: true, Semantic: "simulation"}, {Name: "bodies", Type: "entity-refs", Editable: true, Semantic: "simulation"}}},
 	}
 }
 
@@ -138,7 +145,8 @@ func Certification() CertificationReport {
 		"csg":              {ID: "csg", Status: "partial", Evidence: "bounded deterministic voxel union/intersection/subtraction is certified for closed manifold meshes; analytic and interactive CSG tooling pending"},
 		"materials":        {ID: "materials", Status: "partial", Evidence: "validated PBR/Selena shared actions and last-good shader preservation are certified; texture/node/bake/human tooling pending"},
 		"prefabs":          {ID: "prefabs", Status: "partial", Evidence: "linked stable instances, overrides, provenance, incremental invalidation, and shared actions are certified; nested/variant/package tooling pending"},
-		"riggingAnimation": {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, normalized skin weights, hierarchical linear-blend deformation, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, incremental invalidation, and typed SceneIR lowering are certified; editors, retargeting, state machines, dual-quaternion skinning, and physics remain pending"},
+		"riggingAnimation": {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, normalized skin weights, hierarchical linear-blend deformation, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, incremental invalidation, typed SceneIR lowering, and a recorded physics interaction are certified; editors, retargeting, state machines, dual-quaternion skinning, and advanced physics remain pending"},
+		"simulation":       {ID: "simulation", Status: "partial", Evidence: "stable physics bodies, sphere/plane colliders, fixed-step gravity/contact response, tick-addressed impulses, exact snapshots, recording/replay, shared simulate actions, and browser-free evidence are available; general rigid-body pairs, constraints, broad phase, CCD, fields, particles, audio, caches, and runtime editors remain pending"},
 	}}
 }
 

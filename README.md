@@ -62,6 +62,8 @@ released GoSX version.
   conflicts, undo/redo, checksummed append-only journals, corrupt-save
   quarantine, and explicit atomic `.scene3d` saves.
 - Browser-free PNG and exact ray evidence through `cmd/studio-smoke`.
+- Deterministic 60 Hz physics recording/replay, contact evidence, exact state
+  hashes, and shared `simulate-ticks` transactions in the articulated proof.
 - Byte-deterministic combined M0/M1/M2-foundation certification through `cmd/studio-certify`,
   including SceneDoc/source-map, incremental equivalence, frame, exact-pick,
   Selena WGSL/GLSL artifacts, topology/assets/prefabs, and deterministic

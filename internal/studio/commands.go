@@ -61,6 +61,8 @@ const (
 	OpSetBonePose          OperationKind = "set-bone-pose"
 	OpSetAnimationKey      OperationKind = "set-animation-key"
 	OpSolveIK              OperationKind = "solve-ik"
+	OpSetPhysicsBody       OperationKind = "set-physics-body"
+	OpSimulateTicks        OperationKind = "simulate-ticks"
 )
 
 type Transaction struct {
@@ -113,29 +115,34 @@ type Operation struct {
 	ClipID          ID                    `json:"clipId,omitempty"`
 	TrackID         ID                    `json:"trackId,omitempty"`
 	ConstraintID    ID                    `json:"constraintId,omitempty"`
+	Physics         *PhysicsBody          `json:"physics,omitempty"`
+	SimulationID    ID                    `json:"simulationId,omitempty"`
+	Ticks           uint64                `json:"ticks,omitempty"`
+	Inputs          []SimulationInput     `json:"inputs,omitempty"`
 	Key             *TransformKey         `json:"key,omitempty"`
 }
 
 type Receipt struct {
-	TransactionID          string            `json:"transactionId"`
-	Actor                  string            `json:"actor"`
-	Mode                   TransactionMode   `json:"mode"`
-	Applied                bool              `json:"applied"`
-	BeforeRevision         uint64            `json:"beforeRevision"`
-	AfterRevision          uint64            `json:"afterRevision"`
-	BeforeFingerprint      string            `json:"beforeFingerprint"`
-	AfterFingerprint       string            `json:"afterFingerprint"`
-	Operations             int               `json:"operations"`
-	Affected               []ID              `json:"affected,omitempty"`
-	InverseTransactionID   string            `json:"inverseTransactionId,omitempty"`
-	TelemetryCorrelationID string            `json:"telemetryCorrelationId"`
-	Changes                []SemanticChange  `json:"changes,omitempty"`
-	OperatorRecords        []OperatorRecord  `json:"operatorRecords,omitempty"`
-	MaterialChanges        []MaterialChange  `json:"materialChanges,omitempty"`
-	PrefabChanges          []PrefabChange    `json:"prefabChanges,omitempty"`
-	AssetChanges           []AssetChange     `json:"assetChanges,omitempty"`
-	RigChanges             []RigChange       `json:"rigChanges,omitempty"`
-	AnimationChanges       []AnimationChange `json:"animationChanges,omitempty"`
+	TransactionID          string             `json:"transactionId"`
+	Actor                  string             `json:"actor"`
+	Mode                   TransactionMode    `json:"mode"`
+	Applied                bool               `json:"applied"`
+	BeforeRevision         uint64             `json:"beforeRevision"`
+	AfterRevision          uint64             `json:"afterRevision"`
+	BeforeFingerprint      string             `json:"beforeFingerprint"`
+	AfterFingerprint       string             `json:"afterFingerprint"`
+	Operations             int                `json:"operations"`
+	Affected               []ID               `json:"affected,omitempty"`
+	InverseTransactionID   string             `json:"inverseTransactionId,omitempty"`
+	TelemetryCorrelationID string             `json:"telemetryCorrelationId"`
+	Changes                []SemanticChange   `json:"changes,omitempty"`
+	OperatorRecords        []OperatorRecord   `json:"operatorRecords,omitempty"`
+	MaterialChanges        []MaterialChange   `json:"materialChanges,omitempty"`
+	PrefabChanges          []PrefabChange     `json:"prefabChanges,omitempty"`
+	AssetChanges           []AssetChange      `json:"assetChanges,omitempty"`
+	RigChanges             []RigChange        `json:"rigChanges,omitempty"`
+	AnimationChanges       []AnimationChange  `json:"animationChanges,omitempty"`
+	SimulationChanges      []SimulationChange `json:"simulationChanges,omitempty"`
 }
 
 type OperatorRecord struct {
@@ -199,6 +206,13 @@ type AnimationChange struct {
 	Track  ID            `json:"track"`
 	Before *TransformKey `json:"before,omitempty"`
 	After  *TransformKey `json:"after,omitempty"`
+}
+
+type SimulationChange struct {
+	Profile    ID     `json:"profile"`
+	Ticks      uint64 `json:"ticks"`
+	BeforeHash string `json:"beforeHash"`
+	AfterHash  string `json:"afterHash"`
 }
 
 type historyEntry struct {
@@ -433,7 +447,7 @@ func makeReceipt(transaction Transaction, before, after Document, affected []ID)
 	if len(correlation) > 12 {
 		correlation = correlation[:12]
 	}
-	return Receipt{TransactionID: transaction.ID, Actor: transaction.Actor, Mode: transaction.Mode, Applied: transaction.Mode == ModeDirect, BeforeRevision: before.Revision, AfterRevision: after.Revision, BeforeFingerprint: beforeFingerprint, AfterFingerprint: afterFingerprint, Operations: len(transaction.Operations), Affected: uniqueIDs(affected), InverseTransactionID: "inverse:" + transaction.ID, TelemetryCorrelationID: "studio:" + transaction.ID + ":" + correlation, Changes: semanticChanges(transaction, before, after), OperatorRecords: operatorRecords(transaction), MaterialChanges: materialChanges(transaction, before, after), PrefabChanges: prefabChanges(transaction, before, after), AssetChanges: assetChanges(transaction, before, after), RigChanges: rigChanges(transaction, before, after), AnimationChanges: animationChanges(transaction, before, after)}, nil
+	return Receipt{TransactionID: transaction.ID, Actor: transaction.Actor, Mode: transaction.Mode, Applied: transaction.Mode == ModeDirect, BeforeRevision: before.Revision, AfterRevision: after.Revision, BeforeFingerprint: beforeFingerprint, AfterFingerprint: afterFingerprint, Operations: len(transaction.Operations), Affected: uniqueIDs(affected), InverseTransactionID: "inverse:" + transaction.ID, TelemetryCorrelationID: "studio:" + transaction.ID + ":" + correlation, Changes: semanticChanges(transaction, before, after), OperatorRecords: operatorRecords(transaction), MaterialChanges: materialChanges(transaction, before, after), PrefabChanges: prefabChanges(transaction, before, after), AssetChanges: assetChanges(transaction, before, after), RigChanges: rigChanges(transaction, before, after), AnimationChanges: animationChanges(transaction, before, after), SimulationChanges: simulationChanges(transaction, before, after)}, nil
 }
 
 func operatorRecords(transaction Transaction) []OperatorRecord {
@@ -736,6 +750,10 @@ func applyOperation(document *Document, operation Operation) ([]ID, error) {
 		return applySetAnimationKey(document, operation)
 	case OpSolveIK:
 		return applySolveIK(document, operation)
+	case OpSetPhysicsBody:
+		return applySetPhysicsBody(document, operation)
+	case OpSimulateTicks:
+		return applySimulateTicks(document, operation)
 	}
 	entity, ok := document.Entities[operation.Target]
 	if !ok {
@@ -804,7 +822,7 @@ type ActionCapability struct {
 }
 
 func ActionCatalog() []ActionCapability {
-	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK}
+	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks}
 	out := make([]ActionCapability, 0, len(kinds))
 	for _, kind := range kinds {
 		out = append(out, ActionCapability{ID: string(kind), Status: "available", Atomic: true, Undo: true, Preview: true})

@@ -214,7 +214,58 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m2-rig-animation-foundation", rigOK, rigEvidence)
+	simulationEvidence, simulationOK, err := certifySimulationFoundation()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m2-fixed-step-simulation", simulationOK, simulationEvidence)
 	return report, nil
+}
+
+func certifySimulationFoundation() (string, bool, error) {
+	document := ArticulatedProofDocument()
+	inputs := []SimulationInput{{Tick: 30, Entity: "physics-payload", Impulse: Vec3{X: 1.5}}}
+	recording, simulated, err := RunSimulation(document, "articulated-physics", 120, inputs)
+	if err != nil {
+		return "", false, err
+	}
+	replayed, replayDocument, err := ReplaySimulation(document, recording)
+	if err != nil {
+		return "", false, err
+	}
+	workspace, err := NewWorkspace(document)
+	if err != nil {
+		return "", false, err
+	}
+	operation := Operation{Kind: OpSimulateTicks, SimulationID: "articulated-physics", Ticks: 120, Inputs: inputs}
+	transaction := Transaction{ID: "certify:m2-agent-simulation", Actor: "agent://studio-certifier", Mode: ModePropose, ExpectedRevision: document.Revision, Operations: []Operation{operation}}
+	previewReceipt, preview, err := workspace.Execute(transaction)
+	if err != nil {
+		return "", false, err
+	}
+	transaction.Mode = ModeDirect
+	directReceipt, direct, err := workspace.Execute(transaction)
+	if err != nil {
+		return "", false, err
+	}
+	previewFingerprint, _ := preview.Fingerprint()
+	directFingerprint, _ := direct.Fingerprint()
+	simulatedFingerprint, _ := simulated.Fingerprint()
+	replayFingerprint, _ := replayDocument.Fingerprint()
+	authoredProps, authoredCompileErr := Compile(document)
+	simulatedProps, simulatedCompileErr := Compile(simulated)
+	authoredIR, _ := json.Marshal(authoredProps.SceneIR())
+	simulatedIR, _ := json.Marshal(simulatedProps.SceneIR())
+	sceneIRChanged := authoredCompileErr == nil && simulatedCompileErr == nil && !bytes.Equal(authoredIR, simulatedIR)
+	ok := recording.Final.Hash == replayed.Final.Hash && simulatedFingerprint == replayFingerprint && len(recording.Events) > 0 && previewFingerprint == directFingerprint && len(previewReceipt.SimulationChanges) == 1 && len(directReceipt.SimulationChanges) == 1 && directReceipt.SimulationChanges[0].BeforeHash != directReceipt.SimulationChanges[0].AfterHash && sceneIRChanged
+	return fmt.Sprintf("profile=articulated-physics tickRate=60 ticks=120 inputs=%d contacts=%d initial=%s final=%s replayExact=%t sceneIRChanged=%t agentActor=%s previewEquivalent=%t semanticSimulationReceipt=%t", len(inputs), len(recording.Events), shortHash(recording.Initial.Hash), shortHash(recording.Final.Hash), recording.Final.Hash == replayed.Final.Hash && simulatedFingerprint == replayFingerprint, sceneIRChanged, directReceipt.Actor, previewFingerprint == directFingerprint, len(directReceipt.SimulationChanges) == 1), ok, nil
+}
+
+func shortHash(value string) string {
+	if len(value) > 12 {
+		return value[:12]
+	}
+	return value
 }
 
 func certifyRigAnimationFoundation() (string, bool, error) {

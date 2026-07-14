@@ -15,20 +15,21 @@ const SceneDocSchema = "gosx.scene3d.document/v1"
 type ID string
 
 type Document struct {
-	Schema      string                  `json:"schema"`
-	ID          ID                      `json:"id"`
-	Name        string                  `json:"name"`
-	Revision    uint64                  `json:"revision"`
-	RootIDs     []ID                    `json:"rootIds"`
-	Entities    map[ID]Entity           `json:"entities"`
-	Materials   map[ID]Material         `json:"materials"`
-	Prefabs     map[ID]PrefabDefinition `json:"prefabs,omitempty"`
-	Assets      map[ID]AssetRecord      `json:"assets,omitempty"`
-	Armatures   map[ID]Armature         `json:"armatures,omitempty"`
-	Animations  map[ID]AnimationClip    `json:"animations,omitempty"`
-	Camera      Camera                  `json:"camera"`
-	Environment Environment             `json:"environment"`
-	Metadata    map[string]string       `json:"metadata,omitempty"`
+	Schema      string                   `json:"schema"`
+	ID          ID                       `json:"id"`
+	Name        string                   `json:"name"`
+	Revision    uint64                   `json:"revision"`
+	RootIDs     []ID                     `json:"rootIds"`
+	Entities    map[ID]Entity            `json:"entities"`
+	Materials   map[ID]Material          `json:"materials"`
+	Prefabs     map[ID]PrefabDefinition  `json:"prefabs,omitempty"`
+	Assets      map[ID]AssetRecord       `json:"assets,omitempty"`
+	Armatures   map[ID]Armature          `json:"armatures,omitempty"`
+	Animations  map[ID]AnimationClip     `json:"animations,omitempty"`
+	Simulations map[ID]SimulationProfile `json:"simulations,omitempty"`
+	Camera      Camera                   `json:"camera"`
+	Environment Environment              `json:"environment"`
+	Metadata    map[string]string        `json:"metadata,omitempty"`
 }
 
 type Entity struct {
@@ -42,6 +43,7 @@ type Entity struct {
 	Prefab    *PrefabInstance `json:"prefab,omitempty"`
 	Model     *ModelComponent `json:"model,omitempty"`
 	Skin      *SkinComponent  `json:"skin,omitempty"`
+	Physics   *PhysicsBody    `json:"physics,omitempty"`
 	Visible   bool            `json:"visible"`
 	Locked    bool            `json:"locked,omitempty"`
 }
@@ -301,6 +303,14 @@ func (d Document) Validate() error {
 			return fmt.Errorf("animation %q: %w", key, err)
 		}
 	}
+	for key, profile := range d.Simulations {
+		if key == "" || profile.ID != key {
+			return fmt.Errorf("simulation map key %q does not match id %q", key, profile.ID)
+		}
+		if err := validateSimulationProfile(profile, d.Entities); err != nil {
+			return fmt.Errorf("simulation %q: %w", key, err)
+		}
+	}
 	for key, entity := range d.Entities {
 		if key == "" || entity.ID != key {
 			return fmt.Errorf("entity map key %q does not match id %q", key, entity.ID)
@@ -395,6 +405,11 @@ func (d Document) Validate() error {
 			}
 			if err := validateSkin(*entity.Skin, entity.Mesh.Geometry, armature); err != nil {
 				return fmt.Errorf("entity %q skin: %w", key, err)
+			}
+		}
+		if entity.Physics != nil {
+			if err := validatePhysicsBody(*entity.Physics); err != nil {
+				return fmt.Errorf("entity %q physics: %w", key, err)
 			}
 		}
 	}

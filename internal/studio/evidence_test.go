@@ -50,7 +50,7 @@ func TestCurrentCertificationAddsDeterministicM1M2FoundationsWithoutClaimingRele
 	for _, check := range first.Checks {
 		checks[check.ID] = check.Status
 	}
-	for _, id := range []string{"m1-subobject-selection", "m1-topology-actions", "m1-geometry-analysis", "m1-uv-authoring", "m1-structural-operators", "m1-loop-cut", "m1-nurbs-curve", "m1-modifier-stack", "m1-voxel-csg", "m1-material-authoring", "m1-linked-prefab", "m2-rig-animation-foundation"} {
+	for _, id := range []string{"m1-subobject-selection", "m1-topology-actions", "m1-geometry-analysis", "m1-uv-authoring", "m1-structural-operators", "m1-loop-cut", "m1-nurbs-curve", "m1-modifier-stack", "m1-voxel-csg", "m1-material-authoring", "m1-linked-prefab", "m2-rig-animation-foundation", "m2-fixed-step-simulation"} {
 		if checks[id] != "pass" {
 			t.Fatalf("current certification check %q = %q", id, checks[id])
 		}

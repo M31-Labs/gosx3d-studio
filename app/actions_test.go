@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"m31labs.dev/gosx3d-studio/internal/studio"
@@ -162,5 +163,57 @@ func TestHumanSolidifyUsesSharedModifierCommandAndRejectsStaleRevision(t *testin
 	}
 	if _, err := executeHumanSubdivision(workspace, subdivisionValues); err == nil {
 		t.Fatal("stale human subdivision revision was accepted")
+	}
+}
+
+func TestHumanTimelineRigAndSimulationUseSharedCommands(t *testing.T) {
+	document := studio.ArticulatedProofDocument()
+	workspace, err := studio.NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revision := func() string { value, _ := workspace.Snapshot(); return strconv.FormatUint(value.Revision, 10) }
+	poseReceipt, err := executeHumanBonePose(workspace, map[string]string{"expectedRevision": revision(), "armatureId": "arm", "boneId": "lower", "rx": "0.1", "ry": "0.2", "rz": "0.3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if poseReceipt.Actor != "human://local-ui" || len(poseReceipt.RigChanges) != 1 {
+		t.Fatalf("pose receipt = %+v", poseReceipt)
+	}
+	keyReceipt, err := executeHumanAnimationKey(workspace, map[string]string{"expectedRevision": revision(), "clipId": "reach", "trackId": "lower-track", "time": "0.4", "rx": "0.2", "ry": "0.3", "rz": "0.4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(keyReceipt.AnimationChanges) != 1 {
+		t.Fatalf("key receipt = %+v", keyReceipt)
+	}
+	ikReceipt, err := executeHumanSolveIK(workspace, map[string]string{"expectedRevision": revision(), "armatureId": "arm", "constraintId": "reach-ik"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ikReceipt.RigChanges) != 2 {
+		t.Fatalf("IK receipt = %+v", ikReceipt)
+	}
+	simulationReceipt, err := executeHumanSimulation(workspace, map[string]string{"expectedRevision": revision(), "simulationId": "articulated-physics", "ticks": "60"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(simulationReceipt.SimulationChanges) != 1 || simulationReceipt.SimulationChanges[0].Ticks != 60 {
+		t.Fatalf("simulation receipt = %+v", simulationReceipt)
+	}
+	if _, err := executeHumanSimulation(workspace, map[string]string{"expectedRevision": "1", "simulationId": "articulated-physics", "ticks": "60"}); err == nil {
+		t.Fatal("stale human simulation revision was accepted")
+	}
+}
+
+func TestTimelineMarkupBindsRealHumanActions(t *testing.T) {
+	page, err := os.ReadFile("page.gsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{`actionPath("setBonePose")`, `actionPath("setAnimationKey")`, `actionPath("solveIK")`, `actionPath("simulateTicks")`, `data.timeline.clipName`, `data.timeline.simulationName`} {
+		if !strings.Contains(string(page), required) {
+			t.Fatalf("timeline markup missing %q", required)
+		}
 	}
 }

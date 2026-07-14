@@ -203,6 +203,23 @@ deliberately does not claim weight-paint UI, dual-quaternion skinning,
 retargeting, animation state machines, or physics
 interaction yet; those remain partial and are named in certification evidence.
 
+The articulated proof also owns a deterministic fixed-step physics profile.
+Stable entity components describe dynamic/static bodies and sphere/plane
+colliders; the profile fixes tick rate, gravity, and body membership. The pure-Go
+reference loop uses semi-implicit Euler integration, tick-addressed impulses,
+and deterministic sphere/plane contact response. Recordings contain sorted
+inputs, contact events, and exact initial/final state hashes; replay rejects any
+hash divergence. `simulate-ticks` uses the shared propose/direct command path,
+semantic simulation receipts, journaling, and undo. This is a certified physics
+interaction floor, not a claim of general body pairs, constraints, broad phase,
+CCD, fields, particles, audio, or cache authoring.
+
+The Timeline panel is data-driven when an articulated project is open. Its pose,
+key insertion, IK, and fixed-tick forms read stable armature/clip/profile IDs and
+submit the same operations used by agents. The Chinese Checkers-only document
+honestly reports that no articulated clip is loaded. Timeline transport,
+scrubbing, dope-sheet/curve editing, and state-machine tooling remain partial.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest

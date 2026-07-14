@@ -71,6 +71,53 @@ func assetView(document studio.Document, workspace *studio.Workspace) []map[stri
 	return out
 }
 
+func timelineView(document studio.Document) map[string]any {
+	view := map[string]any{"state": "No articulated clip loaded", "armatureId": "", "boneId": "", "boneName": "—", "constraintId": "", "clipId": "", "clipName": "No clip", "trackId": "", "duration": "0", "keyTime": "0.500", "rx": "0", "ry": "0", "rz": "0", "simulationId": "", "simulationName": "No simulation", "tickRate": "0", "ticks": "60"}
+	armatureIDs := sortedMapIDs(document.Armatures)
+	if len(armatureIDs) > 0 {
+		armature := document.Armatures[armatureIDs[0]]
+		view["armatureId"] = string(armature.ID)
+		boneIDs := sortedMapIDs(armature.Bones)
+		if len(boneIDs) > 0 {
+			bone := armature.Bones[boneIDs[0]]
+			pose := bone.Rest
+			if value, ok := armature.Pose[bone.ID]; ok {
+				pose = value
+			}
+			view["boneId"], view["boneName"] = string(bone.ID), bone.Name
+			view["rx"], view["ry"], view["rz"] = number(pose.Rotation.X), number(pose.Rotation.Y), number(pose.Rotation.Z)
+		}
+		if len(armature.Constraints) > 0 {
+			view["constraintId"] = string(armature.Constraints[0].ID)
+		}
+	}
+	clipIDs := sortedMapIDs(document.Animations)
+	if len(clipIDs) > 0 {
+		clip := document.Animations[clipIDs[0]]
+		view["clipId"], view["clipName"], view["duration"] = string(clip.ID), clip.Name, number(clip.Duration)
+		trackIDs := sortedMapIDs(clip.Tracks)
+		if len(trackIDs) > 0 {
+			view["trackId"] = string(trackIDs[0])
+		}
+		view["state"] = fmt.Sprintf("%d tracks · %.3fs", len(clip.Tracks), clip.Duration)
+	}
+	simulationIDs := sortedMapIDs(document.Simulations)
+	if len(simulationIDs) > 0 {
+		profile := document.Simulations[simulationIDs[0]]
+		view["simulationId"], view["simulationName"], view["tickRate"] = string(profile.ID), profile.Name, fmt.Sprint(profile.TickRate)
+	}
+	return view
+}
+
+func sortedMapIDs[T any](values map[studio.ID]T) []studio.ID {
+	ids := make([]studio.ID, 0, len(values))
+	for id := range values {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids
+}
+
 func formatBytes(value int64) string {
 	if value < 1024 {
 		return fmt.Sprintf("%d B", value)
