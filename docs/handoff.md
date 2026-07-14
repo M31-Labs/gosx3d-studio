@@ -1,4 +1,4 @@
-# Initial scaffold handoff
+# M0 implementation handoff
 
 ## What exists
 
@@ -14,24 +14,19 @@
 
 ## What does not exist yet
 
-The DOM board, timeline, telemetry, and displayed proposal are labeled scaffold
-data. A canonical sample SceneDoc now exists behind read-only APIs and compiles
-to shared SceneIR, but it is not mounted into the DOM viewport. Persistence,
-create/delete/reparent/duplicate commands, topology operations, interactive
-selection, and desktop packaging remain unimplemented here.
+The Hierarchy, Inspector, timeline, telemetry, and displayed proposal remain
+static shell data. The canonical SceneDoc is mounted into the Scene3D viewport,
+but those panels are not yet generated from descriptor/workspace state. Exact
+interactive selection enrichment, semantic proposal diffs, strict Studio
+certification, and desktop packaging remain unimplemented.
 
 ## First vertical slice
 
-1. Replace the compact bootstrap document with full Chinese Checkers conversion
-   while preserving stable IDs and deterministic fingerprints.
-2. Mount its compiled Scene3D props in the existing viewport region.
-3. Connect viewport selection to the same exact CPU query used by the harness.
-4. Expose the existing proposal/direct transaction path through authenticated
-   typed server and desktop actions.
-5. Add create/delete/reparent/duplicate commands and durable journal storage.
-6. Save, reopen, replay, and recover one material/transform transaction.
-7. Implement one checkpoint-safe topology operation (`ExtrudeFaces`).
-8. Launch the same application through `gosx desktop` without forking app code.
+1. Bind browser selection to the canonical exact CPU query and surface disagreements.
+2. Generate Hierarchy and Inspector UI from live document and descriptors.
+3. Add semantic diffs, inverse IDs, telemetry correlation, and action JSON Schemas.
+4. Integrate editor-facing `scene/cert` dimensions and Selena evidence.
+5. Launch, package, and recovery-test the same app through `gosx desktop` on Windows.
 
 ## Non-negotiable invariants
 

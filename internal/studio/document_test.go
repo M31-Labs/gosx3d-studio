@@ -1,7 +1,10 @@
 package studio
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"m31labs.dev/gosx/scene"
@@ -19,11 +22,11 @@ func TestSampleDocumentCompilesToSharedSceneIR(t *testing.T) {
 		t.Fatalf("compile: %v", err)
 	}
 	ir := props.SceneIR()
-	if len(ir.Objects) != 7 {
-		t.Fatalf("objects = %d, want 7", len(ir.Objects))
+	if len(ir.Objects) != 143 {
+		t.Fatalf("objects = %d, want 143", len(ir.Objects))
 	}
-	if len(ir.Lights) != 2 {
-		t.Fatalf("lights = %d, want 2", len(ir.Lights))
+	if len(ir.Lights) != 4 {
+		t.Fatalf("lights = %d, want 4", len(ir.Lights))
 	}
 	portableIR, err := CompileIR(document)
 	if err != nil {
@@ -32,15 +35,34 @@ func TestSampleDocumentCompilesToSharedSceneIR(t *testing.T) {
 	if portableIR.Schema != scene.SceneIRSchema {
 		t.Fatalf("portable schema = %q, want %q", portableIR.Schema, scene.SceneIRSchema)
 	}
-	trace := scene.TraceGraph(props.Graph, scene.Ray{Origin: scene.Vec3(0, 4, 0), Direction: scene.Vec3(0, -1, 0)}, scene.PickableOnly())
+	target, position := FirstPickTarget(document)
+	trace := scene.TraceGraph(props.Graph, scene.Ray{Origin: scene.Vec3(position.X, 4, position.Z), Direction: scene.Vec3(0, -1, 0)}, scene.PickableOnly())
 	if trace.Closest == nil {
 		t.Fatal("center ray missed sample document")
 	}
-	if trace.Closest.ID != "piece-jade-01" {
-		t.Fatalf("closest id = %q, want piece-jade-01", trace.Closest.ID)
+	if trace.Closest.ID != string(target) {
+		t.Fatalf("closest id = %q, want %q", trace.Closest.ID, target)
 	}
 	if trace.PrimitivesTested == 0 || trace.NodesVisited == 0 {
 		t.Fatalf("trace telemetry = %+v", trace)
+	}
+}
+
+func TestCompileArtifactMapsEveryAuthoredEntity(t *testing.T) {
+	document := SampleDocument()
+	artifact, err := CompileWithSourceMap(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.SourceMap) != len(document.Entities) {
+		t.Fatalf("source map = %d, entities = %d", len(artifact.SourceMap), len(document.Entities))
+	}
+	if artifact.SourceMap["board"].Kind != "object" || artifact.SourceMap["key-light"].Kind != "light" {
+		t.Fatalf("source map records = %#v", artifact.SourceMap)
+	}
+	fingerprint, _ := document.Fingerprint()
+	if artifact.DocumentFingerprint != fingerprint {
+		t.Fatalf("fingerprint = %q, want %q", artifact.DocumentFingerprint, fingerprint)
 	}
 }
 
@@ -61,6 +83,9 @@ func TestSampleDocumentProducesVisibleNativeEvidence(t *testing.T) {
 	if report.Events[0].Frame.Coverage <= 0.001 || report.Events[0].Frame.UniqueColors < 4 {
 		t.Fatalf("blank native evidence: %+v", *report.Events[0].Frame)
 	}
+	if len(report.Materials) == 0 || !report.Materials[0].Valid || report.Materials[0].WGSLFragmentHash == "" || report.Materials[0].GLSLFragmentHash == "" {
+		t.Fatalf("Selena artifact evidence = %+v", report.Materials)
+	}
 	if err := session.Validate(); err != nil {
 		t.Fatal(err)
 	}
@@ -71,16 +96,20 @@ func TestWorkspaceProposalDirectAndUndo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	transaction := Transaction{ID: "tx-material", Actor: "agent://test", Mode: ModePropose, ExpectedRevision: 1, Operations: []Operation{{Kind: OpAssignMaterial, Target: "piece-jade-01", Material: "gold-material"}}}
+	target, _ := FirstPickTarget(SampleDocument())
+	transaction := Transaction{ID: "tx-material", Actor: "agent://test", Mode: ModePropose, ExpectedRevision: 1, Operations: []Operation{{Kind: OpAssignMaterial, Target: target, Material: "player-4-material"}}}
 	receipt, preview, err := workspace.Execute(transaction)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Applied || preview.Revision != 2 || preview.Entities["piece-jade-01"].Mesh.Material != "gold-material" {
-		t.Fatalf("proposal receipt=%+v preview=%+v", receipt, preview.Entities["piece-jade-01"])
+	if receipt.Applied || preview.Revision != 2 || preview.Entities[target].Mesh.Material != "player-4-material" {
+		t.Fatalf("proposal receipt=%+v preview=%+v", receipt, preview.Entities[target])
+	}
+	if receipt.InverseTransactionID == "" || receipt.TelemetryCorrelationID == "" || len(receipt.Changes) != 1 || receipt.Changes[0].Before == nil || receipt.Changes[0].After == nil {
+		t.Fatalf("semantic receipt = %+v", receipt)
 	}
 	snapshot, _ := workspace.Snapshot()
-	if snapshot.Revision != 1 || snapshot.Entities["piece-jade-01"].Mesh.Material != "jade-material" {
+	if snapshot.Revision != 1 || snapshot.Entities[target].Mesh.Material != "player-1-material" {
 		t.Fatal("proposal mutated workspace")
 	}
 	transaction.Mode = ModeDirect
@@ -95,8 +124,35 @@ func TestWorkspaceProposalDirectAndUndo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if restored.Revision != 3 || restored.Entities["piece-jade-01"].Mesh.Material != "jade-material" {
-		t.Fatalf("restored revision=%d material=%q", restored.Revision, restored.Entities["piece-jade-01"].Mesh.Material)
+	if restored.Revision != 3 || restored.Entities[target].Mesh.Material != "player-1-material" {
+		t.Fatalf("restored revision=%d material=%q", restored.Revision, restored.Entities[target].Mesh.Material)
+	}
+	_, redone, err := workspace.Redo(3, "identity://test")
+	if err != nil || redone.Revision != 4 || redone.Entities[target].Mesh.Material != "player-4-material" {
+		t.Fatalf("redo revision=%d err=%v", redone.Revision, err)
+	}
+}
+
+func TestExactPickAndWorkspaceSelectionAgree(t *testing.T) {
+	document := SampleDocument()
+	target, position := FirstPickTarget(document)
+	result, err := ExactPick(document, PickRequest{Origin: Vec3{X: position.X, Y: 4, Z: position.Z}, Direction: Vec3{Y: -1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Selected != target {
+		t.Fatalf("selected = %q, want %q", result.Selected, target)
+	}
+	workspace, err := NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := workspace.Select(result.Selected); err != nil {
+		t.Fatal(err)
+	}
+	selection := workspace.Selection()
+	if len(selection) != 1 || selection[0] != target {
+		t.Fatalf("selection = %v", selection)
 	}
 }
 
@@ -110,5 +166,171 @@ func TestValidateRejectsCycles(t *testing.T) {
 	document.Entities[piece.ID] = piece
 	if err := document.Validate(); err == nil {
 		t.Fatal("expected invalid root/cycle")
+	}
+}
+
+func TestJournalRecoversLastCommittedDocument(t *testing.T) {
+	dir := t.TempDir()
+	workspace, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, _ := FirstPickTarget(SampleDocument())
+	_, committed, err := workspace.Execute(Transaction{ID: "persist", Actor: "agent://test", Mode: ModeDirect, ExpectedRevision: 1, Operations: []Operation{{Kind: OpRenameEntity, Target: target, Name: "Recovered Piece"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var explicitSave Document
+	data, err := os.ReadFile(filepath.Join(dir, "scene.scene3d"))
+	if err != nil || json.Unmarshal(data, &explicitSave) != nil {
+		t.Fatalf("read explicit save: %v", err)
+	}
+	if explicitSave.Revision != 1 {
+		t.Fatalf("command rewrote explicit save to revision %d", explicitSave.Revision)
+	}
+	reopened, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, _ := reopened.Snapshot()
+	if recovered.Entities[target].Name != "Recovered Piece" {
+		t.Fatalf("recovered name = %q", recovered.Entities[target].Name)
+	}
+	want, _ := committed.Fingerprint()
+	got, _ := recovered.Fingerprint()
+	if got != want {
+		t.Fatalf("fingerprint mismatch: %s != %s", got, want)
+	}
+	status := reopened.ProjectStatus()
+	if !status.Recovered || !status.Dirty || status.SavedRevision != 1 || status.Revision != 2 {
+		t.Fatalf("recovery status = %+v", status)
+	}
+	if _, err := reopened.Save(); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status = saved.ProjectStatus(); status.Recovered || status.Dirty || status.SavedRevision != 2 {
+		t.Fatalf("saved status = %+v", status)
+	}
+}
+
+func TestRecoverySkipsTornJournalTailAndQuarantinesCorruptSave(t *testing.T) {
+	dir := t.TempDir()
+	workspace, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, _ := FirstPickTarget(SampleDocument())
+	_, first, err := workspace.Execute(Transaction{ID: "first", Actor: "agent://test", Mode: ModeDirect, ExpectedRevision: 1, Operations: []Operation{{Kind: OpRenameEntity, Target: target, Name: "Last Valid"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	journalPath := filepath.Join(dir, "commands.jsonl")
+	journal, err := os.OpenFile(journalPath, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := journal.WriteString("{torn-json\n"); err != nil {
+		t.Fatal(err)
+	}
+	_ = journal.Close()
+	corrupt := []byte("not a scene document")
+	if err := os.WriteFile(filepath.Join(dir, "scene.scene3d"), corrupt, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovered, _ := reopened.Snapshot()
+	want, _ := first.Fingerprint()
+	got, _ := recovered.Fingerprint()
+	if got != want || recovered.Entities[target].Name != "Last Valid" {
+		t.Fatalf("recovered fingerprint/name = %s/%q want %s", got, recovered.Entities[target].Name, want)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "scene.scene3d.corrupt-*"))
+	if err != nil || len(matches) != 1 {
+		t.Fatalf("corrupt quarantine = %v, %v", matches, err)
+	}
+	preserved, err := os.ReadFile(matches[0])
+	if err != nil || string(preserved) != string(corrupt) {
+		t.Fatalf("quarantined bytes = %q, %v", preserved, err)
+	}
+}
+
+func TestProjectSwitchIsRevisionSafeAndRequiresExplicitDiscard(t *testing.T) {
+	firstDir := t.TempDir()
+	secondDir := t.TempDir()
+	workspace, err := OpenWorkspace(firstDir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := SampleDocument()
+	second.ID = "second-project"
+	second.Name = "Second Project"
+	if _, err := OpenWorkspace(secondDir, second); err != nil {
+		t.Fatal(err)
+	}
+	target, _ := FirstPickTarget(SampleDocument())
+	_, dirty, err := workspace.Execute(Transaction{ID: "dirty", Actor: "human://test", Mode: ModeDirect, ExpectedRevision: 1, Operations: []Operation{{Kind: OpRenameEntity, Target: target, Name: "Unsaved"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(secondDir, "scene.scene3d")
+	if _, err := workspace.SwitchProjectFile(path, dirty.Revision, false); !errors.Is(err, ErrUnsavedChanges) {
+		t.Fatalf("dirty switch error = %v", err)
+	}
+	if _, err := workspace.SwitchProjectFile(path, 1, true); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale switch error = %v", err)
+	}
+	status, err := workspace.SwitchProjectFile(path, dirty.Revision, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened, _ := workspace.Snapshot()
+	if opened.ID != "second-project" || opened.Name != "Second Project" || status.Directory != secondDir || status.Dirty {
+		t.Fatalf("opened=%s/%s status=%+v", opened.ID, opened.Name, status)
+	}
+	if selection := workspace.Selection(); len(selection) != 0 {
+		t.Fatalf("selection leaked across projects: %v", selection)
+	}
+	if _, err := workspace.SwitchProjectFile(filepath.Join(secondDir, "other.scene3d"), opened.Revision, true); err == nil {
+		t.Fatal("non-canonical project entry was accepted")
+	}
+}
+
+func TestExtrudeFacesIsCheckpointSafe(t *testing.T) {
+	document := SampleDocument()
+	cube := Entity{ID: "editable", Name: "Editable", Parent: "scene-root", Transform: IdentityTransform(), Visible: true, Mesh: &MeshComponent{
+		Material: "board-material", Pickable: true,
+		Geometry: Geometry{Kind: "indexed-mesh", Vertices: []Vertex{
+			{ID: "a", Position: Vec3{}}, {ID: "b", Position: Vec3{X: 1}}, {ID: "c", Position: Vec3{X: 1, Z: 1}}, {ID: "d", Position: Vec3{Z: 1}},
+		}, Faces: []Face{{ID: "top", Vertices: []ID{"a", "b", "c", "d"}}}},
+	}}
+	root := document.Entities["scene-root"]
+	root.Children = append(root.Children, cube.ID)
+	document.Entities[root.ID] = root
+	document.Entities[cube.ID] = cube
+	workspace, err := NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, extruded, err := workspace.Execute(Transaction{ID: "extrude", Actor: "agent://test", Mode: ModeDirect, ExpectedRevision: 1, Operations: []Operation{{Kind: OpExtrudeFaces, Target: "editable", Faces: []ID{"top"}, Distance: 0.5}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(extruded.Entities["editable"].Mesh.Geometry.Faces) != 5 {
+		t.Fatalf("faces = %d", len(extruded.Entities["editable"].Mesh.Geometry.Faces))
+	}
+	_, restored, err := workspace.Undo(2, "agent://test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(restored.Entities["editable"].Mesh.Geometry.Faces) != 1 {
+		t.Fatalf("undo faces = %d", len(restored.Entities["editable"].Mesh.Geometry.Faces))
 	}
 }

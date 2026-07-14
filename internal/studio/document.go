@@ -5,25 +5,28 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
 
-const SceneDocSchema = "gosx3d.scene-document/v1"
+const SceneDocSchema = "gosx.scene3d.document/v1"
 
 type ID string
 
 type Document struct {
-	Schema      string            `json:"schema"`
-	ID          ID                `json:"id"`
-	Name        string            `json:"name"`
-	Revision    uint64            `json:"revision"`
-	RootIDs     []ID              `json:"rootIds"`
-	Entities    map[ID]Entity     `json:"entities"`
-	Materials   map[ID]Material   `json:"materials"`
-	Camera      Camera            `json:"camera"`
-	Environment Environment       `json:"environment"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	Schema      string                  `json:"schema"`
+	ID          ID                      `json:"id"`
+	Name        string                  `json:"name"`
+	Revision    uint64                  `json:"revision"`
+	RootIDs     []ID                    `json:"rootIds"`
+	Entities    map[ID]Entity           `json:"entities"`
+	Materials   map[ID]Material         `json:"materials"`
+	Prefabs     map[ID]PrefabDefinition `json:"prefabs,omitempty"`
+	Assets      map[ID]AssetRecord      `json:"assets,omitempty"`
+	Camera      Camera                  `json:"camera"`
+	Environment Environment             `json:"environment"`
+	Metadata    map[string]string       `json:"metadata,omitempty"`
 }
 
 type Entity struct {
@@ -34,8 +37,51 @@ type Entity struct {
 	Transform Transform       `json:"transform"`
 	Mesh      *MeshComponent  `json:"mesh,omitempty"`
 	Light     *LightComponent `json:"light,omitempty"`
+	Prefab    *PrefabInstance `json:"prefab,omitempty"`
+	Model     *ModelComponent `json:"model,omitempty"`
 	Visible   bool            `json:"visible"`
 	Locked    bool            `json:"locked,omitempty"`
+}
+
+type AssetRecord struct {
+	ID          ID                `json:"id"`
+	Kind        string            `json:"kind"`
+	Format      string            `json:"format"`
+	MediaType   string            `json:"mediaType"`
+	ContentHash string            `json:"contentHash"`
+	Bytes       int64             `json:"bytes"`
+	URI         string            `json:"uri"`
+	StorePath   string            `json:"storePath"`
+	SourceName  string            `json:"sourceName"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
+type ModelComponent struct {
+	Asset         ID      `json:"asset"`
+	Bounds        float64 `json:"bounds,omitempty"`
+	Fit           string  `json:"fit,omitempty"`
+	FitAlign      string  `json:"fitAlign,omitempty"`
+	Pickable      bool    `json:"pickable"`
+	CastShadow    bool    `json:"castShadow,omitempty"`
+	ReceiveShadow bool    `json:"receiveShadow,omitempty"`
+}
+
+type PrefabDefinition struct {
+	ID       ID            `json:"id"`
+	Name     string        `json:"name"`
+	Root     ID            `json:"root"`
+	Entities map[ID]Entity `json:"entities"`
+}
+
+type PrefabInstance struct {
+	Prefab    ID                          `json:"prefab"`
+	Overrides map[ID]PrefabEntityOverride `json:"overrides,omitempty"`
+}
+
+type PrefabEntityOverride struct {
+	Transform *Transform `json:"transform,omitempty"`
+	Material  ID         `json:"material,omitempty"`
+	Visible   *bool      `json:"visible,omitempty"`
 }
 
 type Transform struct {
@@ -50,24 +96,71 @@ type Vec3 struct {
 	Z float64 `json:"z"`
 }
 
+type Vec2 struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 type MeshComponent struct {
-	Geometry      Geometry `json:"geometry"`
-	Material      ID       `json:"material"`
-	Pickable      bool     `json:"pickable"`
-	CastShadow    bool     `json:"castShadow,omitempty"`
-	ReceiveShadow bool     `json:"receiveShadow,omitempty"`
+	Geometry      Geometry   `json:"geometry"`
+	Material      ID         `json:"material"`
+	Pickable      bool       `json:"pickable"`
+	CastShadow    bool       `json:"castShadow,omitempty"`
+	ReceiveShadow bool       `json:"receiveShadow,omitempty"`
+	Modifiers     []Modifier `json:"modifiers,omitempty"`
+}
+
+type Modifier struct {
+	ID        ID      `json:"id"`
+	Kind      string  `json:"kind"`
+	Enabled   bool    `json:"enabled"`
+	Axis      string  `json:"axis,omitempty"`
+	Count     int     `json:"count,omitempty"`
+	Offset    Vec3    `json:"offset,omitempty"`
+	Thickness float64 `json:"thickness,omitempty"`
+	Levels    int     `json:"levels,omitempty"`
 }
 
 type Geometry struct {
-	Kind           string  `json:"kind"`
-	Width          float64 `json:"width,omitempty"`
-	Height         float64 `json:"height,omitempty"`
-	Depth          float64 `json:"depth,omitempty"`
-	Radius         float64 `json:"radius,omitempty"`
-	Segments       int     `json:"segments,omitempty"`
-	RadiusTop      float64 `json:"radiusTop,omitempty"`
-	RadiusBottom   float64 `json:"radiusBottom,omitempty"`
-	RadialSegments int     `json:"radialSegments,omitempty"`
+	Kind           string         `json:"kind"`
+	Width          float64        `json:"width,omitempty"`
+	Height         float64        `json:"height,omitempty"`
+	Depth          float64        `json:"depth,omitempty"`
+	Radius         float64        `json:"radius,omitempty"`
+	Segments       int            `json:"segments,omitempty"`
+	RadiusTop      float64        `json:"radiusTop,omitempty"`
+	RadiusBottom   float64        `json:"radiusBottom,omitempty"`
+	RadialSegments int            `json:"radialSegments,omitempty"`
+	Vertices       []Vertex       `json:"vertices,omitempty"`
+	Faces          []Face         `json:"faces,omitempty"`
+	Curve          *CurveGeometry `json:"curve,omitempty"`
+}
+
+type CurveGeometry struct {
+	Degree         int                 `json:"degree"`
+	ControlPoints  []CurveControlPoint `json:"controlPoints"`
+	Knots          []float64           `json:"knots"`
+	Segments       int                 `json:"segments"`
+	Radius         float64             `json:"radius"`
+	RadialSegments int                 `json:"radialSegments"`
+}
+
+type CurveControlPoint struct {
+	ID       ID      `json:"id"`
+	Position Vec3    `json:"position"`
+	Weight   float64 `json:"weight"`
+}
+
+type Vertex struct {
+	ID       ID    `json:"id"`
+	Position Vec3  `json:"position"`
+	Normal   Vec3  `json:"normal,omitempty"`
+	UV       *Vec2 `json:"uv,omitempty"`
+}
+
+type Face struct {
+	ID       ID   `json:"id"`
+	Vertices []ID `json:"vertices"`
 }
 
 type LightComponent struct {
@@ -81,14 +174,20 @@ type LightComponent struct {
 }
 
 type Material struct {
-	ID           ID      `json:"id"`
-	Name         string  `json:"name"`
-	Color        string  `json:"color"`
-	Roughness    float64 `json:"roughness"`
-	Metalness    float64 `json:"metalness"`
-	Clearcoat    float64 `json:"clearcoat,omitempty"`
-	Transmission float64 `json:"transmission,omitempty"`
-	Emissive     float64 `json:"emissive,omitempty"`
+	ID           ID            `json:"id"`
+	Name         string        `json:"name"`
+	Color        string        `json:"color"`
+	Roughness    float64       `json:"roughness"`
+	Metalness    float64       `json:"metalness"`
+	Clearcoat    float64       `json:"clearcoat,omitempty"`
+	Transmission float64       `json:"transmission,omitempty"`
+	Emissive     float64       `json:"emissive,omitempty"`
+	Selena       *SelenaShader `json:"selena,omitempty"`
+}
+
+type SelenaShader struct {
+	Material string `json:"material"`
+	Source   string `json:"source"`
 }
 
 type Camera struct {
@@ -163,8 +262,24 @@ func (d Document) Validate() error {
 		if key == "" || material.ID != key {
 			return fmt.Errorf("material map key %q does not match id %q", key, material.ID)
 		}
-		if material.Roughness < 0 || material.Roughness > 1 || material.Metalness < 0 || material.Metalness > 1 || material.Transmission < 0 || material.Transmission > 1 {
-			return fmt.Errorf("material %q has a value outside [0,1]", key)
+		if err := validateMaterialRecord(material); err != nil {
+			return err
+		}
+	}
+	for key, prefab := range d.Prefabs {
+		if key == "" || prefab.ID != key {
+			return fmt.Errorf("prefab map key %q does not match id %q", key, prefab.ID)
+		}
+		if err := validatePrefabDefinition(prefab, d.Materials, d.Assets); err != nil {
+			return fmt.Errorf("prefab %q: %w", key, err)
+		}
+	}
+	for key, asset := range d.Assets {
+		if key == "" || asset.ID != key {
+			return fmt.Errorf("asset map key %q does not match id %q", key, asset.ID)
+		}
+		if err := validateAssetRecord(asset); err != nil {
+			return fmt.Errorf("asset %q: %w", key, err)
 		}
 	}
 	for key, entity := range d.Entities {
@@ -203,6 +318,49 @@ func (d Document) Validate() error {
 			}
 			if !supportedGeometry(entity.Mesh.Geometry.Kind) {
 				return fmt.Errorf("entity %q uses unsupported geometry %q", key, entity.Mesh.Geometry.Kind)
+			}
+			if err := validateGeometry(entity.Mesh.Geometry); err != nil {
+				return fmt.Errorf("entity %q geometry: %w", key, err)
+			}
+			if err := validateModifiers(entity.Mesh.Geometry, entity.Mesh.Modifiers); err != nil {
+				return fmt.Errorf("entity %q modifiers: %w", key, err)
+			}
+		}
+		if entity.Prefab != nil {
+			if entity.Mesh != nil || entity.Light != nil || entity.Model != nil {
+				return fmt.Errorf("prefab instance %q cannot also carry mesh, model, or light", key)
+			}
+			definition, ok := d.Prefabs[entity.Prefab.Prefab]
+			if !ok {
+				return fmt.Errorf("entity %q references missing prefab %q", key, entity.Prefab.Prefab)
+			}
+			for localID, override := range entity.Prefab.Overrides {
+				if _, ok := definition.Entities[localID]; !ok {
+					return fmt.Errorf("entity %q overrides missing prefab entity %q", key, localID)
+				}
+				if override.Material != "" {
+					if _, ok := d.Materials[override.Material]; !ok {
+						return fmt.Errorf("entity %q prefab override references missing material %q", key, override.Material)
+					}
+				}
+				if override.Transform != nil && !finiteTransform(*override.Transform) {
+					return fmt.Errorf("entity %q prefab override %q has non-finite transform", key, localID)
+				}
+			}
+		}
+		if entity.Model != nil {
+			if entity.Mesh != nil || entity.Light != nil {
+				return fmt.Errorf("model entity %q cannot also carry mesh or light", key)
+			}
+			asset, ok := d.Assets[entity.Model.Asset]
+			if !ok {
+				return fmt.Errorf("entity %q references missing asset %q", key, entity.Model.Asset)
+			}
+			if asset.Format != "glb" && asset.Format != "gltf" {
+				return fmt.Errorf("entity %q model asset %q is not glb/gltf", key, asset.ID)
+			}
+			if !finite(entity.Model.Bounds) || entity.Model.Bounds < 0 {
+				return fmt.Errorf("entity %q has invalid model bounds", key)
 			}
 		}
 	}
@@ -244,6 +402,122 @@ func (d Document) Validate() error {
 	return nil
 }
 
+func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material, assets map[ID]AssetRecord) error {
+	if prefab.ID == "" || strings.TrimSpace(prefab.Name) == "" || prefab.Root == "" || len(prefab.Entities) == 0 {
+		return fmt.Errorf("id, name, root, and entities are required")
+	}
+	root, ok := prefab.Entities[prefab.Root]
+	if !ok || root.Parent != "" {
+		return fmt.Errorf("root must exist and have no parent")
+	}
+	_ = root
+	for key, entity := range prefab.Entities {
+		if key == "" || entity.ID != key {
+			return fmt.Errorf("entity key %q does not match id %q", key, entity.ID)
+		}
+		if entity.Prefab != nil {
+			return fmt.Errorf("nested prefab instances are not supported")
+		}
+		if entity.Mesh != nil {
+			if _, ok := materials[entity.Mesh.Material]; !ok {
+				return fmt.Errorf("entity %q references missing material %q", key, entity.Mesh.Material)
+			}
+			if err := validateGeometry(entity.Mesh.Geometry); err != nil {
+				return err
+			}
+			if err := validateModifiers(entity.Mesh.Geometry, entity.Mesh.Modifiers); err != nil {
+				return err
+			}
+		}
+		if entity.Model != nil {
+			asset, ok := assets[entity.Model.Asset]
+			if !ok {
+				return fmt.Errorf("entity %q references missing asset %q", key, entity.Model.Asset)
+			}
+			if asset.Format != "glb" && asset.Format != "gltf" {
+				return fmt.Errorf("entity %q model asset %q is not glb/gltf", key, asset.ID)
+			}
+		}
+		if entity.Parent != "" {
+			parent, ok := prefab.Entities[entity.Parent]
+			if !ok || !containsID(parent.Children, key) {
+				return fmt.Errorf("entity %q has inconsistent parent %q", key, entity.Parent)
+			}
+		}
+		for _, child := range entity.Children {
+			value, ok := prefab.Entities[child]
+			if !ok || value.Parent != key {
+				return fmt.Errorf("entity %q has inconsistent child %q", key, child)
+			}
+		}
+	}
+	visited := map[ID]bool{}
+	visiting := map[ID]bool{}
+	var walk func(ID) error
+	walk = func(id ID) error {
+		if visiting[id] {
+			return fmt.Errorf("entity cycle reaches %q", id)
+		}
+		if visited[id] {
+			return nil
+		}
+		visiting[id] = true
+		for _, child := range prefab.Entities[id].Children {
+			if err := walk(child); err != nil {
+				return err
+			}
+		}
+		delete(visiting, id)
+		visited[id] = true
+		return nil
+	}
+	if err := walk(prefab.Root); err != nil {
+		return err
+	}
+	if len(visited) != len(prefab.Entities) {
+		return fmt.Errorf("entities are unreachable from root")
+	}
+	return nil
+}
+
+func finiteTransform(value Transform) bool {
+	return finiteVec3(value.Position) && finiteVec3(value.Rotation) && finiteVec3(value.Scale)
+}
+
+func validateModifiers(geometry Geometry, modifiers []Modifier) error {
+	if len(modifiers) > 0 && strings.ToLower(strings.TrimSpace(geometry.Kind)) != "indexed-mesh" {
+		return fmt.Errorf("modifiers currently require indexed-mesh geometry")
+	}
+	seen := map[ID]bool{}
+	for _, modifier := range modifiers {
+		if modifier.ID == "" || seen[modifier.ID] {
+			return fmt.Errorf("modifier ids must be non-empty and unique")
+		}
+		seen[modifier.ID] = true
+		switch modifier.Kind {
+		case "mirror":
+			if modifier.Axis != "x" && modifier.Axis != "y" && modifier.Axis != "z" {
+				return fmt.Errorf("mirror modifier %q requires axis x, y, or z", modifier.ID)
+			}
+		case "array":
+			if modifier.Count < 2 || modifier.Count > 1000 || !finiteVec3(modifier.Offset) || modifier.Offset == (Vec3{}) {
+				return fmt.Errorf("array modifier %q requires count 2..1000 and a finite non-zero offset", modifier.ID)
+			}
+		case "solidify":
+			if !finite(modifier.Thickness) || modifier.Thickness <= 0 || modifier.Thickness > 1_000_000 {
+				return fmt.Errorf("solidify modifier %q requires finite thickness in (0, 1000000]", modifier.ID)
+			}
+		case "subdivision":
+			if modifier.Levels < 1 || modifier.Levels > 4 {
+				return fmt.Errorf("subdivision modifier %q requires levels 1..4", modifier.ID)
+			}
+		default:
+			return fmt.Errorf("modifier %q has unsupported kind %q", modifier.ID, modifier.Kind)
+		}
+	}
+	return nil
+}
+
 func containsID(values []ID, target ID) bool {
 	for _, value := range values {
 		if value == target {
@@ -255,9 +529,86 @@ func containsID(values []ID, target ID) bool {
 
 func supportedGeometry(kind string) bool {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "box", "plane", "sphere", "cylinder":
+	case "box", "plane", "sphere", "cylinder", "indexed-mesh", "nurbs-curve":
 		return true
 	default:
 		return false
 	}
 }
+
+func validateGeometry(geometry Geometry) error {
+	kind := strings.ToLower(strings.TrimSpace(geometry.Kind))
+	if kind == "nurbs-curve" {
+		return validateCurveGeometry(geometry.Curve)
+	}
+	if kind != "indexed-mesh" {
+		return nil
+	}
+	if len(geometry.Vertices) < 3 || len(geometry.Faces) == 0 {
+		return fmt.Errorf("indexed-mesh requires vertices and faces")
+	}
+	vertices := make(map[ID]bool, len(geometry.Vertices))
+	for _, vertex := range geometry.Vertices {
+		if vertex.ID == "" || vertices[vertex.ID] {
+			return fmt.Errorf("vertex ids must be non-empty and unique")
+		}
+		if !finiteVec3(vertex.Position) || !finiteVec3(vertex.Normal) {
+			return fmt.Errorf("vertex %q contains a non-finite vector", vertex.ID)
+		}
+		if vertex.UV != nil && (!finite(vertex.UV.X) || !finite(vertex.UV.Y)) {
+			return fmt.Errorf("vertex %q contains a non-finite uv", vertex.ID)
+		}
+		vertices[vertex.ID] = true
+	}
+	faces := make(map[ID]bool, len(geometry.Faces))
+	for _, face := range geometry.Faces {
+		if face.ID == "" || faces[face.ID] || len(face.Vertices) < 3 {
+			return fmt.Errorf("face ids must be unique and contain at least three vertices")
+		}
+		faces[face.ID] = true
+		for _, vertexID := range face.Vertices {
+			if !vertices[vertexID] {
+				return fmt.Errorf("face %q references missing vertex %q", face.ID, vertexID)
+			}
+		}
+	}
+	return nil
+}
+
+func validateCurveGeometry(curve *CurveGeometry) error {
+	if curve == nil {
+		return fmt.Errorf("nurbs-curve requires curve data")
+	}
+	count := len(curve.ControlPoints)
+	if count < 2 || curve.Degree < 1 || curve.Degree >= count {
+		return fmt.Errorf("nurbs-curve degree must be between one and controlPoints-1")
+	}
+	if len(curve.Knots) != count+curve.Degree+1 {
+		return fmt.Errorf("nurbs-curve requires controlPoints+degree+1 knots")
+	}
+	for index, knot := range curve.Knots {
+		if !finite(knot) || (index > 0 && knot < curve.Knots[index-1]) {
+			return fmt.Errorf("nurbs-curve knots must be finite and nondecreasing")
+		}
+	}
+	if curve.Knots[curve.Degree] >= curve.Knots[count] {
+		return fmt.Errorf("nurbs-curve has an empty parameter domain")
+	}
+	seen := map[ID]bool{}
+	for _, point := range curve.ControlPoints {
+		if point.ID == "" || seen[point.ID] || !finiteVec3(point.Position) || !finite(point.Weight) || point.Weight <= 0 {
+			return fmt.Errorf("nurbs-curve control points require unique ids, finite positions, and positive weights")
+		}
+		seen[point.ID] = true
+	}
+	if curve.Segments < 2 || curve.Radius <= 0 || curve.RadialSegments < 3 {
+		return fmt.Errorf("nurbs-curve requires at least two path segments, positive radius, and three radial segments")
+	}
+	return nil
+}
+
+func finiteVec3(value Vec3) bool {
+	return finite(value.X) && finite(value.Y) && finite(value.Z)
+}
+
+func finite(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }

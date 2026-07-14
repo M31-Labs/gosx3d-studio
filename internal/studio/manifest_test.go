@@ -22,9 +22,15 @@ func TestDefaultManifestIsHonestAndDispatchable(t *testing.T) {
 			t.Fatalf("%s status = %q, want available", id, statuses[id])
 		}
 	}
-	for _, id := range []string{"scene3d-mount", "desktop-host"} {
-		if statuses[id] != "planned" {
-			t.Fatalf("%s status = %q, want planned", id, statuses[id])
+	if statuses["desktop-host"] != "partial" {
+		t.Fatalf("desktop-host status = %q, want partial", statuses["desktop-host"])
+	}
+	if statuses["viewport-exact-selection"] != "available" {
+		t.Fatalf("viewport exact selection status = %q", statuses["viewport-exact-selection"])
+	}
+	for _, id := range []string{"scene3d-mount", "command-journal", "topology-extrude"} {
+		if statuses[id] != "available" {
+			t.Fatalf("%s status = %q, want available", id, statuses[id])
 		}
 	}
 	if len(manifest.NextSlice) == 0 {

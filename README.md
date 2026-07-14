@@ -1,12 +1,14 @@
 # GoSX 3D Studio
 
-Initial standalone GoSX application scaffold for the animation, game,
+Standalone GoSX application foundation for the animation, game,
 simulation, and Scene3D asset workbench.
 
-The current slice establishes the Industrial Void editor shell, file-routed
-GoSX application, validated SceneDoc core, revision-safe command workspace,
-shared Scene3D compilation, native evidence harness, capability manifest, and
-the viewport seam where the compiled scene will mount next.
+The current M0 slice mounts a Studio-owned Chinese Checkers SceneDoc through
+typed Scene3D, supports exact viewport selection and revision-safe human/agent
+commands with undo, redo, checkpoint-safe extrusion, explicit atomic saves, and
+crash-journal recovery, and proves rendering and exact picking in the
+browser-free harness. Remaining component inspectors, full certification, and
+desktop packaging remain open.
 
 ## Run locally
 
@@ -21,6 +23,16 @@ Open <http://localhost:8080>. For hot reload:
 gosx dev .
 ```
 
+On Windows, the application executable launches the GoSX Desktop WebView2 host
+by default. For desktop development with the native dialog/clipboard bridge:
+
+```bash
+gosx desktop --native-bridge --app-id m31labs.gosx3d-studio dev .
+```
+
+Set `STUDIO_SERVER_ONLY=1` only for a Windows server probe or deployment that
+must not create a native window.
+
 The module uses the sibling `../gosx` checkout through a development `replace`
 directive. Remove or change that directive when the application moves to a
 released GoSX version.
@@ -28,18 +40,30 @@ released GoSX version.
 ## Current surfaces
 
 - Server-rendered Industrial Void editor shell.
-- Project, Hierarchy, viewport seam, Inspector, timeline, telemetry, and agent
+- Project, Hierarchy, mounted viewport, Inspector, timeline, telemetry, and agent
   action regions.
 - `GET /api/health` for process health.
+- `GET /api/studio/platform` for machine-readable host capability diagnostics.
 - `GET /api/studio/manifest` for the agent-readable scaffold and capability
   contract.
 - `GET /api/studio/document` for the current canonical SceneDoc snapshot.
 - `GET /api/studio/scene-ir` for the shared compiled SceneIR snapshot.
-- Proposal/direct command contracts with atomic validation, deterministic
-  fingerprints, revision conflicts, and undo.
+- `GET /api/studio/actions`, `/descriptors`, and `/certification` for discovery.
+- `GET /api/studio/project/status` plus authenticated
+  `POST /api/studio/project/save` for explicit-save and recovery state.
+- Scene3D viewport clicks and Hierarchy links converge on canonical workspace
+  selection; the Transform Inspector converges on the same transaction path as
+  agents.
+- Authenticated `POST /api/studio/actions/preview`, `/transactions/call`,
+  `/undo`, and `/redo` paths using `STUDIO_ACTION_TOKEN`.
+- Preview/direct command contracts with deterministic fingerprints, revision
+  conflicts, undo/redo, checksummed append-only journals, corrupt-save
+  quarantine, and explicit atomic `.scene3d` saves.
 - Browser-free PNG and exact ray evidence through `cmd/studio-smoke`.
-- Explicit disabled and uncertified states for functionality that has not been
-  wired yet.
+- Byte-deterministic combined M0 certification through `cmd/studio-certify`,
+  including SceneDoc/source-map, incremental equivalence, frame, exact-pick,
+  and Selena WGSL/GLSL artifact checks. Its `releaseStatus` remains `partial`.
+- Explicit partial, planned, and uncertified states for unfinished capability.
 
 ## Verify
 
@@ -48,10 +72,14 @@ gosx check app/page.gsx
 go test ./...
 go vet ./...
 go run ./cmd/studio-smoke
+go run ./cmd/studio-certify
+gosx build .
 ```
 
 See [docs/handoff.md](docs/handoff.md) for the next implementation slice and
 [docs/design-spec.md](docs/design-spec.md) for the binding visual system.
+Desktop truth is tracked in
+[docs/platform-capabilities.md](docs/platform-capabilities.md).
 
 ## Product boundary
 

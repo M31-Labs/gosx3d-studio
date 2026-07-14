@@ -1,14 +1,19 @@
 package app
 
 func Page() Node {
-	return <main class="studio-shell" aria-label="GoSX 3D Studio scaffold">
+	return <main class="studio-shell" aria-label="GoSX 3D Studio M1 foundation workbench">
 		<header class="menu-bar">
 			<a href="/" data-gosx-link class="brand" aria-label="GoSX 3D Studio home">
 				<span class="brand-mark">GoSX</span>
 				<span>3D Studio</span>
 			</a>
 			<nav class="application-menu" aria-label="Application menu">
-				<button type="button">File</button>
+				<button type="button" id="studio-open-project" data-revision={data.revision} data-dirty={data.project.dirty} title="Open a GoSX 3D Studio project through the native desktop dialog">Open</button>
+				<form method="post" action={actionPath("saveProject")} class="menu-save-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<button type="submit" title={"Save " + data.project.directory}>Save</button>
+				</form>
 				<button type="button">Edit</button>
 				<button type="button">Assets</button>
 				<button type="button">Scene</button>
@@ -23,7 +28,7 @@ func Page() Node {
 			</nav>
 			<div class="build-badge">
 				<span class="status-dot"></span>
-				Scaffold
+				M1 foundation · {data.project.state}
 			</div>
 		</header>
 		<nav class="workspace-tabs" aria-label="Studio workspaces">
@@ -60,8 +65,23 @@ func Page() Node {
 			<aside class="panel project-panel" aria-labelledby="project-title">
 				<header class="panel-heading">
 					<h2 id="project-title">Project / Assets</h2>
-					<button type="button" aria-label="Add asset">＋</button>
+					<span class="panel-count">{data.assetCount}</span>
 				</header>
+				<form id="studio-asset-import" method="post" action={actionPath("importAsset")} class="inspector-form asset-import-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="expectedRevision" value={data.revision}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<label>
+						Project-local asset file
+						<input id="studio-asset-path" name="path" placeholder="/path/to/model.glb" aria-describedby="studio-asset-dialog-status"></input>
+					</label>
+					<div class="asset-file-controls">
+						<button id="studio-choose-asset" type="button" class="inspector-apply">Choose file…</button>
+						<span id="studio-asset-dialog-status" class="placeholder-copy" aria-live="polite">Desktop chooser or trusted local path</span>
+					</div>
+					<p class="form-status">{action.message}</p>
+					<button type="submit" class="inspector-apply">Inspect and import</button>
+				</form>
 				<label class="search-field">
 					<span class="sr-only">Search assets</span>
 					<input type="search" placeholder="Search assets…"></input>
@@ -69,98 +89,42 @@ func Page() Node {
 				<ul class="tree asset-tree">
 					<li class="expanded">
 						<span>▾</span>
-						<strong>Chinese Checkers</strong>
+						<strong>{data.projectName}</strong>
 					</li>
 					<li class="depth-1 expanded">
 						<span>▾</span>
-						Scenes
+						Assets
+						<small>{data.assetCount}</small>
 					</li>
-					<li class="depth-2 selected">
-						<span>◇</span>
-						main.scene
-					</li>
-					<li class="depth-1">
-						<span>▸</span>
-						Models
-						<small>3</small>
-					</li>
-					<li class="depth-1">
-						<span>▸</span>
-						Materials
-						<small>6</small>
-					</li>
-					<li class="depth-1">
-						<span>▸</span>
-						Textures
-						<small>4</small>
-					</li>
-					<li class="depth-1">
-						<span>▸</span>
-						Rigs
-						<small>0</small>
-					</li>
-					<li class="depth-1">
-						<span>▸</span>
-						Animations
-						<small>0</small>
-					</li>
+					<Each of={data.assets} as="asset">
+						<li class="depth-2 asset-record" title={asset.id}>
+							<code>{asset.shortId}</code>
+							<span>{asset.name}</span>
+							<small>{asset.format} · {asset.bytes}</small>
+							<small>{asset.dependencies}</small>
+						</li>
+					</Each>
 				</ul>
 			</aside>
 			<aside class="panel hierarchy-panel" aria-labelledby="hierarchy-title">
 				<header class="panel-heading">
 					<h2 id="hierarchy-title">Scene Hierarchy</h2>
-					<span class="panel-count">12</span>
+					<span class="panel-count">{data.entityCount}</span>
 				</header>
 				<label class="search-field">
 					<span class="sr-only">Search hierarchy</span>
 					<input type="search" placeholder="Search hierarchy…"></input>
 				</label>
 				<ul class="tree hierarchy-tree">
-					<li>
-						<code>0000</code>
-						<strong>Scene Root</strong>
-					</li>
-					<li class="depth-1">
-						<code>0100</code>
-						Environment
-					</li>
-					<li class="depth-1">
-						<code>0110</code>
-						Camera Main
-					</li>
-					<li class="depth-1">
-						<code>0200</code>
-						Lighting
-					</li>
-					<li class="depth-1 expanded">
-						<code>0300</code>
-						<span>▾</span>
-						Board Group
-					</li>
-					<li class="depth-2">
-						<code>0310</code>
-						Board Mesh
-					</li>
-					<li class="depth-2 selected">
-						<code>0421</code>
-						<span class="material-dot jade"></span>
-						Piece 01
-					</li>
-					<li class="depth-2">
-						<code>0422</code>
-						<span class="material-dot jade"></span>
-						Piece 02
-					</li>
-					<li class="depth-2">
-						<code>0521</code>
-						<span class="material-dot blue"></span>
-						Piece 11
-					</li>
-					<li class="depth-2">
-						<code>0621</code>
-						<span class="material-dot gold"></span>
-						Piece 21
-					</li>
+					<Each of={data.hierarchy} as="item">
+						<li class={item.class}>
+							<a href={"/?selection=" + item.id} data-gosx-link aria-label={"Select " + item.name}>
+								<code>{item.code}</code>
+								<span class="entity-kind">{item.kind}</span>
+								<span>{item.name}</span>
+							</a>
+						</li>
+					</Each>
 				</ul>
 			</aside>
 			<section class="viewport-panel" aria-labelledby="viewport-title">
@@ -172,32 +136,21 @@ func Page() Node {
 					</div>
 				</header>
 				<div class="scene-stage">
-					<div class="runtime-readout" aria-label="Runtime scaffold telemetry">
+					<div class="runtime-readout" aria-label="Observed runtime telemetry">
 						<span>SCENE IR</span>
-						<strong>scaffold</strong>
+						<strong>mounted</strong>
 						<span>BACKEND</span>
-						<strong>unmounted</strong>
+						<strong>negotiated</strong>
 						<span>REVISION</span>
-						<strong>0001</strong>
+						<strong>{data.revision}</strong>
 					</div>
-					<div class="board-placeholder" aria-label="Scene3D viewport placeholder">
-						<div class="board-grid"></div>
-						<div class="piece p1 jade"></div>
-						<div class="piece p2 jade"></div>
-						<div class="piece p3 orange"></div>
-						<div class="piece p4 blue"></div>
-						<div class="piece selected-piece jade">
-							<span class="gizmo-axis axis-x"></span>
-							<span class="gizmo-axis axis-y"></span>
+					<Scene3D class="studio-scene" {...data.scene}>
+						<div class="viewport-empty-state">
+							<span class="overline">Scene3D unavailable</span>
+							<h1>{data.appName}</h1>
+							<p>The canonical document remains available to the native harness and action API.</p>
 						</div>
-					</div>
-					<div class="viewport-empty-state">
-						<span class="overline">Scene3D mount seam</span>
-						<h1>{data.appName}</h1>
-						<p>
-							The shell is live. SceneDoc → SceneIR → native evidence is the first implementation slice.
-						</p>
-					</div>
+					</Scene3D>
 					<div class="axis-widget" aria-hidden="true">
 						<span class="x">X</span>
 						<span class="y">Y</span>
@@ -208,62 +161,148 @@ func Page() Node {
 			<aside class="panel inspector-panel" aria-labelledby="inspector-title">
 				<header class="panel-heading">
 					<h2 id="inspector-title">Inspector</h2>
-					<span class="selection-id">Piece 01 · 0421</span>
+					<span class="selection-id">{data.inspector.name} · {data.inspector.id}</span>
 				</header>
 				<details open>
 					<summary>Transform</summary>
+					<form method="post" action={actionPath("setTransform")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 					<div class="property-grid">
 						<span>Location</span>
 						<label>
 							X
-							<input value="2.400" readonly></input>
+							<input name="x" value={data.inspector.x} inputmode="decimal"></input>
 						</label>
 						<label>
 							Y
-							<input value="0.420" readonly></input>
+							<input name="y" value={data.inspector.y} inputmode="decimal"></input>
 						</label>
 						<label>
 							Z
-							<input value="-1.200" readonly></input>
+							<input name="z" value={data.inspector.z} inputmode="decimal"></input>
 						</label>
 					</div>
 					<div class="property-grid">
 						<span>Rotation</span>
 						<label>
 							X
-							<input value="0.000" readonly></input>
+							<input name="rx" value={data.inspector.rx} inputmode="decimal"></input>
 						</label>
 						<label>
 							Y
-							<input value="0.000" readonly></input>
+							<input name="ry" value={data.inspector.ry} inputmode="decimal"></input>
 						</label>
 						<label>
 							Z
-							<input value="0.000" readonly></input>
+							<input name="rz" value={data.inspector.rz} inputmode="decimal"></input>
 						</label>
 					</div>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Apply transform</button>
+					</form>
 				</details>
 				<details open>
-					<summary>Selena Material</summary>
-					<div class="material-preview jade"></div>
+					<summary>Material</summary>
+					<div class="material-preview authored-material"></div>
 					<dl class="properties">
 						<div>
 							<dt>Material</dt>
-							<dd>jade.selena</dd>
+							<dd>{data.inspector.material}</dd>
 						</div>
 						<div>
 							<dt>Surface</dt>
-							<dd>PBR / Selena</dd>
+							<dd>{data.inspector.kind}</dd>
+						</div>
+						<div>
+							<dt>Shader</dt>
+							<dd class="runtime-label">{data.inspector.shader}</dd>
 						</div>
 						<div>
 							<dt>Transmission</dt>
-							<dd class="authored">0.22</dd>
+							<dd class="authored">{data.inspector.transmission}</dd>
 						</div>
 						<div>
 							<dt>Roughness</dt>
-							<dd>0.28</dd>
+							<dd>{data.inspector.roughness}</dd>
 						</div>
 					</dl>
+				</details>
+				<details>
+					<summary>Model Asset</summary>
+					<form method="post" action={actionPath("reimportAsset")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Content-addressed asset ID
+							<input name="assetId" value={data.inspector.assetId} readonly></input>
+						</label>
+						<label>
+							Replacement project-local file
+							<input name="path" placeholder={data.inspector.assetName}></input>
+						</label>
+						<p class="placeholder-copy">Reimport creates a new content identity and migrates every SceneDoc and prefab model reference atomically.</p>
+						<button type="submit" class="inspector-apply">Reimport and retarget</button>
+					</form>
+				</details>
+				<details>
+					<summary>Modifiers</summary>
+					<form method="post" action={actionPath("setSolidify")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Stable modifier ID
+							<input name="modifierId" value={data.inspector.modifierId}></input>
+						</label>
+						<label>
+							Solidify thickness
+							<input name="thickness" value={data.inspector.thickness} inputmode="decimal"></input>
+						</label>
+						<p class="placeholder-copy">{data.inspector.modifierStatus}</p>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Set solidify</button>
+					</form>
+					<form method="post" action={actionPath("setSubdivision")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Subdivision modifier ID
+							<input name="modifierId" value={data.inspector.subdivisionId}></input>
+						</label>
+						<label>
+							Subdivision levels
+							<input name="levels" value={data.inspector.subdivisionLevels} inputmode="numeric"></input>
+						</label>
+						<button type="submit" class="inspector-apply">Set subdivision</button>
+					</form>
+					<form method="post" action={actionPath("reorderModifier")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Modifier ID
+							<input name="modifierId" value={data.inspector.activeModifierId}></input>
+						</label>
+						<label>
+							Stack index
+							<input name="modifierIndex" value="0" inputmode="numeric"></input>
+						</label>
+						<button type="submit" class="inspector-apply">Move modifier</button>
+					</form>
+					<form method="post" action={actionPath("applyModifier")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Bake through modifier ID
+							<input name="modifierId" value={data.inspector.activeModifierId}></input>
+						</label>
+						<button type="submit" class="inspector-apply">Apply through modifier</button>
+					</form>
 				</details>
 				<details>
 					<summary>Physics</summary>
@@ -271,7 +310,7 @@ func Page() Node {
 				</details>
 				<details>
 					<summary>Metadata</summary>
-					<p class="placeholder-copy">Stable ID · revision 0001</p>
+					<p class="placeholder-copy">Stable ID {data.inspector.id} · revision {data.revision}</p>
 				</details>
 			</aside>
 			<section class="timeline-panel" aria-labelledby="timeline-title">
@@ -364,23 +403,35 @@ func Page() Node {
 				</div>
 				<div class="certification-card">
 					<span>Certification</span>
-					<strong>NOT RUN</strong>
-					<small>Honest scaffold state</small>
+					<strong>{data.certification.status}</strong>
+					<small>{data.certification.available} / {data.certification.total} editor dimensions available</small>
+					<ul class="certification-dimensions">
+						<Each of={data.certification.dimensions} as="dimension">
+							<li title={dimension.evidence}>
+								<span>{dimension.id}</span>
+								<strong>{dimension.status}</strong>
+							</li>
+						</Each>
+					</ul>
 				</div>
 				<div class="manifest-link">
 					<span>Agent-readable contract</span>
 					<a href="/api/studio/manifest">/api/studio/manifest ↗</a>
+					<a href="/api/studio/certification/evidence">Current deterministic evidence ↗</a>
 				</div>
 			</div>
 		</section>
+		<script src="/studio-selection.js" defer></script>
+		<script src="/studio-project.js" defer></script>
 		<footer class="status-bar">
 			<span class="runtime-label">GoSX server</span>
-			<span>Scene revision 0001</span>
-			<span>Renderer unmounted</span>
-			<span>0 draw calls</span>
-			<span>0 MB GPU</span>
+			<span>Scene revision {data.revision}</span>
+			<span>Saved revision {data.project.savedRevision}</span>
+			<span class="author-label">Project {data.project.state}</span>
+			<span>Scene3D mounted</span>
+			<span>GPU telemetry unavailable</span>
 			<span class="status-spacer"></span>
-			<strong class="pending">UNCERTIFIED</strong>
+			<strong class="pending">CERTIFICATION {data.certification.status}</strong>
 			<span>Industrial Void</span>
 		</footer>
 	</main>

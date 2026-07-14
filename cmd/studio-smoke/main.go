@@ -26,8 +26,12 @@ func main() {
 	if len(report.Events) == 0 || report.Events[0].Frame == nil || report.Events[0].Frame.Coverage <= 0.001 {
 		fatalIf(fmt.Errorf("native frame is blank or missing evidence"))
 	}
-	trace := session.Trace("center-piece", scene.Ray{Origin: scene.Vec3(0, 4, 0), Direction: scene.Vec3(0, -1, 0)}, scene.PickableOnly())
-	if trace.Closest == nil || trace.Closest.ID != "piece-jade-01" {
+	if len(report.Materials) == 0 || !report.Materials[0].Valid {
+		fatalIf(fmt.Errorf("Selena material artifact evidence is missing or invalid"))
+	}
+	target, position := studio.FirstPickTarget(document)
+	trace := session.Trace("stable-piece", scene.Ray{Origin: scene.Vec3(position.X, 4, position.Z), Direction: scene.Vec3(0, -1, 0)}, scene.PickableOnly())
+	if trace.Closest == nil || trace.Closest.ID != string(target) {
 		fatalIf(fmt.Errorf("exact center trace hit %+v", trace.Closest))
 	}
 	fatalIf(session.Validate())

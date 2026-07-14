@@ -1,5 +1,68 @@
 # Architecture map
 
+## Visual System
+
+The binding territory is **Industrial Void**, a compact Dark Elegance tool UI:
+near-black canvas, layered graphite work surfaces, restrained structure, and
+semantic state color rather than decoration. Orange is authored state, cyan is
+observed runtime state, and gold is trusted certification state.
+
+- Typography uses Space Grotesk 600 for display labels, Work Sans 400/600 for
+  body/UI copy, and JetBrains Mono 400 for identities and telemetry. The compact
+  tool scale follows a 1.2 minor-third ratio.
+- The 60/30/10 palette is canvas `#0b0d10`, graphite panels
+  `#14181c`/`#23272c`, and authored orange `#ff8a2a`. Primary `#e6e2d6`,
+  secondary `#b9b4a8`, and muted `#918d84` text all meet WCAG AA against the
+  canvas; primary and secondary meet AAA. Focus uses `#f6a45e`.
+- Motion is Minimal: 140 ms control feedback and 200 ms panel transitions with
+  `cubic-bezier(0.16, 1, 0.3, 1)` ease-out and
+  `cubic-bezier(0.34, 1.56, 0.64, 1)` spring feedback. Reduced-motion collapses
+  transitions to 1 ms.
+- Spacing uses a compact 4 px base and responsive `xs` through `3xl` tokens.
+  Dense tool rows intentionally use the lower half of the scale.
+
+The canonical ready-to-use token contract is:
+
+```css
+:root {
+  --font-display: "Space Grotesk", "Aptos Display", sans-serif;
+  --font-body: "Work Sans", "Aptos", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", monospace;
+  --type-xs: clamp(0.6875rem, 0.66rem + 0.08vw, 0.75rem);
+  --type-sm: clamp(0.75rem, 0.72rem + 0.10vw, 0.8125rem);
+  --type-md: clamp(0.875rem, 0.84rem + 0.12vw, 0.9375rem);
+  --type-lg: clamp(1rem, 0.94rem + 0.18vw, 1.125rem);
+  --type-xl: clamp(1.2rem, 1.08rem + 0.30vw, 1.44rem);
+  --type-2xl: clamp(1.44rem, 1.24rem + 0.50vw, 1.728rem);
+  --color-canvas: #0b0d10;
+  --color-panel: #14181c;
+  --color-panel-raised: #23272c;
+  --color-panel-sunken: #101317;
+  --color-border: #2d3239;
+  --color-border-strong: #454c55;
+  --color-text: #e6e2d6;
+  --color-text-secondary: #b9b4a8;
+  --color-text-muted: #918d84;
+  --color-author: #ff8a2a;
+  --color-author-soft: #5a321c;
+  --color-runtime: #2ec7e6;
+  --color-runtime-soft: #173b43;
+  --color-certified: #d4af37;
+  --color-focus: #f6a45e;
+  --space-xs: clamp(0.25rem, 0.22rem + 0.08vw, 0.375rem);
+  --space-sm: clamp(0.5rem, 0.46rem + 0.10vw, 0.625rem);
+  --space-md: clamp(0.75rem, 0.68rem + 0.16vw, 0.875rem);
+  --space-lg: clamp(1rem, 0.90rem + 0.24vw, 1.25rem);
+  --space-xl: clamp(1.5rem, 1.32rem + 0.40vw, 1.875rem);
+  --space-2xl: clamp(2rem, 1.72rem + 0.65vw, 2.5rem);
+  --space-3xl: clamp(3rem, 2.5rem + 1vw, 4rem);
+  --duration-fast: 140ms;
+  --duration-panel: 200ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+```
+
 ```text
 GoSX shell (app/)
        │ reads state / submits typed transactions
@@ -15,13 +78,126 @@ GoSX typed Scene3D ──► shared SceneIR ──► runtime backends
        └─────────────► native harness ──► frame + exact trace + evidence
 ```
 
-The initial compiler supports groups, box/plane/sphere/cylinder meshes,
+The compiler supports groups, box/plane/sphere/cylinder and retained indexed meshes,
 StandardMaterial records, and ambient/directional/point lights. Non-unit scale
 fails explicitly because the current typed Scene3D mesh/group contract does not
 carry scale. This is a deliberate honesty gate, not an implicit omission.
 
-The command bus currently implements `set-transform`, `assign-material`, and
-`rename-entity` in proposal and direct modes. Proposals return a complete
-preview without mutating the workspace. Direct transactions require an exact
-revision, commit atomically, produce deterministic fingerprints, and can be
-undone while preserving monotonic revisions.
+The command bus implements `set-field`, `set-transform`, create/delete/reparent/
+duplicate, material assignment, rename, and checkpoint-safe indexed-mesh
+`extrude-faces`, `inset-faces`, `triangulate-faces`, `weld-vertices`, `fill-face`,
+`recalculate-normals`, `project-planar-uv`, `dissolve-edges`, `bridge-loops`,
+and crack-free stable-edge `loop-cut` traversal across quad rings.
+Object, vertex, deterministic derived-edge, and face
+selection carry the SceneDoc revision; topology changes either preserve valid
+stable IDs or downgrade invalidated sub-object selection to its owning object.
+Receipts include normalized operator records with selection, coordinate space,
+parameters, result IDs, and checkpoint policy.
+
+`GET /api/studio/geometry/analysis?target=<stable-id>` performs browser-free,
+revision-tagged indexed-mesh inspection. It reports topology counts, bounds,
+surface area, closed-mesh volume, boundary and non-manifold edges, degenerate
+faces, duplicate positions, isolated vertices, and UV completeness, normalized
+bounds, tile overflow, and degenerate UV faces. Authored UVs compile through
+typed `BufferGeometry.UVs` into shared SceneIR. Findings refer to stable
+SceneDoc sub-object IDs and do not imply that interactive rulers or repair
+operators are complete.
+
+`nurbs-curve` geometry stores stable weighted control points, degree, clamped
+or non-uniform knot vectors, tessellation budgets, and tube radius in SceneDoc.
+The compiler evaluates the rational B-spline and emits deterministic positions,
+normals, UVs, and indices through typed `BufferGeometry`; it does not introduce
+an editor renderer graph. Control-point selection and mutation are revision-safe
+and use the same preview/direct/checkpoint command path. Curve analysis reports
+the parameter domain, approximate length, and tessellation counts. Cyclic
+curves and loft/revolve/sweep surface tools remain explicitly partial.
+
+Indexed meshes may carry an ordered, stable-ID non-destructive modifier stack.
+The current evaluator supports subdivision, mirror, array, and solidify, validates parameters before
+commit, leaves authored topology untouched, generates deterministic vertex and
+face IDs, and feeds the evaluated geometry into the same typed Scene3D compiler.
+Solidify computes averaged authored-surface normals, creates symmetric top and
+bottom shells, closes boundary loops with stable side faces, and is available
+through both the action API and the human Inspector form.
+Subdivision performs bounded multi-level Catmull-Clark evaluation. Interior edge
+points are shared by both adjacent faces, face points are emitted once, original
+vertices follow interior or boundary rules, and every generated quad has a
+stable level/face/corner identity. Non-manifold input and million-element budget
+overflow fail explicitly; closed manifold input remains crack-free and
+manifold. Levels are editable through the shared agent action and human
+Inspector path.
+Stable modifier IDs can be moved to an exact stack index. Applying a modifier
+bakes the authored geometry through that modifier (including every preceding
+stack entry), removes the baked prefix, preserves later modifiers, and records a
+geometry-checkpoint undo policy. Reorder and apply are exposed through the same
+typed agent descriptors and human Inspector actions; proposals and direct
+commits are fingerprint-equivalent.
+Set/remove actions support proposal preview, direct commit, journal replay, and
+checkpoint undo. The broader modifier library remains partial.
+
+CSG operations accept two valid closed manifold indexed meshes under the same
+parent, evaluate their modifier stacks, and perform deterministic bounded voxel
+union, intersection, or subtraction. The result is a new SceneDoc entity with
+stable grid-derived vertex and face IDs and compiles through typed Scene3D and
+shared SceneIR. The one-million-cell budget is an explicit diagnostic gate.
+Current CSG requires identity rotation/scale and is voxel-accurate at the
+authored resolution; analytic polygon booleans and rotated operands remain
+partial.
+
+Material records are authored through `set-material` and `delete-material` on
+the same proposal/direct transaction path. PBR ranges are validated before
+commit; Selena source is compiled before replacement, so invalid source returns
+diagnostics without replacing the last valid material state. Receipts carry
+material before/after semantics, deletion rejects live references, and accepted
+materials compile through the existing typed Scene3D material transport.
+
+Prefab definitions capture stable-ID entity subtrees in SceneDoc. Instances
+remain linked to the definition and compile with namespaced runtime IDs; local
+transform, material, and visibility overrides do not mutate the definition.
+Capture/update, instantiate, override, and reference-safe delete operations use
+the shared command path. Source maps connect runtime IDs back to both the
+instance and `prefab/local-entity` record, while incremental fingerprints include
+definition content so linked changes cannot reuse stale nodes. Nested prefabs,
+variants, unpacking, and portable prefab packages remain partial.
+
+Asset imports inspect source bytes before registration and derive identity from
+the complete SHA-256 payload. Direct imports atomically place immutable payloads
+under `assets/sha256/` in the active project, then register the asset through the
+same revision-safe command bus; proposals register only in the preview document.
+Integrity audits and the content handler re-hash stored bytes before trusting or
+serving them. SceneDoc model entities reference GLB/glTF asset IDs and lower
+through typed `scene.Model` into shared SceneIR, including source-map and
+incremental-cache dependencies. Dependency reports enumerate sorted direct
+entity references, prefab-definition references, and linked instances.
+Reimport inspects a replacement into a new content identity, previews the exact
+transaction, stores immutable bytes only after validation, then atomically
+retargets ordinary and prefab-local model records; human Inspector and agent API
+calls converge on that command. The current foundation does not claim external
+glTF dependency packaging, thumbnails, conversion, optimization, automatic file
+watching, garbage collection, or native file-dialog import. The Project panel
+is no longer a static mock: it reads the current SceneDoc asset map and
+dependency report, displays content identity/name/format/bytes/reference counts,
+and submits initial human imports through the same inspected `register-asset`
+transaction used by agents. Direct imports validate a proposal and exact
+revision before writing the immutable payload, so a stale human or agent request
+does not leave an unregistered project artifact. In the packaged desktop host,
+File → Import Asset and the Project-panel chooser call the trusted
+`gosxDesktop.dialog.openFile` bridge with the supported format filter, populate
+that same form, and leave confirmation explicit. Server-only mode retains the
+manual trusted-path input and an accessible status explanation.
+
+Proposals do not mutate. Direct operations require an exact revision and append
+a checksummed, fsynced journal record without rewriting the last explicit save.
+Save atomically replaces the canonical SceneDoc. Restart selects the newest
+valid journal snapshot, reports recovered/dirty state, skips torn records, and
+quarantines corrupt canonical bytes before continuing. Undo/redo use the same
+journal path.
+
+The GSX viewport spreads the same compiled `scene.Props` consumed by the native
+harness. No DOM board or editor-only renderer graph is scene truth.
+
+`studio-certify` emits the deterministic M0 evidence envelope. A valid M0
+envelope proves the vertical slice only; it embeds the broader certification
+matrix and keeps `releaseStatus: partial` until the complete public-v1 ledger is
+closed. The Chinese Checkers SceneDoc owns a Selena source record that compiles
+through the same WGSL/GLSL artifact transport inspected by the harness.

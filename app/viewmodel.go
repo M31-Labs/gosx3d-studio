@@ -1,0 +1,181 @@
+package app
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"m31labs.dev/gosx3d-studio/internal/studio"
+)
+
+func certificationView(report studio.CertificationReport) map[string]any {
+	keys := make([]string, 0, len(report.Dimensions))
+	for key := range report.Dimensions {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	dimensions := make([]map[string]any, 0, len(keys))
+	available := 0
+	for _, key := range keys {
+		dimension := report.Dimensions[key]
+		if dimension.Status == "available" {
+			available++
+		}
+		dimensions = append(dimensions, map[string]any{"id": dimension.ID, "status": dimension.Status, "evidence": dimension.Evidence})
+	}
+	return map[string]any{
+		"status": report.Status, "dimensions": dimensions,
+		"available": fmt.Sprint(available), "total": fmt.Sprint(len(dimensions)),
+	}
+}
+
+func projectView(workspace *studio.Workspace) map[string]any {
+	if workspace == nil {
+		return map[string]any{"state": "unavailable", "dirty": "false", "recovered": "false"}
+	}
+	status := workspace.ProjectStatus()
+	state := "saved"
+	if status.Recovered {
+		state = "recovered"
+	} else if status.Dirty {
+		state = "modified"
+	}
+	return map[string]any{
+		"state": state, "dirty": fmt.Sprint(status.Dirty), "recovered": fmt.Sprint(status.Recovered),
+		"directory": status.Directory, "savedRevision": fmt.Sprintf("%04d", status.SavedRevision),
+	}
+}
+
+func assetView(document studio.Document, workspace *studio.Workspace) []map[string]any {
+	dependencies := map[studio.ID]studio.AssetDependencyEntry{}
+	if workspace != nil {
+		for _, entry := range workspace.AssetDependencies().Assets {
+			dependencies[entry.Asset] = entry
+		}
+	}
+	ids := make([]string, 0, len(document.Assets))
+	for id := range document.Assets {
+		ids = append(ids, string(id))
+	}
+	sort.Strings(ids)
+	out := make([]map[string]any, 0, len(ids))
+	for _, value := range ids {
+		asset := document.Assets[studio.ID(value)]
+		dependency := dependencies[asset.ID]
+		out = append(out, map[string]any{
+			"id": string(asset.ID), "shortId": shortID(asset.ID), "name": asset.SourceName,
+			"kind": asset.Kind, "format": strings.ToUpper(asset.Format), "bytes": formatBytes(asset.Bytes),
+			"dependencies": fmt.Sprintf("%d direct · %d instances", dependency.DirectCount, len(dependency.Instances)),
+		})
+	}
+	return out
+}
+
+func formatBytes(value int64) string {
+	if value < 1024 {
+		return fmt.Sprintf("%d B", value)
+	}
+	if value < 1024*1024 {
+		return fmt.Sprintf("%.1f KiB", float64(value)/1024)
+	}
+	return fmt.Sprintf("%.1f MiB", float64(value)/(1024*1024))
+}
+
+func hierarchyView(document studio.Document, selected studio.ID) []map[string]any {
+	items := make([]map[string]any, 0, len(document.Entities))
+	var walk func(studio.ID, int)
+	walk = func(id studio.ID, depth int) {
+		entity := document.Entities[id]
+		class := fmt.Sprintf("depth-%d", min(depth, 2))
+		if id == selected {
+			class += " selected"
+		}
+		kind := "group"
+		if entity.Mesh != nil {
+			kind = "mesh"
+		} else if entity.Model != nil {
+			kind = "model"
+		} else if entity.Light != nil {
+			kind = "light"
+		}
+		items = append(items, map[string]any{"id": string(id), "name": entity.Name, "class": class, "kind": kind, "code": shortID(id)})
+		for _, child := range entity.Children {
+			walk(child, depth+1)
+		}
+	}
+	for _, root := range document.RootIDs {
+		walk(root, 0)
+	}
+	return items
+}
+
+func inspectorView(document studio.Document, selected studio.ID) map[string]any {
+	entity, ok := document.Entities[selected]
+	if !ok {
+		return map[string]any{"id": "", "name": "No selection", "material": "—"}
+	}
+	materialName := "—"
+	materialID := ""
+	shader := "Standard PBR"
+	roughness := "—"
+	transmission := "—"
+	geometry := "Group"
+	modifierID := "solidify"
+	subdivisionID := "subdivision"
+	subdivisionLevels := "1"
+	activeModifierID := ""
+	thickness := "0.100"
+	modifierStatus := "Requires an indexed mesh"
+	assetID := ""
+	assetName := "No model asset selected"
+	if entity.Mesh != nil {
+		materialID = string(entity.Mesh.Material)
+		geometry = entity.Mesh.Geometry.Kind
+		if entity.Mesh.Geometry.Kind == "indexed-mesh" {
+			modifierStatus = fmt.Sprintf("%d modifiers · ready", len(entity.Mesh.Modifiers))
+			if len(entity.Mesh.Modifiers) > 0 {
+				activeModifierID = string(entity.Mesh.Modifiers[0].ID)
+			}
+			for _, modifier := range entity.Mesh.Modifiers {
+				if modifier.Kind == "solidify" {
+					modifierID = string(modifier.ID)
+					thickness = number(modifier.Thickness)
+					break
+				}
+			}
+			for _, modifier := range entity.Mesh.Modifiers {
+				if modifier.Kind == "subdivision" {
+					subdivisionID = string(modifier.ID)
+					subdivisionLevels = fmt.Sprint(modifier.Levels)
+					break
+				}
+			}
+		}
+		if material, exists := document.Materials[entity.Mesh.Material]; exists {
+			materialName = material.Name
+			roughness = number(material.Roughness)
+			transmission = number(material.Transmission)
+			if material.Selena != nil {
+				shader = "Selena · " + material.Selena.Material
+			}
+		}
+	} else if entity.Model != nil {
+		geometry = "Model · " + string(entity.Model.Asset)
+		assetID = string(entity.Model.Asset)
+		if asset, exists := document.Assets[entity.Model.Asset]; exists {
+			assetName = asset.SourceName
+		}
+	} else if entity.Light != nil {
+		geometry = strings.Title(entity.Light.Kind) + " light"
+	}
+	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Rotation.X), "ry": number(entity.Transform.Rotation.Y), "rz": number(entity.Transform.Rotation.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName}
+}
+
+func shortID(id studio.ID) string {
+	value := string(id)
+	if len(value) <= 12 {
+		return value
+	}
+	return value[:12]
+}
+func number(value float64) string { return fmt.Sprintf("%.3f", value) }
