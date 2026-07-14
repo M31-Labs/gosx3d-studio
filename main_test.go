@@ -106,6 +106,25 @@ func TestDesktopAssetBridgeUsesNativeDialogAndSharedHumanForm(t *testing.T) {
 	}
 }
 
+func TestAssetGarbageCollectionHasHumanAndAgentSurfaces(t *testing.T) {
+	page, err := os.ReadFile("app/page.gsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverSource, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{"collectAssets", "confirmPlan", "Checkpoint and collect"} {
+		if !strings.Contains(string(page), required) {
+			t.Fatalf("human asset collection missing %q", required)
+		}
+	}
+	if !strings.Contains(string(serverSource), "/api/studio/assets/garbage-collect") {
+		t.Fatal("agent asset collection endpoint missing")
+	}
+}
+
 func TestStudioActionAuthentication(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/studio/transactions/call", nil)
 	if err := authorizeAction(request, "token"); err == nil {

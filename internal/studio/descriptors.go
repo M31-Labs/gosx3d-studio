@@ -17,6 +17,7 @@ type ActionDescriptor struct {
 	UndoPolicy      string            `json:"undoPolicy"`
 	Headless        string            `json:"headless"`
 	InputSchema     map[string]any    `json:"inputSchema"`
+	Endpoint        string            `json:"endpoint"`
 }
 
 func ActionDescriptors() []ActionDescriptor {
@@ -44,6 +45,7 @@ func ActionDescriptors() []ActionDescriptor {
 	descriptions[OpSetAnimationParameter] = "Set a declared animation-state-machine parameter."
 	descriptions[OpStepAnimationMachine] = "Advance an Arbiter-governed animation state machine and sample its active clip."
 	descriptions[OpSetRenderGraph] = "Replace the retained render/resource graph after deterministic schedule and lifetime validation."
+	descriptions[OpCollectUnusedAssets] = "Plan or checkpoint deletion of unreachable asset records and payload bytes."
 	required := map[OperationKind][]string{OpSetField: {"target", "field", "value"}, OpSetTransform: {"target", "transform"}, OpAssignMaterial: {"target", "material"}, OpRenameEntity: {"target", "name"}, OpCreateEntity: {"entity"}, OpDeleteEntity: {"target"}, OpReparentEntity: {"target", "parent"}, OpDuplicateEntity: {"target", "newId"}, OpExtrudeFaces: {"target", "faces", "distance"}, OpInsetFaces: {"target", "faces", "amount"}, OpTriangulateFaces: {"target", "faces"}, OpWeldVertices: {"target", "vertices", "tolerance"}, OpFillFace: {"target", "vertices", "newId"}, OpRecalculateNormals: {"target"}, OpProjectPlanarUV: {"target", "projection"}, OpDissolveEdges: {"target", "edges"}, OpBridgeLoops: {"target", "loops", "newId", "closed"}, OpLoopCut: {"target", "edges", "amount", "newId"}, OpSetCurveControlPoint: {"target", "controlPoint"}}
 	required[OpSetModifier] = []string{"target", "modifier"}
 	required[OpRemoveModifier] = []string{"target", "modifierId"}
@@ -68,10 +70,17 @@ func ActionDescriptors() []ActionDescriptor {
 	required[OpSetAnimationParameter] = []string{"machineId", "parameter", "number"}
 	required[OpStepAnimationMachine] = []string{"machineId", "deltaTime"}
 	required[OpSetRenderGraph] = []string{"renderGraph"}
+	required[OpCollectUnusedAssets] = []string{"actor", "mode", "expectedRevision"}
 	out := make([]ActionDescriptor, 0, len(descriptions))
 	for _, capability := range ActionCatalog() {
 		kind := OperationKind(capability.ID)
-		out = append(out, ActionDescriptor{Name: capability.ID, Version: "1.0.0", Description: descriptions[kind], Access: "mutate", AuthorityModes: []TransactionMode{ModePropose, ModeDirect}, SupportsPreview: true, SupportsBatch: true, UndoPolicy: "inverse-or-checkpoint", Headless: "available", InputSchema: map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "required": required[kind], "properties": operationSchemaProperties()}})
+		endpoint, undoPolicy, supportsBatch := "/api/studio/transactions/call", "inverse-or-checkpoint", true
+		if kind == OpCollectUnusedAssets {
+			endpoint = "/api/studio/assets/garbage-collect"
+			undoPolicy = "explicit-checkpoint"
+			supportsBatch = false
+		}
+		out = append(out, ActionDescriptor{Name: capability.ID, Version: "1.0.0", Description: descriptions[kind], Access: "mutate", AuthorityModes: []TransactionMode{ModePropose, ModeDirect}, SupportsPreview: true, SupportsBatch: supportsBatch, UndoPolicy: undoPolicy, Headless: "available", Endpoint: endpoint, InputSchema: map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "required": required[kind], "properties": operationSchemaProperties()}})
 	}
 	return out
 }
@@ -102,6 +111,7 @@ func operationSchemaProperties() map[string]any {
 		"retargetMapId": map[string]any{"type": "string", "minLength": 1}, "sourceClipId": map[string]any{"type": "string", "minLength": 1}, "machineId": map[string]any{"type": "string", "minLength": 1},
 		"parameter": map[string]any{"type": "string", "minLength": 1}, "number": map[string]any{"type": "number"}, "deltaTime": map[string]any{"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
 		"renderGraph": map[string]any{"type": "object"},
+		"actor":       map[string]any{"type": "string", "minLength": 1}, "mode": map[string]any{"type": "string", "enum": []string{"propose", "direct"}}, "expectedRevision": map[string]any{"type": "integer", "minimum": 0}, "confirmPlan": map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"},
 	}
 	return properties
 }

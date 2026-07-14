@@ -182,6 +182,17 @@ func executeHumanAssetReimport(workspace *studio.Workspace, values map[string]st
 	return receipt, asset, err
 }
 
+func executeHumanAssetGC(workspace *studio.Workspace, values map[string]string) (studio.AssetGCResult, error) {
+	if workspace == nil {
+		return studio.AssetGCResult{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.AssetGCResult{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	return workspace.CollectAssetGarbage(studio.AssetGCRequest{Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, ConfirmPlan: strings.TrimSpace(values["confirmPlan"])})
+}
+
 func executeHumanAssetImport(workspace *studio.Workspace, values map[string]string) (studio.Receipt, studio.AssetRecord, error) {
 	if workspace == nil {
 		return studio.Receipt{}, studio.AssetRecord{}, fmt.Errorf("Studio workspace is not bound")
@@ -475,6 +486,14 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"collectAssets": func(ctx *action.Context) error {
+				if _, err := executeHumanAssetGC(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"assetGC": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
 			"reorderModifier": func(ctx *action.Context) error {
 				if _, err := executeHumanModifierOperation(boundWorkspace(), ctx.FormData, studio.OpReorderModifier); err != nil {
 					ctx.ValidationFailure(err.Error(), map[string]string{"modifier": err.Error()})
@@ -575,6 +594,7 @@ func init() {
 				"project":       projectView(boundWorkspace()),
 				"assets":        assetView(document, boundWorkspace()),
 				"assetCount":    fmt.Sprint(len(document.Assets)),
+				"assetGC":       assetGCView(document),
 				"timeline":      timelineView(document),
 			}, nil
 		},

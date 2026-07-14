@@ -239,7 +239,54 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m2-gltf-dependency-packaging", packageOK, packageEvidence)
+	gcEvidence, gcOK, err := certifyAssetGarbageCollection()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m1-asset-garbage-collection", gcOK, gcEvidence)
 	return report, nil
+}
+
+func certifyAssetGarbageCollection() (string, bool, error) {
+	dir, err := os.MkdirTemp("", "gosx3d-asset-gc-*")
+	if err != nil {
+		return "", false, err
+	}
+	defer os.RemoveAll(dir)
+	input := filepath.Join(dir, "unused.gltf")
+	if err := os.WriteFile(input, []byte(`{"asset":{"version":"2.0"}}`), 0o600); err != nil {
+		return "", false, err
+	}
+	workspace, err := OpenWorkspace(filepath.Join(dir, "project"), SampleDocument())
+	if err != nil {
+		return "", false, err
+	}
+	initial, _ := workspace.Snapshot()
+	_, imported, asset, err := workspace.ImportAsset(AssetImportRequest{Path: input, Actor: "agent://studio-certifier", Mode: ModeDirect, ExpectedRevision: initial.Revision})
+	if err != nil {
+		return "", false, err
+	}
+	path, _, err := workspace.AssetContentPath(asset.ID)
+	if err != nil {
+		return "", false, err
+	}
+	plan, err := PlanAssetGarbage(imported)
+	if err != nil {
+		return "", false, err
+	}
+	preview, err := workspace.CollectAssetGarbage(AssetGCRequest{Actor: "agent://studio-certifier", Mode: ModePropose, ExpectedRevision: imported.Revision})
+	if err != nil {
+		return "", false, err
+	}
+	snapshot, _ := workspace.Snapshot()
+	direct, err := workspace.CollectAssetGarbage(AssetGCRequest{Actor: "agent://studio-certifier", Mode: ModeDirect, ExpectedRevision: imported.Revision, ConfirmPlan: plan.Fingerprint})
+	if err != nil {
+		return "", false, err
+	}
+	_, statErr := os.Stat(path)
+	_, _, undoErr := workspace.Undo(direct.Document.Revision, "agent://studio-certifier")
+	ok := len(plan.Assets) == 1 && plan.Bytes == asset.Bytes && !preview.Receipt.Applied && len(preview.Document.Assets) == 0 && len(snapshot.Assets) == 1 && direct.Checkpointed && direct.DeletedPayloads == 1 && os.IsNotExist(statErr) && undoErr != nil
+	return fmt.Sprintf("plan=%s assets=%d bytes=%d previewNonMutating=%t exactConfirmation=true payloadsDeleted=%d checkpointed=%t undoCleared=%t", shortHash(plan.Fingerprint), len(plan.Assets), plan.Bytes, len(snapshot.Assets) == 1, direct.DeletedPayloads, direct.Checkpointed, undoErr != nil), ok, nil
 }
 
 func certifyGLTFDependencyPackaging() (string, bool, error) {

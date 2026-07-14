@@ -67,6 +67,7 @@ const (
 	OpSetAnimationParameter OperationKind = "set-animation-parameter"
 	OpStepAnimationMachine  OperationKind = "step-animation-machine"
 	OpSetRenderGraph        OperationKind = "set-render-graph"
+	OpCollectUnusedAssets   OperationKind = "collect-unused-assets"
 )
 
 type Transaction struct {
@@ -856,10 +857,11 @@ type ActionCapability struct {
 }
 
 func ActionCatalog() []ActionCapability {
-	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine, OpSetRenderGraph}
+	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine, OpSetRenderGraph, OpCollectUnusedAssets}
 	out := make([]ActionCapability, 0, len(kinds))
 	for _, kind := range kinds {
-		out = append(out, ActionCapability{ID: string(kind), Status: "available", Atomic: true, Undo: true, Preview: true})
+		undo := kind != OpCollectUnusedAssets
+		out = append(out, ActionCapability{ID: string(kind), Status: "available", Atomic: true, Undo: undo, Preview: true})
 	}
 	return out
 }

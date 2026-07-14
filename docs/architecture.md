@@ -274,6 +274,16 @@ IDs participate in document validation, dependency reports, integrity audits,
 and reference-safe deletion. Data URIs remain embedded and require no package
 entry.
 
+Unused-asset collection is a fingerprinted two-phase lifecycle action. The plan
+starts from model entities and prefab definitions, walks transitive typed asset
+dependencies, and orders unreachable records so all dependents precede shared
+payloads. Propose mode returns the exact resulting document without mutation.
+Direct mode requires the same document revision and 64-hex plan fingerprint,
+then checkpoints the document, reclaims payloads, reports filesystem findings,
+and clears ordinary undo/redo history. This non-undoable boundary is explicit in
+action discovery and in the human Project panel; it is never presented as an
+ordinary reversible delete.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest

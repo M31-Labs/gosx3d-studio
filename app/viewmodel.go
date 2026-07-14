@@ -71,6 +71,14 @@ func assetView(document studio.Document, workspace *studio.Workspace) []map[stri
 	return out
 }
 
+func assetGCView(document studio.Document) map[string]any {
+	plan, err := studio.PlanAssetGarbage(document)
+	if err != nil {
+		return map[string]any{"available": false, "count": "0", "bytes": "0 B", "fingerprint": "", "status": err.Error()}
+	}
+	return map[string]any{"available": len(plan.Assets) > 0, "count": fmt.Sprint(len(plan.Assets)), "bytes": formatBytes(plan.Bytes), "fingerprint": plan.Fingerprint, "status": "Explicit checkpoint: clears undo history and deletes payload bytes."}
+}
+
 func timelineView(document studio.Document) map[string]any {
 	view := map[string]any{"state": "No articulated clip loaded", "armatureId": "", "boneId": "", "boneName": "—", "constraintId": "", "clipId": "", "clipName": "No clip", "trackId": "", "duration": "0", "keyTime": "0.500", "rx": "0", "ry": "0", "rz": "0", "simulationId": "", "simulationName": "No simulation", "tickRate": "0", "ticks": "60", "retargetMapId": "", "retargetName": "No retarget map", "retargetClipId": "retargeted-clip", "machineId": "", "machineName": "No state machine", "machineState": "—", "machineParameter": "", "machineValue": "0", "deltaTime": "0.016667"}
 	armatureIDs := sortedMapIDs(document.Armatures)

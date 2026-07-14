@@ -105,6 +105,16 @@ func Page() Node {
 						</li>
 					</Each>
 				</ul>
+				<form method="post" action={actionPath("collectAssets")} class="inspector-form asset-gc-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="expectedRevision" value={data.revision}></input>
+					<input type="hidden" name="confirmPlan" value={data.assetGC.fingerprint}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<strong>Unused assets · {data.assetGC.count}</strong>
+					<small>{data.assetGC.bytes} reclaimable</small>
+					<p class="placeholder-copy">{data.assetGC.status}</p>
+					<button type="submit" class="inspector-apply" disabled={!data.assetGC.available}>Checkpoint and collect</button>
+				</form>
 			</aside>
 			<aside class="panel hierarchy-panel" aria-labelledby="hierarchy-title">
 				<header class="panel-heading">

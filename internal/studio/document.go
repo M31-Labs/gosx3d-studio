@@ -299,6 +299,9 @@ func (d Document) Validate() error {
 			}
 		}
 	}
+	if err := validateAssetDependencyGraph(d.Assets); err != nil {
+		return err
+	}
 	for key, armature := range d.Armatures {
 		if key == "" || armature.ID != key {
 			return fmt.Errorf("armature map key %q does not match id %q", key, armature.ID)
