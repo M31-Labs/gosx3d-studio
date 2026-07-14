@@ -1,0 +1,17 @@
+{
+  "defaultProfile": "starter",
+  "profiles": {
+    "studio-shell": {
+      "description": "Initial server-rendered GoSX 3D Studio shell budget.",
+      "assertions": [
+        "lcp <= 2500",
+        "long_tasks <= 2",
+        "tbt <= 150",
+        "js_total_kb <= 120"
+      ]
+    }
+  },
+  "routes": [
+    {"url": "/", "profile": "studio-shell"}
+  ]
+}
