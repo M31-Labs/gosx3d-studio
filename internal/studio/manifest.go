@@ -81,6 +81,7 @@ func DefaultManifest() Manifest {
 			{ID: "agent-actions", Status: "partial", Evidence: "authenticated discovery, semantic preview/direct receipts, undo and redo APIs"},
 			{ID: "desktop-host", Status: "partial", Evidence: "Windows-default WebView2 entrypoint, native project/asset dialogs, native menus, bridge wiring, loopback server, offline PE cross-build, and staged MSIX manifest; Windows runtime, MakeAppx, signing, install, update, and recovery evidence pending"},
 			{ID: "native-project-open", Status: "partial", Evidence: "native gosxDesktop OpenFile bridge, canonical-path validation, dirty-discard policy, revision safety, agent endpoint, and switch tests; live Windows dialog evidence pending"},
+			{ID: "rig-animation-foundation", Status: "partial", Evidence: "stable three-bone armature graph, normalized four-influence skin contract, deterministic two-bone CPU IK, bone pose/animation-key/IK actions, semantic receipts, deterministic transform sampling, articulated entity SceneIR lowering, undo, and browser-free certification; deforming skin renderer, editors, retargeting, state machines, and physics interaction remain pending"},
 		},
 		Actions: ActionCatalog(),
 		NextSlice: []string{
@@ -89,6 +90,7 @@ func DefaultManifest() Manifest {
 			"complete external asset dependency packaging, thumbnails, optimization, conversion, automatic file watching, and garbage collection",
 			"bind M1 human tools through the normalized action catalog",
 			"package and recovery-test the Windows desktop host",
+			"complete the articulated proof with skin deformation, timeline tooling, retargeting, and physics interaction",
 		},
 	}
 }

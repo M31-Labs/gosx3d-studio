@@ -29,7 +29,7 @@ func TestM0CertificationIsDeterministicAndHonest(t *testing.T) {
 	}
 }
 
-func TestCurrentCertificationAddsDeterministicM1FoundationWithoutClaimingM1(t *testing.T) {
+func TestCurrentCertificationAddsDeterministicM1M2FoundationsWithoutClaimingRelease(t *testing.T) {
 	first, err := CertifyCurrent(SampleDocument())
 	if err != nil {
 		t.Fatal(err)
@@ -43,14 +43,14 @@ func TestCurrentCertificationAddsDeterministicM1FoundationWithoutClaimingM1(t *t
 	if !bytes.Equal(left, right) {
 		t.Fatal("current certification is not byte deterministic")
 	}
-	if !first.Valid || first.Slice != "M0+M1-foundation" || first.ReleaseStatus != "partial" {
+	if !first.Valid || first.Slice != "M0+M1+M2-foundation" || first.ReleaseStatus != "partial" {
 		t.Fatalf("current certification identity = valid %t slice %q release %q", first.Valid, first.Slice, first.ReleaseStatus)
 	}
 	checks := map[string]string{}
 	for _, check := range first.Checks {
 		checks[check.ID] = check.Status
 	}
-	for _, id := range []string{"m1-subobject-selection", "m1-topology-actions", "m1-geometry-analysis", "m1-uv-authoring", "m1-structural-operators", "m1-loop-cut", "m1-nurbs-curve", "m1-modifier-stack", "m1-voxel-csg", "m1-material-authoring", "m1-linked-prefab"} {
+	for _, id := range []string{"m1-subobject-selection", "m1-topology-actions", "m1-geometry-analysis", "m1-uv-authoring", "m1-structural-operators", "m1-loop-cut", "m1-nurbs-curve", "m1-modifier-stack", "m1-voxel-csg", "m1-material-authoring", "m1-linked-prefab", "m2-rig-animation-foundation"} {
 		if checks[id] != "pass" {
 			t.Fatalf("current certification check %q = %q", id, checks[id])
 		}

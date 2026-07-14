@@ -186,6 +186,17 @@ File → Import Asset and the Project-panel chooser call the trusted
 that same form, and leave confirmation explicit. Server-only mode retains the
 manual trusted-path input and an accessible status explanation.
 
+The M2 articulated proof adds stable armature and bone graphs, normalized
+one-to-four bone influences per indexed-mesh vertex, rest and pose transforms,
+two-bone IK constraint records, and stable transform clips. `set-bone-pose`,
+`set-animation-key`, and deterministic CPU `solve-ik` use the same propose/direct revision-safe transaction path
+as human-authored state, including semantic rig/animation receipts and undo.
+Exact-time sampling is deterministic and writes articulated part transforms
+into a cloned SceneDoc before compiling through typed Scene3D and shared
+SceneIR. This foundation deliberately does not claim deforming skin execution,
+weight-paint UI, retargeting, animation state machines, or physics
+interaction yet; those remain partial and are named in certification evidence.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest
@@ -196,8 +207,8 @@ journal path.
 The GSX viewport spreads the same compiled `scene.Props` consumed by the native
 harness. No DOM board or editor-only renderer graph is scene truth.
 
-`studio-certify` emits the deterministic M0 evidence envelope. A valid M0
-envelope proves the vertical slice only; it embeds the broader certification
+`studio-certify` emits the deterministic M0/M1/M2-foundation evidence envelope.
+A valid envelope proves its named checks only; it embeds the broader certification
 matrix and keeps `releaseStatus: partial` until the complete public-v1 ledger is
 closed. The Chinese Checkers SceneDoc owns a Selena source record that compiles
 through the same WGSL/GLSL artifact transport inspected by the harness.

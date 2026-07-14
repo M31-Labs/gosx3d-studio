@@ -24,6 +24,8 @@ type Document struct {
 	Materials   map[ID]Material         `json:"materials"`
 	Prefabs     map[ID]PrefabDefinition `json:"prefabs,omitempty"`
 	Assets      map[ID]AssetRecord      `json:"assets,omitempty"`
+	Armatures   map[ID]Armature         `json:"armatures,omitempty"`
+	Animations  map[ID]AnimationClip    `json:"animations,omitempty"`
 	Camera      Camera                  `json:"camera"`
 	Environment Environment             `json:"environment"`
 	Metadata    map[string]string       `json:"metadata,omitempty"`
@@ -39,6 +41,7 @@ type Entity struct {
 	Light     *LightComponent `json:"light,omitempty"`
 	Prefab    *PrefabInstance `json:"prefab,omitempty"`
 	Model     *ModelComponent `json:"model,omitempty"`
+	Skin      *SkinComponent  `json:"skin,omitempty"`
 	Visible   bool            `json:"visible"`
 	Locked    bool            `json:"locked,omitempty"`
 }
@@ -282,6 +285,22 @@ func (d Document) Validate() error {
 			return fmt.Errorf("asset %q: %w", key, err)
 		}
 	}
+	for key, armature := range d.Armatures {
+		if key == "" || armature.ID != key {
+			return fmt.Errorf("armature map key %q does not match id %q", key, armature.ID)
+		}
+		if err := validateArmature(armature, d.Entities); err != nil {
+			return fmt.Errorf("armature %q: %w", key, err)
+		}
+	}
+	for key, clip := range d.Animations {
+		if key == "" || clip.ID != key {
+			return fmt.Errorf("animation map key %q does not match id %q", key, clip.ID)
+		}
+		if err := validateAnimationClip(clip, d.Entities, d.Armatures); err != nil {
+			return fmt.Errorf("animation %q: %w", key, err)
+		}
+	}
 	for key, entity := range d.Entities {
 		if key == "" || entity.ID != key {
 			return fmt.Errorf("entity map key %q does not match id %q", key, entity.ID)
@@ -361,6 +380,18 @@ func (d Document) Validate() error {
 			}
 			if !finite(entity.Model.Bounds) || entity.Model.Bounds < 0 {
 				return fmt.Errorf("entity %q has invalid model bounds", key)
+			}
+		}
+		if entity.Skin != nil {
+			if entity.Mesh == nil {
+				return fmt.Errorf("skinned entity %q requires indexed mesh geometry", key)
+			}
+			armature, ok := d.Armatures[entity.Skin.Armature]
+			if !ok {
+				return fmt.Errorf("entity %q references missing armature %q", key, entity.Skin.Armature)
+			}
+			if err := validateSkin(*entity.Skin, entity.Mesh.Geometry, armature); err != nil {
+				return fmt.Errorf("entity %q skin: %w", key, err)
 			}
 		}
 	}

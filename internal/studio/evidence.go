@@ -116,7 +116,7 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	if err != nil {
 		return EvidenceReport{}, err
 	}
-	report.Slice = "M0+M1-foundation"
+	report.Slice = "M0+M1+M2-foundation"
 	add := func(id string, ok bool, evidence string) {
 		status := "pass"
 		if !ok {
@@ -208,7 +208,52 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m1-asset-pipeline", assetOK, fmt.Sprintf("asset=%s sha256=%s format=gltf audit=true dependencies=true reimport=true atomicRetarget=true semanticReceipt=true modelSceneIR=%t", assetID, assetHash, assetOK))
+	rigEvidence, rigOK, err := certifyRigAnimationFoundation()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m2-rig-animation-foundation", rigOK, rigEvidence)
 	return report, nil
+}
+
+func certifyRigAnimationFoundation() (string, bool, error) {
+	document := ArticulatedProofDocument()
+	if err := document.Validate(); err != nil {
+		return "", false, err
+	}
+	first, evaluated, err := SampleAnimation(document, "reach", 0.5)
+	if err != nil {
+		return "", false, err
+	}
+	second, repeated, err := SampleAnimation(document, "reach", 0.5)
+	if err != nil {
+		return "", false, err
+	}
+	firstFingerprint, _ := evaluated.Fingerprint()
+	secondFingerprint, _ := repeated.Fingerprint()
+	_, compileErr := Compile(evaluated)
+	workspace, err := NewWorkspace(document)
+	if err != nil {
+		return "", false, err
+	}
+	pose := Transform{Position: Vec3{Y: 1}, Rotation: Vec3{Z: 0.35}, Scale: Vec3{X: 1, Y: 1, Z: 1}}
+	key := TransformKey{Time: 0.25, Transform: pose}
+	transaction := Transaction{ID: "certify:m2-agent-animation", Actor: "agent://studio-certifier", Mode: ModePropose, ExpectedRevision: document.Revision, Operations: []Operation{{Kind: OpSetBonePose, ArmatureID: "arm", BoneID: "lower", Transform: &pose}, {Kind: OpSetAnimationKey, ClipID: "reach", TrackID: "lower-track", Key: &key}, {Kind: OpSolveIK, ArmatureID: "arm", ConstraintID: "reach-ik"}}}
+	previewReceipt, preview, err := workspace.Execute(transaction)
+	if err != nil {
+		return "", false, err
+	}
+	transaction.Mode = ModeDirect
+	directReceipt, direct, err := workspace.Execute(transaction)
+	if err != nil {
+		return "", false, err
+	}
+	previewFingerprint, _ := preview.Fingerprint()
+	directFingerprint, _ := direct.Fingerprint()
+	ikResult, _, ikErr := SolveTwoBoneIK(document, "arm", "reach-ik")
+	semanticReceipt := len(directReceipt.RigChanges) == 3 && len(directReceipt.AnimationChanges) == 1
+	ok := firstFingerprint == secondFingerprint && reflect.DeepEqual(first, second) && compileErr == nil && previewFingerprint == directFingerprint && semanticReceipt && len(previewReceipt.RigChanges) == 3 && ikErr == nil && ikResult.Error < 1e-8
+	return fmt.Sprintf("armatures=1 bones=3 normalizedWeights=3 ik=two-bone-cpu ikError=%.9f clips=1 sample=0.5 deterministic=%t agentActor=%s previewEquivalent=%t semanticRigReceipt=%t sceneIR=%t", ikResult.Error, firstFingerprint == secondFingerprint, directReceipt.Actor, previewFingerprint == directFingerprint, semanticReceipt, compileErr == nil), ok, nil
 }
 
 func certifyAssetPipeline(document Document) (ID, string, bool, error) {

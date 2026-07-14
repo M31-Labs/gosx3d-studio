@@ -35,6 +35,9 @@ func ActionDescriptors() []ActionDescriptor {
 	descriptions[OpRegisterAsset] = "Register inspected content-addressed asset metadata."
 	descriptions[OpDeleteAsset] = "Delete an unreferenced asset record."
 	descriptions[OpReimportAsset] = "Replace an asset revision and atomically retarget its model references."
+	descriptions[OpSetBonePose] = "Pose a stable armature bone and its bound articulated entity."
+	descriptions[OpSetAnimationKey] = "Insert or replace a deterministic transform key on a stable animation track."
+	descriptions[OpSolveIK] = "Solve a stable two-bone IK constraint with the deterministic CPU reference evaluator."
 	required := map[OperationKind][]string{OpSetField: {"target", "field", "value"}, OpSetTransform: {"target", "transform"}, OpAssignMaterial: {"target", "material"}, OpRenameEntity: {"target", "name"}, OpCreateEntity: {"entity"}, OpDeleteEntity: {"target"}, OpReparentEntity: {"target", "parent"}, OpDuplicateEntity: {"target", "newId"}, OpExtrudeFaces: {"target", "faces", "distance"}, OpInsetFaces: {"target", "faces", "amount"}, OpTriangulateFaces: {"target", "faces"}, OpWeldVertices: {"target", "vertices", "tolerance"}, OpFillFace: {"target", "vertices", "newId"}, OpRecalculateNormals: {"target"}, OpProjectPlanarUV: {"target", "projection"}, OpDissolveEdges: {"target", "edges"}, OpBridgeLoops: {"target", "loops", "newId", "closed"}, OpLoopCut: {"target", "edges", "amount", "newId"}, OpSetCurveControlPoint: {"target", "controlPoint"}}
 	required[OpSetModifier] = []string{"target", "modifier"}
 	required[OpRemoveModifier] = []string{"target", "modifierId"}
@@ -50,6 +53,9 @@ func ActionDescriptors() []ActionDescriptor {
 	required[OpRegisterAsset] = []string{"asset"}
 	required[OpDeleteAsset] = []string{"assetId"}
 	required[OpReimportAsset] = []string{"assetId", "asset"}
+	required[OpSetBonePose] = []string{"armatureId", "boneId", "transform"}
+	required[OpSetAnimationKey] = []string{"clipId", "trackId", "key"}
+	required[OpSolveIK] = []string{"armatureId", "constraintId"}
 	out := make([]ActionDescriptor, 0, len(descriptions))
 	for _, capability := range ActionCatalog() {
 		kind := OperationKind(capability.ID)
@@ -77,6 +83,9 @@ func operationSchemaProperties() map[string]any {
 		"materialRecord": map[string]any{"type": "object"}, "materialId": map[string]any{"type": "string", "minLength": 1},
 		"prefabId": map[string]any{"type": "string", "minLength": 1}, "prefabEntity": map[string]any{"type": "string", "minLength": 1}, "prefabOverride": map[string]any{"type": "object"},
 		"asset": map[string]any{"type": "object"}, "assetId": map[string]any{"type": "string", "minLength": 1},
+		"armatureId": map[string]any{"type": "string", "minLength": 1}, "boneId": map[string]any{"type": "string", "minLength": 1},
+		"clipId": map[string]any{"type": "string", "minLength": 1}, "trackId": map[string]any{"type": "string", "minLength": 1}, "key": map[string]any{"type": "object"},
+		"constraintId": map[string]any{"type": "string", "minLength": 1},
 	}
 	return properties
 }
@@ -99,6 +108,9 @@ func ComponentCatalog() []ComponentDescriptor {
 		{Type: "mesh", Version: 1, Fields: []FieldDescriptor{{Name: "geometry", Type: "geometry", Editable: true, Semantic: "authoring"}, {Name: "material", Type: "material-ref", Editable: true, Semantic: "authoring"}, {Name: "pickable", Type: "bool", Editable: true, Semantic: "runtime"}}},
 		{Type: "material", Version: 1, Fields: []FieldDescriptor{{Name: "pbr", Type: "standard-material", Editable: true, Semantic: "authoring"}, {Name: "selena", Type: "selena-source", Editable: true, Semantic: "shader"}}},
 		{Type: "light", Version: 1, Fields: []FieldDescriptor{{Name: "kind", Type: "enum", Editable: false}, {Name: "color", Type: "color", Editable: true, Semantic: "authoring"}, {Name: "intensity", Type: "number", Editable: true, Semantic: "authoring"}}},
+		{Type: "armature", Version: 1, Fields: []FieldDescriptor{{Name: "bones", Type: "bone-graph", Editable: true, Semantic: "rigging"}, {Name: "pose", Type: "bone-transforms", Editable: true, Semantic: "animation"}, {Name: "constraints", Type: "constraint-list", Editable: true, Semantic: "runtime"}}},
+		{Type: "skin", Version: 1, Fields: []FieldDescriptor{{Name: "armature", Type: "armature-ref", Editable: true, Semantic: "rigging"}, {Name: "weights", Type: "vertex-influences", Editable: true, Semantic: "deformation"}}},
+		{Type: "animation", Version: 1, Fields: []FieldDescriptor{{Name: "tracks", Type: "transform-tracks", Editable: true, Semantic: "animation"}, {Name: "duration", Type: "seconds", Editable: true, Semantic: "animation"}}},
 	}
 }
 
@@ -126,6 +138,7 @@ func Certification() CertificationReport {
 		"csg":              {ID: "csg", Status: "partial", Evidence: "bounded deterministic voxel union/intersection/subtraction is certified for closed manifold meshes; analytic and interactive CSG tooling pending"},
 		"materials":        {ID: "materials", Status: "partial", Evidence: "validated PBR/Selena shared actions and last-good shader preservation are certified; texture/node/bake/human tooling pending"},
 		"prefabs":          {ID: "prefabs", Status: "partial", Evidence: "linked stable instances, overrides, provenance, incremental invalidation, and shared actions are certified; nested/variant/package tooling pending"},
+		"riggingAnimation": {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, skin weights, bone poses, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, and SceneIR-compatible articulated entity lowering are certified; deforming skin renderer, editors, retargeting, state machines, and physics remain pending"},
 	}}
 }
 
