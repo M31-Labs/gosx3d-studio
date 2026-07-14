@@ -370,6 +370,36 @@ func Page() Node {
 						<label>Ticks <input name="ticks" value={data.timeline.ticks} inputmode="numeric"></input></label>
 						<button type="submit">Advance fixed ticks</button>
 					</form>
+					<form method="post" action={actionPath("retargetAnimation")} class="timeline-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="retargetMapId" value={data.timeline.retargetMapId}></input>
+						<input type="hidden" name="sourceClipId" value={data.timeline.clipId}></input>
+						<strong>Retarget · {data.timeline.retargetName}</strong>
+						<label>Stable ID <input name="newId" value={data.timeline.retargetClipId}></input></label>
+						<label>Name <input name="name" value="Retargeted Clip"></input></label>
+						<button type="submit">Retarget clip</button>
+					</form>
+					<form method="post" action={actionPath("setAnimationParameter")} class="timeline-form compact">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="machineId" value={data.timeline.machineId}></input>
+						<input type="hidden" name="parameter" value={data.timeline.machineParameter}></input>
+						<strong>{data.timeline.machineName} · {data.timeline.machineState}</strong>
+						<label>{data.timeline.machineParameter} <input name="number" value={data.timeline.machineValue} inputmode="decimal"></input></label>
+						<button type="submit">Set parameter</button>
+					</form>
+					<form method="post" action={actionPath("stepAnimationMachine")} class="timeline-form compact">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<input type="hidden" name="machineId" value={data.timeline.machineId}></input>
+						<strong>Governed transition · Arbiter</strong>
+						<label>Δ seconds <input name="deltaTime" value={data.timeline.deltaTime} inputmode="decimal"></input></label>
+						<button type="submit">Evaluate + sample</button>
+					</form>
 				</div>
 			</section>
 			<aside class="agent-panel" aria-labelledby="agent-title">

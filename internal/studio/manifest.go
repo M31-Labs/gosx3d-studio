@@ -85,6 +85,8 @@ func DefaultManifest() Manifest {
 			{ID: "linear-blend-skinning", Status: "available", Evidence: "hierarchical rest/pose matrices, inverse bind transforms, normalized one-to-four influence blending, normal deformation, stable topology/UV preservation, non-mutating evaluation, armature-aware incremental invalidation, typed BufferGeometry/SceneIR lowering, and browser-free deterministic certification"},
 			{ID: "fixed-step-physics", Status: "available", Evidence: "stable body/profile schemas, 60 Hz semi-implicit Euler reference, gravity, sphere/plane contact response, tick-addressed impulse recording, exact state hashes, replay divergence detection, shared propose/direct simulate action, semantic receipt, undo, human timeline control, and browser-free certification"},
 			{ID: "human-rig-timeline", Status: "partial", Evidence: "live SceneDoc armature/clip/simulation view plus human set-pose, insert-key, solve-IK, and advance-ticks forms converge on shared revision-safe actions; playhead scrubbing, dope sheet, curve editor, transport, selection, and richer diagnostics remain pending"},
+			{ID: "animation-retargeting", Status: "available", Evidence: "stable validated one-to-one armature maps, automatic or authored scale, rest-relative position/rotation transfer, stable target track IDs, shared propose/direct action, semantic receipt, undo, human timeline form, and browser-free certification"},
+			{ID: "animation-state-machine", Status: "partial", Evidence: "stable states/parameters/transitions, six numeric operators compiled from embedded .arb rules, deterministic priority/ID arbitration, decision traces, exact active-clip sampling, shared parameter/step actions, preview parity, undo, human timeline forms, and browser-free certification; crossfades, masks, blend spaces, layers, root motion, and graph editor remain pending"},
 		},
 		Actions: ActionCatalog(),
 		NextSlice: []string{
@@ -93,7 +95,8 @@ func DefaultManifest() Manifest {
 			"complete external asset dependency packaging, thumbnails, optimization, conversion, automatic file watching, and garbage collection",
 			"bind M1 human tools through the normalized action catalog",
 			"package and recovery-test the Windows desktop host",
-			"complete timeline transport/scrubbing, retargeting, state machines, and advanced physics authoring",
+			"complete timeline transport/scrubbing, retarget-map editing, state-machine graph editing, and advanced physics authoring",
+			"complete animation crossfades, masks, blend spaces, layers, root motion, and graph editing",
 		},
 	}
 }

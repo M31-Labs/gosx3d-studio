@@ -15,21 +15,23 @@ const SceneDocSchema = "gosx.scene3d.document/v1"
 type ID string
 
 type Document struct {
-	Schema      string                   `json:"schema"`
-	ID          ID                       `json:"id"`
-	Name        string                   `json:"name"`
-	Revision    uint64                   `json:"revision"`
-	RootIDs     []ID                     `json:"rootIds"`
-	Entities    map[ID]Entity            `json:"entities"`
-	Materials   map[ID]Material          `json:"materials"`
-	Prefabs     map[ID]PrefabDefinition  `json:"prefabs,omitempty"`
-	Assets      map[ID]AssetRecord       `json:"assets,omitempty"`
-	Armatures   map[ID]Armature          `json:"armatures,omitempty"`
-	Animations  map[ID]AnimationClip     `json:"animations,omitempty"`
-	Simulations map[ID]SimulationProfile `json:"simulations,omitempty"`
-	Camera      Camera                   `json:"camera"`
-	Environment Environment              `json:"environment"`
-	Metadata    map[string]string        `json:"metadata,omitempty"`
+	Schema            string                       `json:"schema"`
+	ID                ID                           `json:"id"`
+	Name              string                       `json:"name"`
+	Revision          uint64                       `json:"revision"`
+	RootIDs           []ID                         `json:"rootIds"`
+	Entities          map[ID]Entity                `json:"entities"`
+	Materials         map[ID]Material              `json:"materials"`
+	Prefabs           map[ID]PrefabDefinition      `json:"prefabs,omitempty"`
+	Assets            map[ID]AssetRecord           `json:"assets,omitempty"`
+	Armatures         map[ID]Armature              `json:"armatures,omitempty"`
+	Animations        map[ID]AnimationClip         `json:"animations,omitempty"`
+	Simulations       map[ID]SimulationProfile     `json:"simulations,omitempty"`
+	RetargetMaps      map[ID]RetargetMap           `json:"retargetMaps,omitempty"`
+	AnimationMachines map[ID]AnimationStateMachine `json:"animationMachines,omitempty"`
+	Camera            Camera                       `json:"camera"`
+	Environment       Environment                  `json:"environment"`
+	Metadata          map[string]string            `json:"metadata,omitempty"`
 }
 
 type Entity struct {
@@ -309,6 +311,22 @@ func (d Document) Validate() error {
 		}
 		if err := validateSimulationProfile(profile, d.Entities); err != nil {
 			return fmt.Errorf("simulation %q: %w", key, err)
+		}
+	}
+	for key, mapping := range d.RetargetMaps {
+		if key == "" || mapping.ID != key {
+			return fmt.Errorf("retarget map key %q does not match id %q", key, mapping.ID)
+		}
+		if err := validateRetargetMap(mapping, d.Armatures); err != nil {
+			return fmt.Errorf("retarget map %q: %w", key, err)
+		}
+	}
+	for key, machine := range d.AnimationMachines {
+		if key == "" || machine.ID != key {
+			return fmt.Errorf("animation machine key %q does not match id %q", key, machine.ID)
+		}
+		if err := validateAnimationMachine(machine, d.Animations); err != nil {
+			return fmt.Errorf("animation machine %q: %w", key, err)
 		}
 	}
 	for key, entity := range d.Entities {

@@ -40,6 +40,9 @@ func ActionDescriptors() []ActionDescriptor {
 	descriptions[OpSolveIK] = "Solve a stable two-bone IK constraint with the deterministic CPU reference evaluator."
 	descriptions[OpSetPhysicsBody] = "Set a validated rigid-body and collider component on a stable entity."
 	descriptions[OpSimulateTicks] = "Advance a deterministic fixed-step simulation with recorded inputs."
+	descriptions[OpRetargetAnimation] = "Retarget a stable bone clip through a validated armature map."
+	descriptions[OpSetAnimationParameter] = "Set a declared animation-state-machine parameter."
+	descriptions[OpStepAnimationMachine] = "Advance an Arbiter-governed animation state machine and sample its active clip."
 	required := map[OperationKind][]string{OpSetField: {"target", "field", "value"}, OpSetTransform: {"target", "transform"}, OpAssignMaterial: {"target", "material"}, OpRenameEntity: {"target", "name"}, OpCreateEntity: {"entity"}, OpDeleteEntity: {"target"}, OpReparentEntity: {"target", "parent"}, OpDuplicateEntity: {"target", "newId"}, OpExtrudeFaces: {"target", "faces", "distance"}, OpInsetFaces: {"target", "faces", "amount"}, OpTriangulateFaces: {"target", "faces"}, OpWeldVertices: {"target", "vertices", "tolerance"}, OpFillFace: {"target", "vertices", "newId"}, OpRecalculateNormals: {"target"}, OpProjectPlanarUV: {"target", "projection"}, OpDissolveEdges: {"target", "edges"}, OpBridgeLoops: {"target", "loops", "newId", "closed"}, OpLoopCut: {"target", "edges", "amount", "newId"}, OpSetCurveControlPoint: {"target", "controlPoint"}}
 	required[OpSetModifier] = []string{"target", "modifier"}
 	required[OpRemoveModifier] = []string{"target", "modifierId"}
@@ -60,6 +63,9 @@ func ActionDescriptors() []ActionDescriptor {
 	required[OpSolveIK] = []string{"armatureId", "constraintId"}
 	required[OpSetPhysicsBody] = []string{"target", "physics"}
 	required[OpSimulateTicks] = []string{"simulationId", "ticks"}
+	required[OpRetargetAnimation] = []string{"retargetMapId", "sourceClipId", "newId", "name"}
+	required[OpSetAnimationParameter] = []string{"machineId", "parameter", "number"}
+	required[OpStepAnimationMachine] = []string{"machineId", "deltaTime"}
 	out := make([]ActionDescriptor, 0, len(descriptions))
 	for _, capability := range ActionCatalog() {
 		kind := OperationKind(capability.ID)
@@ -91,6 +97,8 @@ func operationSchemaProperties() map[string]any {
 		"clipId": map[string]any{"type": "string", "minLength": 1}, "trackId": map[string]any{"type": "string", "minLength": 1}, "key": map[string]any{"type": "object"},
 		"constraintId": map[string]any{"type": "string", "minLength": 1},
 		"physics":      map[string]any{"type": "object"}, "simulationId": map[string]any{"type": "string", "minLength": 1}, "ticks": map[string]any{"type": "integer", "minimum": 1, "maximum": 1000000}, "inputs": map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
+		"retargetMapId": map[string]any{"type": "string", "minLength": 1}, "sourceClipId": map[string]any{"type": "string", "minLength": 1}, "machineId": map[string]any{"type": "string", "minLength": 1},
+		"parameter": map[string]any{"type": "string", "minLength": 1}, "number": map[string]any{"type": "number"}, "deltaTime": map[string]any{"type": "number", "exclusiveMinimum": 0, "maximum": 3600},
 	}
 	return properties
 }
@@ -112,12 +120,13 @@ func ComponentCatalog() []ComponentDescriptor {
 		{Type: "transform", Version: 1, Fields: []FieldDescriptor{{Name: "position", Type: "vec3", Editable: true, Semantic: "authoring"}, {Name: "rotation", Type: "euler", Editable: true, Semantic: "authoring"}, {Name: "scale", Type: "vec3", Editable: true, Semantic: "authoring"}}},
 		{Type: "mesh", Version: 1, Fields: []FieldDescriptor{{Name: "geometry", Type: "geometry", Editable: true, Semantic: "authoring"}, {Name: "material", Type: "material-ref", Editable: true, Semantic: "authoring"}, {Name: "pickable", Type: "bool", Editable: true, Semantic: "runtime"}}},
 		{Type: "material", Version: 1, Fields: []FieldDescriptor{{Name: "pbr", Type: "standard-material", Editable: true, Semantic: "authoring"}, {Name: "selena", Type: "selena-source", Editable: true, Semantic: "shader"}}},
-		{Type: "light", Version: 1, Fields: []FieldDescriptor{{Name: "kind", Type: "enum", Editable: false}, {Name: "color", Type: "color", Editable: true, Semantic: "authoring"}, {Name: "intensity", Type: "number", Editable: true, Semantic: "authoring"}}},
 		{Type: "armature", Version: 1, Fields: []FieldDescriptor{{Name: "bones", Type: "bone-graph", Editable: true, Semantic: "rigging"}, {Name: "pose", Type: "bone-transforms", Editable: true, Semantic: "animation"}, {Name: "constraints", Type: "constraint-list", Editable: true, Semantic: "runtime"}}},
 		{Type: "skin", Version: 1, Fields: []FieldDescriptor{{Name: "armature", Type: "armature-ref", Editable: true, Semantic: "rigging"}, {Name: "weights", Type: "vertex-influences", Editable: true, Semantic: "deformation"}}},
 		{Type: "animation", Version: 1, Fields: []FieldDescriptor{{Name: "tracks", Type: "transform-tracks", Editable: true, Semantic: "animation"}, {Name: "duration", Type: "seconds", Editable: true, Semantic: "animation"}}},
 		{Type: "physics", Version: 1, Fields: []FieldDescriptor{{Name: "kind", Type: "enum", Editable: true, Semantic: "simulation"}, {Name: "mass", Type: "number", Editable: true, Semantic: "simulation"}, {Name: "velocity", Type: "vec3", Editable: true, Semantic: "runtime"}, {Name: "collider", Type: "collider", Editable: true, Semantic: "simulation"}}},
 		{Type: "simulation", Version: 1, Fields: []FieldDescriptor{{Name: "tickRate", Type: "integer", Editable: true, Semantic: "simulation"}, {Name: "gravity", Type: "vec3", Editable: true, Semantic: "simulation"}, {Name: "bodies", Type: "entity-refs", Editable: true, Semantic: "simulation"}}},
+		{Type: "retarget-map", Version: 1, Fields: []FieldDescriptor{{Name: "source", Type: "armature-ref", Editable: true, Semantic: "animation"}, {Name: "target", Type: "armature-ref", Editable: true, Semantic: "animation"}, {Name: "bones", Type: "bone-map", Editable: true, Semantic: "animation"}}},
+		{Type: "animation-state-machine", Version: 1, Fields: []FieldDescriptor{{Name: "states", Type: "state-map", Editable: true, Semantic: "animation"}, {Name: "transitions", Type: "arbiter-transitions", Editable: true, Semantic: "governed-runtime"}, {Name: "parameters", Type: "number-map", Editable: true, Semantic: "runtime"}}},
 	}
 }
 
@@ -130,23 +139,24 @@ type CertificationReport struct {
 
 func Certification() CertificationReport {
 	return CertificationReport{Schema: "gosx3d.studio.certification/v1", Status: "partial", Framework: cert.BuildReport(), Dimensions: map[string]Capability{
-		"sceneDoc":         {ID: "sceneDoc", Status: "available", Evidence: "validation, stable IDs, deterministic fingerprints, migration"},
-		"undoReplay":       {ID: "undoReplay", Status: "available", Evidence: "command, undo/redo, checksummed journal recovery tests"},
-		"projectLifecycle": {ID: "projectLifecycle", Status: "partial", Evidence: "startup project open, explicit atomic save, dirty/recovered state, torn-tail recovery, and corrupt-save quarantine; native file dialog pending"},
-		"sourceMap":        {ID: "sourceMap", Status: "partial", Evidence: "entity and linked-prefab runtime provenance are available; field-level provenance pending"},
-		"inspector":        {ID: "inspector", Status: "partial", Evidence: "descriptor catalog, live reads, and revision-safe transform writes; remaining component editors pending"},
-		"agentAPI":         {ID: "agentAPI", Status: "partial", Evidence: "authenticated discovery, preview, direct, undo and redo JSON APIs"},
-		"desktopHost":      {ID: "desktopHost", Status: "partial", Evidence: "Windows native entrypoint and bridge cross-build; staged MSIX payload exists, but live Windows/install/sign/update evidence is pending"},
-		"headless":         {ID: "headless", Status: "available", Evidence: "cmd/studio-smoke frame and exact trace"},
-		"shaderValidation": {ID: "shaderValidation", Status: "partial", Evidence: "SceneDoc Selena source compiles to validated WGSL/GLSL artifact hashes in M0 evidence; source diagnostics and last-good fallback pending"},
-		"modeling":         {ID: "modeling", Status: "partial", Evidence: "stable vertex/edge/face selection and ten deterministic indexed-mesh/UV operators are certified through shared commands; remaining M1 modeling scope pending"},
-		"curves":           {ID: "curves", Status: "partial", Evidence: "stable rational NURBS controls, deterministic tube tessellation, SceneIR transport, analysis, shared actions, and headless evidence; remaining curve/surface tools pending"},
-		"modifiers":        {ID: "modifiers", Status: "partial", Evidence: "ordered mirror/array stacks evaluate deterministically through shared SceneIR commands and evidence; remaining modifier library and UI pending"},
-		"csg":              {ID: "csg", Status: "partial", Evidence: "bounded deterministic voxel union/intersection/subtraction is certified for closed manifold meshes; analytic and interactive CSG tooling pending"},
-		"materials":        {ID: "materials", Status: "partial", Evidence: "validated PBR/Selena shared actions and last-good shader preservation are certified; texture/node/bake/human tooling pending"},
-		"prefabs":          {ID: "prefabs", Status: "partial", Evidence: "linked stable instances, overrides, provenance, incremental invalidation, and shared actions are certified; nested/variant/package tooling pending"},
-		"riggingAnimation": {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, normalized skin weights, hierarchical linear-blend deformation, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, incremental invalidation, typed SceneIR lowering, and a recorded physics interaction are certified; editors, retargeting, state machines, dual-quaternion skinning, and advanced physics remain pending"},
-		"simulation":       {ID: "simulation", Status: "partial", Evidence: "stable physics bodies, sphere/plane colliders, fixed-step gravity/contact response, tick-addressed impulses, exact snapshots, recording/replay, shared simulate actions, and browser-free evidence are available; general rigid-body pairs, constraints, broad phase, CCD, fields, particles, audio, caches, and runtime editors remain pending"},
+		"sceneDoc":                 {ID: "sceneDoc", Status: "available", Evidence: "validation, stable IDs, deterministic fingerprints, migration"},
+		"undoReplay":               {ID: "undoReplay", Status: "available", Evidence: "command, undo/redo, checksummed journal recovery tests"},
+		"projectLifecycle":         {ID: "projectLifecycle", Status: "partial", Evidence: "startup project open, explicit atomic save, dirty/recovered state, torn-tail recovery, and corrupt-save quarantine; native file dialog pending"},
+		"sourceMap":                {ID: "sourceMap", Status: "partial", Evidence: "entity and linked-prefab runtime provenance are available; field-level provenance pending"},
+		"inspector":                {ID: "inspector", Status: "partial", Evidence: "descriptor catalog, live reads, and revision-safe transform writes; remaining component editors pending"},
+		"agentAPI":                 {ID: "agentAPI", Status: "partial", Evidence: "authenticated discovery, preview, direct, undo and redo JSON APIs"},
+		"desktopHost":              {ID: "desktopHost", Status: "partial", Evidence: "Windows native entrypoint and bridge cross-build; staged MSIX payload exists, but live Windows/install/sign/update evidence is pending"},
+		"headless":                 {ID: "headless", Status: "available", Evidence: "cmd/studio-smoke frame and exact trace"},
+		"shaderValidation":         {ID: "shaderValidation", Status: "partial", Evidence: "SceneDoc Selena source compiles to validated WGSL/GLSL artifact hashes in M0 evidence; source diagnostics and last-good fallback pending"},
+		"modeling":                 {ID: "modeling", Status: "partial", Evidence: "stable vertex/edge/face selection and ten deterministic indexed-mesh/UV operators are certified through shared commands; remaining M1 modeling scope pending"},
+		"curves":                   {ID: "curves", Status: "partial", Evidence: "stable rational NURBS controls, deterministic tube tessellation, SceneIR transport, analysis, shared actions, and headless evidence; remaining curve/surface tools pending"},
+		"modifiers":                {ID: "modifiers", Status: "partial", Evidence: "ordered mirror/array stacks evaluate deterministically through shared SceneIR commands and evidence; remaining modifier library and UI pending"},
+		"csg":                      {ID: "csg", Status: "partial", Evidence: "bounded deterministic voxel union/intersection/subtraction is certified for closed manifold meshes; analytic and interactive CSG tooling pending"},
+		"materials":                {ID: "materials", Status: "partial", Evidence: "validated PBR/Selena shared actions and last-good shader preservation are certified; texture/node/bake/human tooling pending"},
+		"prefabs":                  {ID: "prefabs", Status: "partial", Evidence: "linked stable instances, overrides, provenance, incremental invalidation, and shared actions are certified; nested/variant/package tooling pending"},
+		"riggingAnimation":         {ID: "riggingAnimation", Status: "partial", Evidence: "stable armature, normalized skin weights, hierarchical linear-blend deformation, deterministic two-bone IK, transform clips, exact-time sampling, shared pose/key/IK actions, incremental invalidation, typed SceneIR lowering, retarget maps, governed state transitions, and a recorded physics interaction are certified; richer editors, blend spaces, layered clips, dual-quaternion skinning, and advanced physics remain pending"},
+		"simulation":               {ID: "simulation", Status: "partial", Evidence: "stable physics bodies, sphere/plane colliders, fixed-step gravity/contact response, tick-addressed impulses, exact snapshots, recording/replay, shared simulate actions, and browser-free evidence are available; general rigid-body pairs, constraints, broad phase, CCD, fields, particles, audio, caches, and runtime editors remain pending"},
+		"retargetingStateMachines": {ID: "retargetingStateMachines", Status: "partial", Evidence: "stable one-to-one armature maps, rest-relative scaled clip transfer, Arbiter-compiled transition rules, deterministic priority/ID selection, transition traces, exact clip sampling, shared actions, and browser-free evidence are available; masks, blend spaces, crossfades, layered graphs, root motion, and full editors remain pending"},
 	}}
 }
 

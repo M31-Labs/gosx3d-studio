@@ -64,6 +64,9 @@ released GoSX version.
 - Browser-free PNG and exact ray evidence through `cmd/studio-smoke`.
 - Deterministic 60 Hz physics recording/replay, contact evidence, exact state
   hashes, and shared `simulate-ticks` transactions in the articulated proof.
+- Stable rest-relative animation retargeting and Arbiter-compiled state-machine
+  transitions with decision traces, shared actions, undo, and human Timeline
+  controls.
 - Byte-deterministic combined M0/M1/M2-foundation certification through `cmd/studio-certify`,
   including SceneDoc/source-map, incremental equivalence, frame, exact-pick,
   Selena WGSL/GLSL artifacts, topology/assets/prefabs, and deterministic

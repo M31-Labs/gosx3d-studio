@@ -220,6 +220,24 @@ submit the same operations used by agents. The Chinese Checkers-only document
 honestly reports that no articulated clip is loaded. Timeline transport,
 scrubbing, dope-sheet/curve editing, and state-machine tooling remain partial.
 
+Retarget maps are stable SceneDoc records connecting one source armature bone to
+one target bone. Clip transfer is rest-relative: position deltas use an authored
+scale or deterministic source/target rest-length ratio, rotation deltas are
+applied to target rest orientation, and generated track IDs are stable. The
+`retarget-animation` action, semantic receipt, undo, and Timeline form share the
+same implementation.
+
+Animation state machines keep stable states, numeric parameters, transitions,
+priority, and runtime state in SceneDoc. Transition eligibility is not encoded
+as an application `if/else` chain: six operator rules live in the checked,
+embedded `rules/animation-transitions.arb` program and execute through Arbiter.
+Studio sorts candidate transitions by priority and stable ID, records the exact
+matched rule and evaluated values, then samples the selected clip through the
+same deterministic animation evaluator and SceneIR path. Parameter and step
+operations are revision-safe and shared by agents and Timeline forms. Crossfade,
+masks, blend spaces, layered graphs, root motion, and a graph editor remain
+partial.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest

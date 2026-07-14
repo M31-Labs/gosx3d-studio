@@ -34,7 +34,7 @@ func TestHierarchyAndInspectorReflectCanonicalDocument(t *testing.T) {
 
 func TestTimelineViewReflectsCanonicalRigClipAndSimulation(t *testing.T) {
 	view := timelineView(studio.ArticulatedProofDocument())
-	if view["armatureId"] != "arm" || view["clipId"] != "reach" || view["trackId"] != "lower-track" || view["simulationId"] != "articulated-physics" || view["tickRate"] != "60" {
+	if view["armatureId"] != "arm" || view["clipId"] != "idle" || view["trackId"] != "idle-lower" || view["simulationId"] != "articulated-physics" || view["tickRate"] != "60" || view["retargetMapId"] != "arm-to-tall" || view["machineId"] != "locomotion" || view["machineParameter"] != "speed" {
 		t.Fatalf("timeline view = %#v", view)
 	}
 }

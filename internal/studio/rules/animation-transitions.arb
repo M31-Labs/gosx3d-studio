@@ -1,0 +1,53 @@
+rule TransitionEqual priority 100 {
+  when {
+    transition.operator == "equal" and
+    transition.parameter_value == transition.threshold and
+    transition.state_time >= transition.exit_time
+  }
+  then TransitionEligible { operator: "equal" }
+}
+
+rule TransitionNotEqual priority 100 {
+  when {
+    transition.operator == "not-equal" and
+    transition.parameter_value != transition.threshold and
+    transition.state_time >= transition.exit_time
+  }
+  then TransitionEligible { operator: "not-equal" }
+}
+
+rule TransitionGreater priority 100 {
+  when {
+    transition.operator == "greater" and
+    transition.parameter_value > transition.threshold and
+    transition.state_time >= transition.exit_time
+  }
+  then TransitionEligible { operator: "greater" }
+}
+
+rule TransitionGreaterEqual priority 100 {
+  when {
+    transition.operator == "greater-equal" and
+    transition.parameter_value >= transition.threshold and
+    transition.state_time >= transition.exit_time
+  }
+  then TransitionEligible { operator: "greater-equal" }
+}
+
+rule TransitionLess priority 100 {
+  when {
+    transition.operator == "less" and
+    transition.parameter_value < transition.threshold and
+    transition.state_time >= transition.exit_time
+  }
+  then TransitionEligible { operator: "less" }
+}
+
+rule TransitionLessEqual priority 100 {
+  when {
+    transition.operator == "less-equal" and
+    transition.parameter_value <= transition.threshold and
+    transition.state_time >= transition.exit_time
+  }
+  then TransitionEligible { operator: "less-equal" }
+}

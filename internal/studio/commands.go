@@ -25,44 +25,47 @@ const (
 type OperationKind string
 
 const (
-	OpSetField             OperationKind = "set-field"
-	OpSetTransform         OperationKind = "set-transform"
-	OpAssignMaterial       OperationKind = "assign-material"
-	OpRenameEntity         OperationKind = "rename-entity"
-	OpCreateEntity         OperationKind = "create-entity"
-	OpDeleteEntity         OperationKind = "delete-entity"
-	OpReparentEntity       OperationKind = "reparent-entity"
-	OpDuplicateEntity      OperationKind = "duplicate-entity"
-	OpExtrudeFaces         OperationKind = "extrude-faces"
-	OpInsetFaces           OperationKind = "inset-faces"
-	OpTriangulateFaces     OperationKind = "triangulate-faces"
-	OpWeldVertices         OperationKind = "weld-vertices"
-	OpFillFace             OperationKind = "fill-face"
-	OpRecalculateNormals   OperationKind = "recalculate-normals"
-	OpProjectPlanarUV      OperationKind = "project-planar-uv"
-	OpDissolveEdges        OperationKind = "dissolve-edges"
-	OpBridgeLoops          OperationKind = "bridge-loops"
-	OpLoopCut              OperationKind = "loop-cut"
-	OpSetCurveControlPoint OperationKind = "set-curve-control-point"
-	OpSetModifier          OperationKind = "set-modifier"
-	OpRemoveModifier       OperationKind = "remove-modifier"
-	OpReorderModifier      OperationKind = "reorder-modifier"
-	OpApplyModifier        OperationKind = "apply-modifier"
-	OpCSGBoolean           OperationKind = "csg-boolean"
-	OpSetMaterial          OperationKind = "set-material"
-	OpDeleteMaterial       OperationKind = "delete-material"
-	OpCapturePrefab        OperationKind = "capture-prefab"
-	OpInstantiatePrefab    OperationKind = "instantiate-prefab"
-	OpSetPrefabOverride    OperationKind = "set-prefab-override"
-	OpDeletePrefab         OperationKind = "delete-prefab"
-	OpRegisterAsset        OperationKind = "register-asset"
-	OpDeleteAsset          OperationKind = "delete-asset"
-	OpReimportAsset        OperationKind = "reimport-asset"
-	OpSetBonePose          OperationKind = "set-bone-pose"
-	OpSetAnimationKey      OperationKind = "set-animation-key"
-	OpSolveIK              OperationKind = "solve-ik"
-	OpSetPhysicsBody       OperationKind = "set-physics-body"
-	OpSimulateTicks        OperationKind = "simulate-ticks"
+	OpSetField              OperationKind = "set-field"
+	OpSetTransform          OperationKind = "set-transform"
+	OpAssignMaterial        OperationKind = "assign-material"
+	OpRenameEntity          OperationKind = "rename-entity"
+	OpCreateEntity          OperationKind = "create-entity"
+	OpDeleteEntity          OperationKind = "delete-entity"
+	OpReparentEntity        OperationKind = "reparent-entity"
+	OpDuplicateEntity       OperationKind = "duplicate-entity"
+	OpExtrudeFaces          OperationKind = "extrude-faces"
+	OpInsetFaces            OperationKind = "inset-faces"
+	OpTriangulateFaces      OperationKind = "triangulate-faces"
+	OpWeldVertices          OperationKind = "weld-vertices"
+	OpFillFace              OperationKind = "fill-face"
+	OpRecalculateNormals    OperationKind = "recalculate-normals"
+	OpProjectPlanarUV       OperationKind = "project-planar-uv"
+	OpDissolveEdges         OperationKind = "dissolve-edges"
+	OpBridgeLoops           OperationKind = "bridge-loops"
+	OpLoopCut               OperationKind = "loop-cut"
+	OpSetCurveControlPoint  OperationKind = "set-curve-control-point"
+	OpSetModifier           OperationKind = "set-modifier"
+	OpRemoveModifier        OperationKind = "remove-modifier"
+	OpReorderModifier       OperationKind = "reorder-modifier"
+	OpApplyModifier         OperationKind = "apply-modifier"
+	OpCSGBoolean            OperationKind = "csg-boolean"
+	OpSetMaterial           OperationKind = "set-material"
+	OpDeleteMaterial        OperationKind = "delete-material"
+	OpCapturePrefab         OperationKind = "capture-prefab"
+	OpInstantiatePrefab     OperationKind = "instantiate-prefab"
+	OpSetPrefabOverride     OperationKind = "set-prefab-override"
+	OpDeletePrefab          OperationKind = "delete-prefab"
+	OpRegisterAsset         OperationKind = "register-asset"
+	OpDeleteAsset           OperationKind = "delete-asset"
+	OpReimportAsset         OperationKind = "reimport-asset"
+	OpSetBonePose           OperationKind = "set-bone-pose"
+	OpSetAnimationKey       OperationKind = "set-animation-key"
+	OpSolveIK               OperationKind = "solve-ik"
+	OpSetPhysicsBody        OperationKind = "set-physics-body"
+	OpSimulateTicks         OperationKind = "simulate-ticks"
+	OpRetargetAnimation     OperationKind = "retarget-animation"
+	OpSetAnimationParameter OperationKind = "set-animation-parameter"
+	OpStepAnimationMachine  OperationKind = "step-animation-machine"
 )
 
 type Transaction struct {
@@ -119,6 +122,12 @@ type Operation struct {
 	SimulationID    ID                    `json:"simulationId,omitempty"`
 	Ticks           uint64                `json:"ticks,omitempty"`
 	Inputs          []SimulationInput     `json:"inputs,omitempty"`
+	RetargetMapID   ID                    `json:"retargetMapId,omitempty"`
+	SourceClipID    ID                    `json:"sourceClipId,omitempty"`
+	MachineID       ID                    `json:"machineId,omitempty"`
+	Parameter       string                `json:"parameter,omitempty"`
+	Number          float64               `json:"number,omitempty"`
+	DeltaTime       float64               `json:"deltaTime,omitempty"`
 	Key             *TransformKey         `json:"key,omitempty"`
 }
 
@@ -143,6 +152,8 @@ type Receipt struct {
 	RigChanges             []RigChange        `json:"rigChanges,omitempty"`
 	AnimationChanges       []AnimationChange  `json:"animationChanges,omitempty"`
 	SimulationChanges      []SimulationChange `json:"simulationChanges,omitempty"`
+	RetargetChanges        []RetargetChange   `json:"retargetChanges,omitempty"`
+	MachineChanges         []MachineChange    `json:"machineChanges,omitempty"`
 }
 
 type OperatorRecord struct {
@@ -213,6 +224,19 @@ type SimulationChange struct {
 	Ticks      uint64 `json:"ticks"`
 	BeforeHash string `json:"beforeHash"`
 	AfterHash  string `json:"afterHash"`
+}
+
+type RetargetChange struct {
+	Map     ID `json:"map"`
+	Source  ID `json:"source"`
+	Created ID `json:"created"`
+}
+type MachineChange struct {
+	Machine     ID      `json:"machine"`
+	BeforeState ID      `json:"beforeState"`
+	AfterState  ID      `json:"afterState"`
+	BeforeTime  float64 `json:"beforeTime"`
+	AfterTime   float64 `json:"afterTime"`
 }
 
 type historyEntry struct {
@@ -447,7 +471,7 @@ func makeReceipt(transaction Transaction, before, after Document, affected []ID)
 	if len(correlation) > 12 {
 		correlation = correlation[:12]
 	}
-	return Receipt{TransactionID: transaction.ID, Actor: transaction.Actor, Mode: transaction.Mode, Applied: transaction.Mode == ModeDirect, BeforeRevision: before.Revision, AfterRevision: after.Revision, BeforeFingerprint: beforeFingerprint, AfterFingerprint: afterFingerprint, Operations: len(transaction.Operations), Affected: uniqueIDs(affected), InverseTransactionID: "inverse:" + transaction.ID, TelemetryCorrelationID: "studio:" + transaction.ID + ":" + correlation, Changes: semanticChanges(transaction, before, after), OperatorRecords: operatorRecords(transaction), MaterialChanges: materialChanges(transaction, before, after), PrefabChanges: prefabChanges(transaction, before, after), AssetChanges: assetChanges(transaction, before, after), RigChanges: rigChanges(transaction, before, after), AnimationChanges: animationChanges(transaction, before, after), SimulationChanges: simulationChanges(transaction, before, after)}, nil
+	return Receipt{TransactionID: transaction.ID, Actor: transaction.Actor, Mode: transaction.Mode, Applied: transaction.Mode == ModeDirect, BeforeRevision: before.Revision, AfterRevision: after.Revision, BeforeFingerprint: beforeFingerprint, AfterFingerprint: afterFingerprint, Operations: len(transaction.Operations), Affected: uniqueIDs(affected), InverseTransactionID: "inverse:" + transaction.ID, TelemetryCorrelationID: "studio:" + transaction.ID + ":" + correlation, Changes: semanticChanges(transaction, before, after), OperatorRecords: operatorRecords(transaction), MaterialChanges: materialChanges(transaction, before, after), PrefabChanges: prefabChanges(transaction, before, after), AssetChanges: assetChanges(transaction, before, after), RigChanges: rigChanges(transaction, before, after), AnimationChanges: animationChanges(transaction, before, after), SimulationChanges: simulationChanges(transaction, before, after), RetargetChanges: retargetChanges(transaction), MachineChanges: machineChanges(transaction, before, after)}, nil
 }
 
 func operatorRecords(transaction Transaction) []OperatorRecord {
@@ -754,6 +778,12 @@ func applyOperation(document *Document, operation Operation) ([]ID, error) {
 		return applySetPhysicsBody(document, operation)
 	case OpSimulateTicks:
 		return applySimulateTicks(document, operation)
+	case OpRetargetAnimation:
+		return applyRetargetAnimation(document, operation)
+	case OpSetAnimationParameter:
+		return applySetAnimationParameter(document, operation)
+	case OpStepAnimationMachine:
+		return applyStepAnimationMachine(document, operation)
 	}
 	entity, ok := document.Entities[operation.Target]
 	if !ok {
@@ -822,7 +852,7 @@ type ActionCapability struct {
 }
 
 func ActionCatalog() []ActionCapability {
-	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks}
+	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine}
 	out := make([]ActionCapability, 0, len(kinds))
 	for _, kind := range kinds {
 		out = append(out, ActionCapability{ID: string(kind), Status: "available", Atomic: true, Undo: true, Preview: true})

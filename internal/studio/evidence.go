@@ -219,7 +219,62 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m2-fixed-step-simulation", simulationOK, simulationEvidence)
+	animationRuntimeEvidence, animationRuntimeOK, err := certifyAnimationRuntimeFoundation()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m2-retarget-state-machine", animationRuntimeOK, animationRuntimeEvidence)
 	return report, nil
+}
+
+func certifyAnimationRuntimeFoundation() (string, bool, error) {
+	document := ArticulatedProofDocument()
+	retargeted, err := RetargetAnimationClip(document, "arm-to-tall", "reach", "cert-tall-reach", "Certified Tall Reach")
+	if err != nil {
+		return "", false, err
+	}
+	machine := document.AnimationMachines["locomotion"]
+	machine.Parameters["speed"] = 1
+	document.AnimationMachines["locomotion"] = machine
+	transition, transitioned, err := StepAnimationMachine(document, "locomotion", 0.25)
+	if err != nil {
+		return "", false, err
+	}
+	workspace, err := NewWorkspace(ArticulatedProofDocument())
+	if err != nil {
+		return "", false, err
+	}
+	operations := []Operation{{Kind: OpRetargetAnimation, RetargetMapID: "arm-to-tall", SourceClipID: "reach", NewID: "agent-tall-reach", Name: "Agent Tall Reach"}, {Kind: OpSetAnimationParameter, MachineID: "locomotion", Parameter: "speed", Number: 1}, {Kind: OpStepAnimationMachine, MachineID: "locomotion", DeltaTime: 0.25}, {Kind: OpStepAnimationMachine, MachineID: "locomotion", DeltaTime: 0.5}}
+	transaction := Transaction{ID: "certify:m2-animation-runtime", Actor: "agent://studio-certifier", Mode: ModePropose, ExpectedRevision: ArticulatedProofDocument().Revision, Operations: operations}
+	previewReceipt, preview, err := workspace.Execute(transaction)
+	if err != nil {
+		return "", false, err
+	}
+	transaction.Mode = ModeDirect
+	directReceipt, direct, err := workspace.Execute(transaction)
+	if err != nil {
+		return "", false, err
+	}
+	previewFingerprint, _ := preview.Fingerprint()
+	directFingerprint, _ := direct.Fingerprint()
+	authoredProps, authoredCompileErr := Compile(ArticulatedProofDocument())
+	directProps, directCompileErr := Compile(direct)
+	authoredIR, _ := json.Marshal(authoredProps.SceneIR())
+	directIR, _ := json.Marshal(directProps.SceneIR())
+	track := retargeted.Tracks["cert-tall-reach--target-lower"]
+	targetY := 0.0
+	if len(track.Keys) > 0 {
+		targetY = track.Keys[0].Transform.Position.Y
+	}
+	traceOK := transition.To == "reach" && transition.Transition == "idle-to-reach" && len(transition.Trace) == 1 && transition.Trace[0].Rule == "TransitionGreater" && transition.Trace[0].Eligible
+	rule := "missing"
+	if len(transition.Trace) > 0 {
+		rule = transition.Trace[0].Rule
+	}
+	receiptOK := len(previewReceipt.RetargetChanges) == 1 && len(directReceipt.RetargetChanges) == 1 && len(previewReceipt.MachineChanges) == 3 && len(directReceipt.MachineChanges) == 3
+	sceneIRChanged := authoredCompileErr == nil && directCompileErr == nil && !bytes.Equal(authoredIR, directIR)
+	ok := len(track.Keys) == 2 && targetY == 2 && traceOK && transitioned.AnimationMachines["locomotion"].Current == "reach" && previewFingerprint == directFingerprint && direct.AnimationMachines["locomotion"].Current == "reach" && direct.AnimationMachines["locomotion"].StateTime == 0.5 && receiptOK && sceneIRChanged
+	return fmt.Sprintf("map=arm-to-tall tracks=%d restScale=2 targetY=%.3f arbiterRule=%s transition=%s state=%s stateTime=%.3f previewEquivalent=%t semanticReceipts=%t sceneIRChanged=%t", len(retargeted.Tracks), targetY, rule, transition.Transition, direct.AnimationMachines["locomotion"].Current, direct.AnimationMachines["locomotion"].StateTime, previewFingerprint == directFingerprint, receiptOK, sceneIRChanged), ok, nil
 }
 
 func certifySimulationFoundation() (string, bool, error) {

@@ -121,12 +121,20 @@ func ArticulatedProofDocument() Document {
 		"lower": {ID: "lower", Name: "Elbow", Parent: "root", Children: []ID{"tip"}, Rest: Transform{Position: Vec3{Y: 1}, Scale: Vec3{X: 1, Y: 1, Z: 1}}, Entity: forearm.ID},
 		"tip":   {ID: "tip", Name: "Tool", Parent: "lower", Rest: Transform{Position: Vec3{Y: 1}, Scale: Vec3{X: 1, Y: 1, Z: 1}}},
 	}, Pose: map[ID]Transform{"lower": forearm.Transform}, Constraints: []IKConstraint{{ID: "reach-ik", Root: "root", Mid: "lower", Tip: "tip", Target: Vec3{X: 1, Y: 1}, Enabled: true}}}}
+	document.Armatures["target-arm"] = Armature{ID: "target-arm", Name: "Tall robot arm", RootBones: []ID{"target-root"}, Bones: map[ID]Bone{
+		"target-root":  {ID: "target-root", Name: "Target shoulder", Children: []ID{"target-lower"}, Rest: IdentityTransform()},
+		"target-lower": {ID: "target-lower", Name: "Target elbow", Parent: "target-root", Children: []ID{"target-tip"}, Rest: Transform{Position: Vec3{Y: 2}, Scale: Vec3{X: 1, Y: 1, Z: 1}}},
+		"target-tip":   {ID: "target-tip", Name: "Target tool", Parent: "target-lower", Rest: Transform{Position: Vec3{Y: 2}, Scale: Vec3{X: 1, Y: 1, Z: 1}}},
+	}}
 	start := forearm.Transform
 	end := forearm.Transform
 	end.Rotation = Vec3{X: 2, Y: 2}
 	document.Animations = map[ID]AnimationClip{"reach": {ID: "reach", Name: "Reach", Duration: 1, Tracks: map[ID]TransformTrack{
 		"lower-track": {ID: "lower-track", Armature: "arm", Bone: "lower", Keys: []TransformKey{{Time: 0, Transform: start}, {Time: 1, Transform: end}}},
 	}}}
+	document.Animations["idle"] = AnimationClip{ID: "idle", Name: "Idle", Duration: 1, Loop: true, Tracks: map[ID]TransformTrack{"idle-lower": {ID: "idle-lower", Armature: "arm", Bone: "lower", Keys: []TransformKey{{Time: 0, Transform: start}, {Time: 1, Transform: start}}}}}
+	document.RetargetMaps = map[ID]RetargetMap{"arm-to-tall": {ID: "arm-to-tall", Name: "Arm to tall arm", Source: "arm", Target: "target-arm", Bones: map[ID]ID{"root": "target-root", "lower": "target-lower", "tip": "target-tip"}}}
+	document.AnimationMachines = map[ID]AnimationStateMachine{"locomotion": {ID: "locomotion", Name: "Articulated locomotion", Initial: "idle", Current: "idle", Parameters: map[string]float64{"speed": 0}, States: map[ID]AnimationState{"idle": {ID: "idle", Name: "Idle", Clip: "idle", Speed: 1}, "reach": {ID: "reach", Name: "Reach", Clip: "reach", Speed: 1}}, Transitions: []AnimationTransition{{ID: "idle-to-reach", From: "idle", To: "reach", Parameter: "speed", Operator: "greater", Threshold: 0.5, Priority: 10}, {ID: "reach-to-idle", From: "reach", To: "idle", Parameter: "speed", Operator: "less-equal", Threshold: 0.5, Priority: 10}}}}
 	document.Simulations = map[ID]SimulationProfile{"articulated-physics": {ID: "articulated-physics", Name: "Articulated payload interaction", TickRate: 60, Gravity: Vec3{Y: -9.81}, Bodies: []ID{ground.ID, payload.ID}}}
 	return document
 }

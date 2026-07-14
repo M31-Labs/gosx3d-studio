@@ -72,7 +72,7 @@ func assetView(document studio.Document, workspace *studio.Workspace) []map[stri
 }
 
 func timelineView(document studio.Document) map[string]any {
-	view := map[string]any{"state": "No articulated clip loaded", "armatureId": "", "boneId": "", "boneName": "—", "constraintId": "", "clipId": "", "clipName": "No clip", "trackId": "", "duration": "0", "keyTime": "0.500", "rx": "0", "ry": "0", "rz": "0", "simulationId": "", "simulationName": "No simulation", "tickRate": "0", "ticks": "60"}
+	view := map[string]any{"state": "No articulated clip loaded", "armatureId": "", "boneId": "", "boneName": "—", "constraintId": "", "clipId": "", "clipName": "No clip", "trackId": "", "duration": "0", "keyTime": "0.500", "rx": "0", "ry": "0", "rz": "0", "simulationId": "", "simulationName": "No simulation", "tickRate": "0", "ticks": "60", "retargetMapId": "", "retargetName": "No retarget map", "retargetClipId": "retargeted-clip", "machineId": "", "machineName": "No state machine", "machineState": "—", "machineParameter": "", "machineValue": "0", "deltaTime": "0.016667"}
 	armatureIDs := sortedMapIDs(document.Armatures)
 	if len(armatureIDs) > 0 {
 		armature := document.Armatures[armatureIDs[0]]
@@ -105,6 +105,24 @@ func timelineView(document studio.Document) map[string]any {
 	if len(simulationIDs) > 0 {
 		profile := document.Simulations[simulationIDs[0]]
 		view["simulationId"], view["simulationName"], view["tickRate"] = string(profile.ID), profile.Name, fmt.Sprint(profile.TickRate)
+	}
+	retargetIDs := sortedMapIDs(document.RetargetMaps)
+	if len(retargetIDs) > 0 {
+		mapping := document.RetargetMaps[retargetIDs[0]]
+		view["retargetMapId"], view["retargetName"] = string(mapping.ID), mapping.Name
+	}
+	machineIDs := sortedMapIDs(document.AnimationMachines)
+	if len(machineIDs) > 0 {
+		machine := document.AnimationMachines[machineIDs[0]]
+		view["machineId"], view["machineName"], view["machineState"] = string(machine.ID), machine.Name, string(machine.Current)
+		parameterNames := make([]string, 0, len(machine.Parameters))
+		for name := range machine.Parameters {
+			parameterNames = append(parameterNames, name)
+		}
+		sort.Strings(parameterNames)
+		if len(parameterNames) > 0 {
+			view["machineParameter"], view["machineValue"] = parameterNames[0], number(machine.Parameters[parameterNames[0]])
+		}
 	}
 	return view
 }

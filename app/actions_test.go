@@ -201,6 +201,27 @@ func TestHumanTimelineRigAndSimulationUseSharedCommands(t *testing.T) {
 	if len(simulationReceipt.SimulationChanges) != 1 || simulationReceipt.SimulationChanges[0].Ticks != 60 {
 		t.Fatalf("simulation receipt = %+v", simulationReceipt)
 	}
+	retargetReceipt, err := executeHumanRetarget(workspace, map[string]string{"expectedRevision": revision(), "retargetMapId": "arm-to-tall", "sourceClipId": "reach", "newId": "human-tall-reach", "name": "Human Tall Reach"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(retargetReceipt.RetargetChanges) != 1 {
+		t.Fatalf("retarget receipt = %+v", retargetReceipt)
+	}
+	parameterReceipt, err := executeHumanAnimationParameter(workspace, map[string]string{"expectedRevision": revision(), "machineId": "locomotion", "parameter": "speed", "number": "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parameterReceipt.MachineChanges) != 1 {
+		t.Fatalf("parameter receipt = %+v", parameterReceipt)
+	}
+	stepReceipt, err := executeHumanAnimationMachineStep(workspace, map[string]string{"expectedRevision": revision(), "machineId": "locomotion", "deltaTime": "0.25"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stepReceipt.MachineChanges) != 1 || stepReceipt.MachineChanges[0].AfterState != "reach" {
+		t.Fatalf("machine step receipt = %+v", stepReceipt)
+	}
 	if _, err := executeHumanSimulation(workspace, map[string]string{"expectedRevision": "1", "simulationId": "articulated-physics", "ticks": "60"}); err == nil {
 		t.Fatal("stale human simulation revision was accepted")
 	}
@@ -211,7 +232,7 @@ func TestTimelineMarkupBindsRealHumanActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{`actionPath("setBonePose")`, `actionPath("setAnimationKey")`, `actionPath("solveIK")`, `actionPath("simulateTicks")`, `data.timeline.clipName`, `data.timeline.simulationName`} {
+	for _, required := range []string{`actionPath("setBonePose")`, `actionPath("setAnimationKey")`, `actionPath("solveIK")`, `actionPath("simulateTicks")`, `actionPath("retargetAnimation")`, `actionPath("setAnimationParameter")`, `actionPath("stepAnimationMachine")`, `data.timeline.clipName`, `data.timeline.simulationName`} {
 		if !strings.Contains(string(page), required) {
 			t.Fatalf("timeline markup missing %q", required)
 		}

@@ -319,6 +319,50 @@ func executeHumanSimulation(workspace *studio.Workspace, values map[string]strin
 	return receipt, err
 }
 
+func executeHumanRetarget(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-retarget-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpRetargetAnimation, RetargetMapID: studio.ID(strings.TrimSpace(values["retargetMapId"])), SourceClipID: studio.ID(strings.TrimSpace(values["sourceClipId"])), NewID: studio.ID(strings.TrimSpace(values["newId"])), Name: strings.TrimSpace(values["name"])}}})
+	return receipt, err
+}
+
+func executeHumanAnimationParameter(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	value, err := strconv.ParseFloat(strings.TrimSpace(values["number"]), 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("number: %w", err)
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-animation-parameter-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSetAnimationParameter, MachineID: studio.ID(strings.TrimSpace(values["machineId"])), Parameter: strings.TrimSpace(values["parameter"]), Number: value}}})
+	return receipt, err
+}
+
+func executeHumanAnimationMachineStep(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	deltaTime, err := strconv.ParseFloat(strings.TrimSpace(values["deltaTime"]), 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("deltaTime: %w", err)
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-animation-machine-step-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpStepAnimationMachine, MachineID: studio.ID(strings.TrimSpace(values["machineId"])), DeltaTime: deltaTime}}})
+	return receipt, err
+}
+
 func parseHumanVec3(values map[string]string, xName, yName, zName string) (studio.Vec3, error) {
 	parse := func(name string) (float64, error) {
 		value, err := strconv.ParseFloat(strings.TrimSpace(values[name]), 64)
@@ -474,6 +518,30 @@ func init() {
 			"simulateTicks": func(ctx *action.Context) error {
 				if _, err := executeHumanSimulation(boundWorkspace(), ctx.FormData); err != nil {
 					ctx.ValidationFailure(err.Error(), map[string]string{"simulation": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
+			"retargetAnimation": func(ctx *action.Context) error {
+				if _, err := executeHumanRetarget(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"retarget": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
+			"setAnimationParameter": func(ctx *action.Context) error {
+				if _, err := executeHumanAnimationParameter(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"stateMachine": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
+			"stepAnimationMachine": func(ctx *action.Context) error {
+				if _, err := executeHumanAnimationMachineStep(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"stateMachine": err.Error()})
 					return nil
 				}
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
