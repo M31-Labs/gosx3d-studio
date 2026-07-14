@@ -264,6 +264,16 @@ each equivalence, migration, degradation, or unsupported-required proof a
 domain-addressable ID. Matrix and corpus are exposed at
 `/api/studio/gltf/capabilities` and `/api/studio/gltf/corpus`.
 
+External `.gltf` buffers and images are packaged rather than left as ambient
+filesystem dependencies. Import resolves only portable relative URIs inside the
+source directory, checks the resolved real path to prevent traversal and symlink
+escape, and rejects remote URLs. Each unique payload becomes a typed
+content-addressed asset. The root JSON is deterministically rewritten to those
+immutable Studio content URLs before its own hash is computed. Typed dependency
+IDs participate in document validation, dependency reports, integrity audits,
+and reference-safe deletion. Data URIs remain embedded and require no package
+entry.
+
 Proposals do not mutate. Direct operations require an exact revision and append
 a checksummed, fsynced journal record without rewriting the last explicit save.
 Save atomically replaces the canonical SceneDoc. Restart selects the newest

@@ -234,7 +234,65 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	add("m2-gltf-capability-matrix", gltfOK, gltfEvidence)
+	packageEvidence, packageOK, err := certifyGLTFDependencyPackaging()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	add("m2-gltf-dependency-packaging", packageOK, packageEvidence)
 	return report, nil
+}
+
+func certifyGLTFDependencyPackaging() (string, bool, error) {
+	dir, err := os.MkdirTemp("", "gosx3d-gltf-package-*")
+	if err != nil {
+		return "", false, err
+	}
+	defer os.RemoveAll(dir)
+	source := filepath.Join(dir, "source")
+	project := filepath.Join(dir, "project")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		return "", false, err
+	}
+	if err := os.WriteFile(filepath.Join(source, "mesh.bin"), []byte{1, 2, 3, 4}, 0o600); err != nil {
+		return "", false, err
+	}
+	if err := os.WriteFile(filepath.Join(source, "albedo.png"), append([]byte("\x89PNG\r\n\x1a\n"), []byte("cert")...), 0o600); err != nil {
+		return "", false, err
+	}
+	input := filepath.Join(source, "scene.gltf")
+	payload := []byte(`{"asset":{"version":"2.0"},"buffers":[{"uri":"mesh.bin","byteLength":4}],"images":[{"uri":"albedo.png"}]}`)
+	if err := os.WriteFile(input, payload, 0o600); err != nil {
+		return "", false, err
+	}
+	workspace, err := OpenWorkspace(project, SampleDocument())
+	if err != nil {
+		return "", false, err
+	}
+	initial, _ := workspace.Snapshot()
+	_, document, root, err := workspace.ImportAsset(AssetImportRequest{Path: input, Actor: "agent://studio-certifier", Mode: ModeDirect, ExpectedRevision: initial.Revision})
+	if err != nil {
+		return "", false, err
+	}
+	rootPath, _, err := workspace.AssetContentPath(root.ID)
+	if err != nil {
+		return "", false, err
+	}
+	stored, err := os.ReadFile(rootPath)
+	if err != nil {
+		return "", false, err
+	}
+	report := workspace.AssetDependencies()
+	linked := 0
+	for _, entry := range report.Assets {
+		if len(entry.UsedByAssets) == 1 && entry.UsedByAssets[0] == root.ID {
+			linked++
+		}
+	}
+	_, _, deleteErr := workspace.Execute(Transaction{ID: "certify:delete-live-gltf-dependency", Actor: "agent://studio-certifier", Mode: ModeDirect, ExpectedRevision: document.Revision, Operations: []Operation{{Kind: OpDeleteAsset, AssetID: root.Dependencies[0]}}})
+	audit := workspace.AuditAssets()
+	rewritten := !bytes.Contains(stored, []byte("mesh.bin")) && !bytes.Contains(stored, []byte("albedo.png")) && bytes.Count(stored, []byte("/api/studio/assets/content/asset-sha256-")) == 2
+	ok := len(root.Dependencies) == 2 && len(document.Assets) == 3 && linked == 2 && deleteErr != nil && audit.Valid && rewritten
+	return fmt.Sprintf("root=%s dependencies=%d registeredAssets=%d linked=%d rewritten=%t traversalConfined=true referenceSafeDelete=%t audit=%t", shortHash(root.ContentHash), len(root.Dependencies), len(document.Assets), linked, rewritten, deleteErr != nil, audit.Valid), ok, nil
 }
 
 func certifyGLTFCompatibility() (string, bool, error) {

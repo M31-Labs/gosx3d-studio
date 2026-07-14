@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -164,5 +165,88 @@ func TestInspectAssetRejectsInvalidGLB(t *testing.T) {
 	binary.LittleEndian.PutUint32(data[8:12], 999)
 	if _, err := inspectAsset("bad.glb", data); err == nil {
 		t.Fatal("expected invalid declared length to fail")
+	}
+}
+
+func TestGLTFExternalDependenciesAreRewrittenAndContentAddressed(t *testing.T) {
+	source := t.TempDir()
+	project := t.TempDir()
+	buffer := []byte{1, 2, 3, 4}
+	if err := os.WriteFile(filepath.Join(source, "mesh.data"), buffer, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	png := append([]byte("\x89PNG\r\n\x1a\n"), []byte("fixture")...)
+	if err := os.WriteFile(filepath.Join(source, "albedo.png"), png, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gltf := []byte(`{"asset":{"version":"2.0"},"buffers":[{"uri":"mesh.data","byteLength":4}],"images":[{"uri":"albedo.png"},{"uri":"albedo.png"}]}`)
+	path := filepath.Join(source, "model.gltf")
+	if err := os.WriteFile(path, gltf, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := OpenWorkspace(project, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, _ := workspace.Snapshot()
+	_, imported, root, err := workspace.ImportAsset(AssetImportRequest{Path: path, Actor: "test", Mode: ModeDirect, ExpectedRevision: document.Revision})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imported.Assets) != 3 {
+		t.Fatalf("assets=%d, want root plus two unique dependencies", len(imported.Assets))
+	}
+	if len(root.Dependencies) != 2 {
+		t.Fatalf("typed dependencies=%v", root.Dependencies)
+	}
+	if root.Metadata["sourceContentHash"] == "" || len(strings.Split(root.Metadata["gltfDependencies"], ",")) != 2 {
+		t.Fatalf("root metadata=%#v", root.Metadata)
+	}
+	storedPath, _, err := workspace.AssetContentPath(root.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := os.ReadFile(storedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(stored), `"mesh.data"`) || strings.Contains(string(stored), `"albedo.png"`) || strings.Count(string(stored), "/api/studio/assets/content/asset-sha256-") != 3 {
+		t.Fatalf("root was not deterministically rewritten: %s", stored)
+	}
+	if audit := workspace.AuditAssets(); !audit.Valid || len(audit.Assets) != 3 {
+		t.Fatalf("audit=%#v", audit)
+	}
+	report := workspace.AssetDependencies()
+	usedBy := 0
+	for _, entry := range report.Assets {
+		if entry.Asset == root.Dependencies[0] || entry.Asset == root.Dependencies[1] {
+			if len(entry.UsedByAssets) != 1 || entry.UsedByAssets[0] != root.ID {
+				t.Fatalf("dependency report entry=%#v", entry)
+			}
+			usedBy++
+		}
+	}
+	if usedBy != 2 {
+		t.Fatalf("dependency report=%#v", report)
+	}
+	if _, _, err := workspace.Execute(Transaction{ID: "delete-live-dependency", Actor: "test", Mode: ModeDirect, ExpectedRevision: imported.Revision, Operations: []Operation{{Kind: OpDeleteAsset, AssetID: root.Dependencies[0]}}}); err == nil {
+		t.Fatal("referenced glTF dependency deletion succeeded")
+	}
+}
+
+func TestGLTFDependencyConfinementRejectsRemoteTraversalAndSymlinkEscape(t *testing.T) {
+	base := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.bin")
+	if err := os.WriteFile(outside, []byte{1}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(base, "escape.bin")); err != nil {
+		t.Fatal(err)
+	}
+	for name, uri := range map[string]string{"remote": "https://example.com/a.bin", "traversal": "../outside.bin", "symlink": "escape.bin"} {
+		payload := []byte(`{"asset":{"version":"2.0"},"buffers":[{"uri":"` + uri + `","byteLength":1}]}`)
+		if _, _, err := prepareAssetImport(filepath.Join(base, name+".gltf"), payload); err == nil {
+			t.Fatalf("%s dependency %q was accepted", name, uri)
+		}
 	}
 }

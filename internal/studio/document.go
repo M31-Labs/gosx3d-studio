@@ -52,16 +52,17 @@ type Entity struct {
 }
 
 type AssetRecord struct {
-	ID          ID                `json:"id"`
-	Kind        string            `json:"kind"`
-	Format      string            `json:"format"`
-	MediaType   string            `json:"mediaType"`
-	ContentHash string            `json:"contentHash"`
-	Bytes       int64             `json:"bytes"`
-	URI         string            `json:"uri"`
-	StorePath   string            `json:"storePath"`
-	SourceName  string            `json:"sourceName"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID           ID                `json:"id"`
+	Kind         string            `json:"kind"`
+	Format       string            `json:"format"`
+	MediaType    string            `json:"mediaType"`
+	ContentHash  string            `json:"contentHash"`
+	Bytes        int64             `json:"bytes"`
+	URI          string            `json:"uri"`
+	StorePath    string            `json:"storePath"`
+	SourceName   string            `json:"sourceName"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	Dependencies []ID              `json:"dependencies,omitempty"`
 }
 
 type ModelComponent struct {
@@ -288,6 +289,14 @@ func (d Document) Validate() error {
 		}
 		if err := validateAssetRecord(asset); err != nil {
 			return fmt.Errorf("asset %q: %w", key, err)
+		}
+		for _, dependency := range asset.Dependencies {
+			if dependency == asset.ID {
+				return fmt.Errorf("asset %q depends on itself", key)
+			}
+			if _, ok := d.Assets[dependency]; !ok {
+				return fmt.Errorf("asset %q dependency %q does not exist", key, dependency)
+			}
 		}
 	}
 	for key, armature := range d.Armatures {

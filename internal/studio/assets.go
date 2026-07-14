@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,11 +34,12 @@ type AssetDependencyReport struct {
 	Assets   []AssetDependencyEntry `json:"assets"`
 }
 type AssetDependencyEntry struct {
-	Asset       ID   `json:"asset"`
-	Entities    []ID `json:"entities"`
-	Prefabs     []ID `json:"prefabs"`
-	Instances   []ID `json:"instances"`
-	DirectCount int  `json:"directCount"`
+	Asset        ID   `json:"asset"`
+	Entities     []ID `json:"entities"`
+	Prefabs      []ID `json:"prefabs"`
+	Instances    []ID `json:"instances"`
+	UsedByAssets []ID `json:"usedByAssets,omitempty"`
+	DirectCount  int  `json:"directCount"`
 }
 type AssetAudit struct {
 	Schema   string            `json:"schema"`
@@ -78,6 +80,13 @@ func validateAssetRecord(asset AssetRecord) error {
 	}
 	if !strings.Contains(filepath.Base(clean), asset.ContentHash) {
 		return fmt.Errorf("storePath does not contain content hash")
+	}
+	seen := map[ID]bool{}
+	for _, dependency := range asset.Dependencies {
+		if dependency == "" || seen[dependency] {
+			return fmt.Errorf("dependencies must contain unique non-empty ids")
+		}
+		seen[dependency] = true
 	}
 	return nil
 }
@@ -122,6 +131,16 @@ func inspectAsset(path string, data []byte) (AssetRecord, error) {
 		format, kind, media = "png", "image", "image/png"
 	case len(data) >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff:
 		format, kind, media = "jpg", "image", "image/jpeg"
+	case len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP":
+		format, kind, media = "webp", "image", "image/webp"
+	case len(data) >= 12 && string(data[4:8]) == "ftyp" && (string(data[8:12]) == "avif" || string(data[8:12]) == "avis"):
+		format, kind, media = "avif", "image", "image/avif"
+	case len(data) >= 12 && string(data[:12]) == "\xabKTX 20\xbb\r\n\x1a\n":
+		format, kind, media = "ktx2", "image", "image/ktx2"
+	case strings.HasPrefix(string(data), "#?RADIANCE") || strings.HasPrefix(string(data), "#?RGBE"):
+		format, kind, media = "hdr", "image", "image/vnd.radiance"
+	case len(data) >= 4 && data[0] == 0x76 && data[1] == 0x2f && data[2] == 0x31 && data[3] == 0x01:
+		format, kind, media = "exr", "image", "image/x-exr"
 	case len(data) >= 4 && string(data[:4]) == "RIFF" && len(data) >= 12 && string(data[8:12]) == "WAVE":
 		format, kind, media = "wav", "audio", "audio/wav"
 	case len(data) >= 4 && string(data[:4]) == "OggS":
@@ -145,6 +164,8 @@ func inspectAsset(path string, data []byte) (AssetRecord, error) {
 		}
 		metadata["vertices"] = fmt.Sprint(vertices)
 		metadata["faces"] = fmt.Sprint(faces)
+	case extension == "bin":
+		format, kind, media = "bin", "buffer", "application/octet-stream"
 	default:
 		return AssetRecord{}, fmt.Errorf("unsupported or unrecognized asset %q", name)
 	}
@@ -153,6 +174,122 @@ func inspectAsset(path string, data []byte) (AssetRecord, error) {
 	id := ID("asset-sha256-" + hash)
 	storePath := filepath.ToSlash(filepath.Join("assets", "sha256", hash+"."+format))
 	return AssetRecord{ID: id, Kind: kind, Format: format, MediaType: media, ContentHash: hash, Bytes: int64(len(data)), URI: "/api/studio/assets/content/" + string(id), StorePath: storePath, SourceName: name, Metadata: metadata}, nil
+}
+
+type preparedAssetPayload struct {
+	Asset AssetRecord
+	Data  []byte
+}
+
+func inspectBinaryBuffer(path string, data []byte) AssetRecord {
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
+	id := ID("asset-sha256-" + hash)
+	return AssetRecord{ID: id, Kind: "buffer", Format: "bin", MediaType: "application/octet-stream", ContentHash: hash, Bytes: int64(len(data)), URI: "/api/studio/assets/content/" + string(id), StorePath: filepath.ToSlash(filepath.Join("assets", "sha256", hash+".bin")), SourceName: filepath.Base(path), Metadata: map[string]string{"sourceExtension": strings.ToLower(filepath.Ext(path))}}
+}
+
+func prepareAssetImport(path string, data []byte) (preparedAssetPayload, []preparedAssetPayload, error) {
+	if strings.ToLower(filepath.Ext(path)) != ".gltf" {
+		asset, err := inspectAsset(path, data)
+		return preparedAssetPayload{Asset: asset, Data: data}, nil, err
+	}
+	var root map[string]any
+	if err := json.Unmarshal(data, &root); err != nil {
+		return preparedAssetPayload{}, nil, fmt.Errorf("invalid glTF JSON: %w", err)
+	}
+	type uriField struct {
+		value map[string]any
+		role  string
+	}
+	uriFields := []uriField{}
+	for _, key := range []string{"buffers", "images"} {
+		items, _ := root[key].([]any)
+		for _, raw := range items {
+			if item, ok := raw.(map[string]any); ok {
+				if _, ok := item["uri"].(string); ok {
+					uriFields = append(uriFields, uriField{value: item, role: key})
+				}
+			}
+		}
+	}
+	baseReal, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		return preparedAssetPayload{}, nil, err
+	}
+	byURI := map[string]preparedAssetPayload{}
+	for _, field := range uriFields {
+		rawURI := strings.TrimSpace(field.value["uri"].(string))
+		if rawURI == "" || strings.HasPrefix(rawURI, "data:") {
+			continue
+		}
+		parsed, err := url.Parse(rawURI)
+		if err != nil || parsed.Scheme != "" || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency URI %q must be a local relative path", rawURI)
+		}
+		decoded, err := url.PathUnescape(parsed.Path)
+		if err != nil || filepath.IsAbs(decoded) {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency URI %q is invalid", rawURI)
+		}
+		if strings.Contains(decoded, "\\") {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency URI %q must use portable forward slashes", rawURI)
+		}
+		candidate := filepath.Join(filepath.Dir(path), filepath.FromSlash(decoded))
+		real, err := filepath.EvalSymlinks(candidate)
+		if err != nil {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency %q: %w", rawURI, err)
+		}
+		rel, err := filepath.Rel(baseReal, real)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency %q escapes source directory", rawURI)
+		}
+		if existing, ok := byURI[rawURI]; ok {
+			field.value["uri"] = existing.Asset.URI
+			continue
+		}
+		info, err := os.Stat(real)
+		if err != nil || !info.Mode().IsRegular() || info.Size() > maxAssetBytes {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency %q must be a regular file no larger than %d bytes", rawURI, maxAssetBytes)
+		}
+		payload, err := os.ReadFile(real)
+		if err != nil {
+			return preparedAssetPayload{}, nil, err
+		}
+		asset, err := inspectAsset(real, payload)
+		if err != nil && field.role == "buffers" {
+			asset = inspectBinaryBuffer(real, payload)
+			err = nil
+		}
+		if err != nil {
+			return preparedAssetPayload{}, nil, fmt.Errorf("glTF dependency %q: %w", rawURI, err)
+		}
+		prepared := preparedAssetPayload{Asset: asset, Data: payload}
+		byURI[rawURI] = prepared
+		field.value["uri"] = asset.URI
+	}
+	rewritten, err := json.Marshal(root)
+	if err != nil {
+		return preparedAssetPayload{}, nil, err
+	}
+	asset, err := inspectAsset(path, rewritten)
+	if err != nil {
+		return preparedAssetPayload{}, nil, err
+	}
+	sourceSum := sha256.Sum256(data)
+	asset.Metadata["sourceContentHash"] = hex.EncodeToString(sourceSum[:])
+	dependencies := make([]preparedAssetPayload, 0, len(byURI))
+	ids := make([]string, 0, len(byURI))
+	for _, item := range byURI {
+		dependencies = append(dependencies, item)
+		ids = append(ids, string(item.Asset.ID))
+	}
+	sort.Slice(dependencies, func(i, j int) bool { return dependencies[i].Asset.ID < dependencies[j].Asset.ID })
+	sort.Strings(ids)
+	asset.Metadata["gltfDependencies"] = strings.Join(ids, ",")
+	asset.Dependencies = make([]ID, len(ids))
+	for i, id := range ids {
+		asset.Dependencies[i] = ID(id)
+	}
+	return preparedAssetPayload{Asset: asset, Data: rewritten}, dependencies, nil
 }
 
 func applyGLTFMetadata(metadata map[string]string, inspection GLTFInspection) {
@@ -178,11 +315,18 @@ func (w *Workspace) ImportAsset(request AssetImportRequest) (Receipt, Document, 
 	if err != nil {
 		return Receipt{}, Document{}, AssetRecord{}, err
 	}
-	asset, err := inspectAsset(request.Path, data)
+	prepared, dependencies, err := prepareAssetImport(request.Path, data)
 	if err != nil {
 		return Receipt{}, Document{}, AssetRecord{}, err
 	}
-	transaction := Transaction{ID: "import-asset:" + asset.ContentHash[:16], Actor: request.Actor, Mode: request.Mode, ExpectedRevision: request.ExpectedRevision, Operations: []Operation{{Kind: OpRegisterAsset, Asset: &asset}}}
+	asset := prepared.Asset
+	operations := make([]Operation, 0, len(dependencies)+1)
+	for i := range dependencies {
+		dependency := dependencies[i].Asset
+		operations = append(operations, Operation{Kind: OpRegisterAsset, Asset: &dependency})
+	}
+	operations = append(operations, Operation{Kind: OpRegisterAsset, Asset: &asset})
+	transaction := Transaction{ID: "import-asset:" + asset.ContentHash[:16], Actor: request.Actor, Mode: request.Mode, ExpectedRevision: request.ExpectedRevision, Operations: operations}
 	if request.Mode == ModeDirect {
 		transaction.Mode = ModePropose
 		if _, _, err := w.Execute(transaction); err != nil {
@@ -194,7 +338,12 @@ func (w *Workspace) ImportAsset(request AssetImportRequest) (Receipt, Document, 
 		if projectDir == "" {
 			return Receipt{}, Document{}, AssetRecord{}, fmt.Errorf("direct asset import requires a persisted project")
 		}
-		if err := storeAssetPayload(projectDir, asset, data); err != nil {
+		for _, dependency := range dependencies {
+			if err := storeAssetPayload(projectDir, dependency.Asset, dependency.Data); err != nil {
+				return Receipt{}, Document{}, AssetRecord{}, err
+			}
+		}
+		if err := storeAssetPayload(projectDir, asset, prepared.Data); err != nil {
 			return Receipt{}, Document{}, AssetRecord{}, err
 		}
 		transaction.Mode = ModeDirect
@@ -218,14 +367,21 @@ func (w *Workspace) ReimportAsset(request AssetReimportRequest) (Receipt, Docume
 	if err != nil {
 		return Receipt{}, Document{}, AssetRecord{}, err
 	}
-	asset, err := inspectAsset(request.Path, data)
+	prepared, dependencies, err := prepareAssetImport(request.Path, data)
 	if err != nil {
 		return Receipt{}, Document{}, AssetRecord{}, err
 	}
+	asset := prepared.Asset
+	operations := make([]Operation, 0, len(dependencies)+1)
+	for i := range dependencies {
+		dependency := dependencies[i].Asset
+		operations = append(operations, Operation{Kind: OpRegisterAsset, Asset: &dependency})
+	}
+	operations = append(operations, Operation{Kind: OpReimportAsset, AssetID: request.AssetID, Asset: &asset})
 	transaction := Transaction{
 		ID: fmt.Sprintf("reimport-asset:%s:%s", request.AssetID, asset.ContentHash[:16]), Actor: request.Actor,
 		Mode: request.Mode, ExpectedRevision: request.ExpectedRevision,
-		Operations: []Operation{{Kind: OpReimportAsset, AssetID: request.AssetID, Asset: &asset}},
+		Operations: operations,
 	}
 	if request.Mode == ModeDirect {
 		transaction.Mode = ModePropose
@@ -238,7 +394,12 @@ func (w *Workspace) ReimportAsset(request AssetReimportRequest) (Receipt, Docume
 		if projectDir == "" {
 			return Receipt{}, Document{}, AssetRecord{}, fmt.Errorf("direct asset reimport requires a persisted project")
 		}
-		if err := storeAssetPayload(projectDir, asset, data); err != nil {
+		for _, dependency := range dependencies {
+			if err := storeAssetPayload(projectDir, dependency.Asset, dependency.Data); err != nil {
+				return Receipt{}, Document{}, AssetRecord{}, err
+			}
+		}
+		if err := storeAssetPayload(projectDir, asset, prepared.Data); err != nil {
 			return Receipt{}, Document{}, AssetRecord{}, err
 		}
 		transaction.Mode = ModeDirect
@@ -350,6 +511,14 @@ func (w *Workspace) AssetDependencies() AssetDependencyReport {
 				entry.Entities = append(entry.Entities, entityID)
 			}
 		}
+		for assetID, asset := range document.Assets {
+			for _, dependency := range asset.Dependencies {
+				if dependency == id {
+					entry.UsedByAssets = append(entry.UsedByAssets, assetID)
+					break
+				}
+			}
+		}
 		for prefabID, prefab := range document.Prefabs {
 			for _, entity := range prefab.Entities {
 				if entity.Model != nil && entity.Model.Asset == id {
@@ -369,7 +538,8 @@ func (w *Workspace) AssetDependencies() AssetDependencyReport {
 		sortIDs(entry.Entities)
 		sortIDs(entry.Prefabs)
 		sortIDs(entry.Instances)
-		entry.DirectCount = len(entry.Entities) + len(entry.Prefabs)
+		sortIDs(entry.UsedByAssets)
+		entry.DirectCount = len(entry.Entities) + len(entry.Prefabs) + len(entry.UsedByAssets)
 		report.Assets = append(report.Assets, entry)
 	}
 	return report
@@ -412,6 +582,13 @@ func applyDeleteAsset(document *Document, operation Operation) ([]ID, error) {
 		for _, entity := range prefab.Entities {
 			if entity.Model != nil && entity.Model.Asset == operation.AssetID {
 				return nil, fmt.Errorf("asset %q is referenced by prefab %q model %q", operation.AssetID, prefab.ID, entity.ID)
+			}
+		}
+	}
+	for _, asset := range document.Assets {
+		for _, dependency := range asset.Dependencies {
+			if dependency == operation.AssetID {
+				return nil, fmt.Errorf("asset %q is referenced by asset %q", operation.AssetID, asset.ID)
 			}
 		}
 	}
