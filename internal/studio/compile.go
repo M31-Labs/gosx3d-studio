@@ -128,7 +128,10 @@ func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scen
 		children = append(children, child)
 	}
 	if entity.Prefab != nil {
-		definition := document.Prefabs[entity.Prefab.Prefab]
+		definition, err := resolvePrefabDefinition(document.Prefabs, entity.Prefab.Prefab)
+		if err != nil {
+			return nil, fmt.Errorf("entity %q prefab: %w", id, err)
+		}
 		prefabRoot, err := compilePrefabEntity(document, definition, definition.Root, entity.ID, entity.Prefab.Overrides, selected)
 		if err != nil {
 			return nil, fmt.Errorf("entity %q prefab %q: %w", id, definition.ID, err)
@@ -146,7 +149,9 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 			entity.Transform = *override.Transform
 		}
 		if override.Material != "" && entity.Mesh != nil {
-			entity.Mesh.Material = override.Material
+			mesh := *entity.Mesh
+			mesh.Material = override.Material
+			entity.Mesh = &mesh
 		}
 		if override.Visible != nil {
 			entity.Visible = *override.Visible
@@ -161,6 +166,20 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 		children = append(children, child)
 	}
 	runtimeID := ID(fmt.Sprintf("%s--%s", instanceID, localID))
+	if entity.Prefab != nil {
+		// Nested instance: resolve its definition and recurse with the
+		// namespaced runtime ID so every level keeps stable identity.
+		nested, err := resolvePrefabDefinition(document.Prefabs, entity.Prefab.Prefab)
+		if err != nil {
+			return nil, fmt.Errorf("nested prefab %q: %w", localID, err)
+		}
+		nestedRoot, err := compilePrefabEntity(document, nested, nested.Root, runtimeID, entity.Prefab.Overrides, selected)
+		if err != nil {
+			return nil, fmt.Errorf("nested prefab %q: %w", localID, err)
+		}
+		children = append([]scene.Node{nestedRoot}, children...)
+		return scene.Group{ID: string(runtimeID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneRotation(entity.Transform.Rotation), Children: children}, nil
+	}
 	return compileEntityValue(document, entity, runtimeID, selected == runtimeID, children)
 }
 

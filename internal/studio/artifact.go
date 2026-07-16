@@ -34,7 +34,10 @@ func CompileWithSourceMap(document Document) (CompileArtifact, error) {
 		}
 		sourceMap[id] = SourceLocation{Entity: id, Kind: kind, RecordID: string(id)}
 		if entity.Prefab != nil {
-			definition := document.Prefabs[entity.Prefab.Prefab]
+			definition, err := resolvePrefabDefinition(document.Prefabs, entity.Prefab.Prefab)
+			if err != nil {
+				return CompileArtifact{}, err
+			}
 			for localID, local := range definition.Entities {
 				runtimeID := ID(string(id) + "--" + string(localID))
 				localKind := "group"

@@ -64,7 +64,12 @@ func (compiler *IncrementalCompiler) Compile(document Document, selected ID) (sc
 			material = &value
 		}
 		if entity.Prefab != nil {
-			value := document.Prefabs[entity.Prefab.Prefab]
+			// Fingerprint the RESOLVED definition closure so variant-base
+			// edits and nested-definition edits invalidate this instance.
+			value, err := resolvedPrefabClosure(document.Prefabs, entity.Prefab.Prefab)
+			if err != nil {
+				return "", fmt.Errorf("fingerprint entity %q prefab: %w", id, err)
+			}
 			prefab = &value
 		}
 		if entity.Model != nil {

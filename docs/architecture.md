@@ -193,8 +193,13 @@ transform, material, and visibility overrides do not mutate the definition.
 Capture/update, instantiate, override, and reference-safe delete operations use
 the shared command path. Source maps connect runtime IDs back to both the
 instance and `prefab/local-entity` record, while incremental fingerprints include
-definition content so linked changes cannot reuse stale nodes. Nested prefabs,
-variants, unpacking, and portable prefab packages remain partial.
+definition content so linked changes cannot reuse stale nodes. Nested prefab instances resolve recursively with fully namespaced runtime
+IDs, definition reference cycles (including variant base chains) are rejected
+with the concrete path, and variants inherit a resolved base definition and
+apply per-entity overrides without adding entities of their own. Incremental
+fingerprints hash the resolved definition closure so base or nested edits
+invalidate every dependent instance. Variant-added entities, unpacking, and
+portable prefab packages remain partial.
 
 Asset imports inspect source bytes before registration and derive identity from
 the complete SHA-256 payload. Direct imports atomically place immutable payloads

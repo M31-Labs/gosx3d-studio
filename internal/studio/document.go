@@ -79,7 +79,63 @@ type PrefabDefinition struct {
 	ID       ID            `json:"id"`
 	Name     string        `json:"name"`
 	Root     ID            `json:"root"`
-	Entities map[ID]Entity `json:"entities"`
+	Entities map[ID]Entity `json:"entities,omitempty"`
+	// Base names another definition this one is a variant of. A variant
+	// inherits the resolved base entities and root, then applies Overrides;
+	// the current floor does not let variants add their own entities.
+	Base      ID                          `json:"base,omitempty"`
+	Overrides map[ID]PrefabEntityOverride `json:"overrides,omitempty"`
+}
+
+// resolvePrefabDefinition materializes a definition's effective entities:
+// variants inherit their base chain and apply per-entity overrides. Cycle
+// safety is guaranteed by validation; the depth guard is a backstop.
+func resolvePrefabDefinition(prefabs map[ID]PrefabDefinition, id ID) (PrefabDefinition, error) {
+	const maxDepth = 16
+	depth := 0
+	chain := []ID{}
+	current := id
+	for {
+		if depth++; depth > maxDepth {
+			return PrefabDefinition{}, fmt.Errorf("prefab %q base chain exceeds depth %d", id, maxDepth)
+		}
+		definition, ok := prefabs[current]
+		if !ok {
+			return PrefabDefinition{}, fmt.Errorf("prefab %q does not exist", current)
+		}
+		chain = append(chain, current)
+		if definition.Base == "" {
+			break
+		}
+		current = definition.Base
+	}
+	base := prefabs[chain[len(chain)-1]]
+	resolved := PrefabDefinition{ID: id, Name: prefabs[id].Name, Root: base.Root, Entities: make(map[ID]Entity, len(base.Entities))}
+	for key, entity := range base.Entities {
+		resolved.Entities[key] = entity
+	}
+	for i := len(chain) - 2; i >= 0; i-- {
+		variant := prefabs[chain[i]]
+		for localID, override := range variant.Overrides {
+			entity, ok := resolved.Entities[localID]
+			if !ok {
+				return PrefabDefinition{}, fmt.Errorf("prefab %q overrides missing base entity %q", variant.ID, localID)
+			}
+			if override.Transform != nil {
+				entity.Transform = *override.Transform
+			}
+			if override.Material != "" && entity.Mesh != nil {
+				mesh := *entity.Mesh
+				mesh.Material = override.Material
+				entity.Mesh = &mesh
+			}
+			if override.Visible != nil {
+				entity.Visible = *override.Visible
+			}
+			resolved.Entities[localID] = entity
+		}
+	}
+	return resolved, nil
 }
 
 type PrefabInstance struct {
@@ -314,9 +370,12 @@ func (d Document) Validate() error {
 		if key == "" || prefab.ID != key {
 			return fmt.Errorf("prefab map key %q does not match id %q", key, prefab.ID)
 		}
-		if err := validatePrefabDefinition(prefab, d.Materials, d.Assets); err != nil {
+		if err := validatePrefabDefinition(prefab, d.Materials, d.Assets, d.Prefabs); err != nil {
 			return fmt.Errorf("prefab %q: %w", key, err)
 		}
+	}
+	if err := validatePrefabReferenceGraph(d.Prefabs); err != nil {
+		return err
 	}
 	for key, asset := range d.Assets {
 		if key == "" || asset.ID != key {
@@ -526,7 +585,84 @@ func (d Document) Validate() error {
 	return nil
 }
 
-func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material, assets map[ID]AssetRecord) error {
+// validatePrefabReferenceGraph rejects cycles across definitions, following
+// both nested-instance edges and variant base edges, and reports the concrete
+// path that closes the cycle.
+func validatePrefabReferenceGraph(prefabs map[ID]PrefabDefinition) error {
+	edges := make(map[ID][]ID, len(prefabs))
+	for id, definition := range prefabs {
+		if definition.Base != "" {
+			edges[id] = appendUniqueID(edges[id], definition.Base)
+		}
+		for _, entity := range definition.Entities {
+			if entity.Prefab != nil {
+				edges[id] = appendUniqueID(edges[id], entity.Prefab.Prefab)
+			}
+		}
+		sort.Slice(edges[id], func(i, j int) bool { return edges[id][i] < edges[id][j] })
+	}
+	states := map[ID]int{}
+	var path []ID
+	var walk func(ID) error
+	walk = func(id ID) error {
+		switch states[id] {
+		case 1:
+			cycle := append(append([]ID{}, path...), id)
+			parts := make([]string, 0, len(cycle))
+			for _, step := range cycle {
+				parts = append(parts, string(step))
+			}
+			return fmt.Errorf("prefab reference cycle: %s", strings.Join(parts, " -> "))
+		case 2:
+			return nil
+		}
+		states[id] = 1
+		path = append(path, id)
+		for _, next := range edges[id] {
+			if err := walk(next); err != nil {
+				return err
+			}
+		}
+		path = path[:len(path)-1]
+		states[id] = 2
+		return nil
+	}
+	ids := make([]ID, 0, len(prefabs))
+	for id := range prefabs {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	for _, id := range ids {
+		if err := walk(id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material, assets map[ID]AssetRecord, prefabs map[ID]PrefabDefinition) error {
+	if prefab.Base != "" {
+		if prefab.ID == "" || strings.TrimSpace(prefab.Name) == "" {
+			return fmt.Errorf("variant id and name are required")
+		}
+		if len(prefab.Entities) != 0 {
+			return fmt.Errorf("variant %q cannot add its own entities; the current floor only overrides the base", prefab.ID)
+		}
+		if _, ok := prefabs[prefab.Base]; !ok {
+			return fmt.Errorf("variant %q references missing base %q", prefab.ID, prefab.Base)
+		}
+		for localID, override := range prefab.Overrides {
+			if override.Transform != nil && !finiteTransform(*override.Transform) {
+				return fmt.Errorf("variant %q override %q has non-finite transform", prefab.ID, localID)
+			}
+			if override.Material != "" {
+				if _, ok := materials[override.Material]; !ok {
+					return fmt.Errorf("variant %q override %q references missing material %q", prefab.ID, localID, override.Material)
+				}
+			}
+		}
+		return nil
+	}
 	if prefab.ID == "" || strings.TrimSpace(prefab.Name) == "" || prefab.Root == "" || len(prefab.Entities) == 0 {
 		return fmt.Errorf("id, name, root, and entities are required")
 	}
@@ -540,7 +676,12 @@ func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material
 			return fmt.Errorf("entity key %q does not match id %q", key, entity.ID)
 		}
 		if entity.Prefab != nil {
-			return fmt.Errorf("nested prefab instances are not supported")
+			if entity.Mesh != nil || entity.Light != nil || entity.Model != nil {
+				return fmt.Errorf("nested prefab instance %q cannot also carry mesh, model, or light", key)
+			}
+			if _, ok := prefabs[entity.Prefab.Prefab]; !ok {
+				return fmt.Errorf("nested prefab instance %q references missing prefab %q", key, entity.Prefab.Prefab)
+			}
 		}
 		if entity.Mesh != nil {
 			if _, ok := materials[entity.Mesh.Material]; !ok {
@@ -749,3 +890,32 @@ func finiteVec3(value Vec3) bool {
 }
 
 func finite(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
+
+// resolvedPrefabClosure returns a definition whose entities include the fully
+// resolved definition plus every transitively nested resolved definition, so
+// content fingerprints change whenever any reachable definition changes.
+func resolvedPrefabClosure(prefabs map[ID]PrefabDefinition, id ID) (PrefabDefinition, error) {
+	resolved, err := resolvePrefabDefinition(prefabs, id)
+	if err != nil {
+		return PrefabDefinition{}, err
+	}
+	closure := PrefabDefinition{ID: resolved.ID, Name: resolved.Name, Root: resolved.Root, Entities: map[ID]Entity{}}
+	seen := map[ID]bool{id: true}
+	queue := []PrefabDefinition{resolved}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for localID, entity := range current.Entities {
+			closure.Entities[ID(string(current.ID)+"/"+string(localID))] = entity
+			if entity.Prefab != nil && !seen[entity.Prefab.Prefab] {
+				seen[entity.Prefab.Prefab] = true
+				nested, err := resolvePrefabDefinition(prefabs, entity.Prefab.Prefab)
+				if err != nil {
+					return PrefabDefinition{}, err
+				}
+				queue = append(queue, nested)
+			}
+		}
+	}
+	return closure, nil
+}

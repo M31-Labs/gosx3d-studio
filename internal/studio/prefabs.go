@@ -39,7 +39,7 @@ func applyCapturePrefab(document *Document, operation Operation) ([]ID, error) {
 	root.Parent = ""
 	entities[root.ID] = root
 	definition := PrefabDefinition{ID: operation.PrefabID, Name: strings.TrimSpace(operation.Name), Root: operation.Target, Entities: entities}
-	if err := validatePrefabDefinition(definition, document.Materials, document.Assets); err != nil {
+	if err := validatePrefabDefinition(definition, document.Materials, document.Assets, document.Prefabs); err != nil {
 		return nil, err
 	}
 	if document.Prefabs == nil {
