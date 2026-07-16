@@ -339,3 +339,35 @@ func materialsView(document studio.Document) []map[string]any {
 	}
 	return out
 }
+
+// modelingView summarizes the selected indexed mesh for the modeling forms:
+// element counts, the live sub-object selection, and starter IDs so a human
+// can act without hand-copying identifiers.
+func modelingView(document studio.Document, workspace *studio.Workspace, selected studio.ID) map[string]any {
+	view := map[string]any{"available": false, "status": "Select an indexed-mesh entity to model", "vertices": "0", "edges": "0", "faces": "0", "selectionSummary": "none", "firstFace": "", "firstVertex": "", "firstEdge": ""}
+	entity, ok := document.Entities[selected]
+	if !ok || entity.Mesh == nil || entity.Mesh.Geometry.Kind != "indexed-mesh" {
+		return view
+	}
+	geometry := entity.Mesh.Geometry
+	edges := studio.MeshEdges(geometry)
+	view["available"] = true
+	view["status"] = fmt.Sprintf("Indexed mesh · deterministic operators share the agent transaction path")
+	view["vertices"], view["edges"], view["faces"] = fmt.Sprint(len(geometry.Vertices)), fmt.Sprint(len(edges)), fmt.Sprint(len(geometry.Faces))
+	if len(geometry.Faces) > 0 {
+		view["firstFace"] = string(geometry.Faces[0].ID)
+	}
+	if len(geometry.Vertices) > 0 {
+		view["firstVertex"] = string(geometry.Vertices[0].ID)
+	}
+	if len(edges) > 0 {
+		view["firstEdge"] = string(edges[0].ID)
+	}
+	if workspace != nil {
+		state := workspace.SelectionState()
+		if state.Object == selected && state.Mode != studio.SelectionObject {
+			view["selectionSummary"] = fmt.Sprintf("%s · %d selected", state.Mode, len(state.IDs))
+		}
+	}
+	return view
+}

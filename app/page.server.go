@@ -443,6 +443,23 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"selectSubobjects": func(ctx *action.Context) error {
+				if err := executeHumanSubobjectSelection(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"modeling": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["target"])
+				return nil
+			},
+			"meshOperator": func(ctx *action.Context) error {
+				receipt, err := executeHumanMeshOperator(boundWorkspace(), ctx.FormData)
+				if err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"modeling": err.Error()})
+					return nil
+				}
+				ctx.Redirect(fmt.Sprintf("/?selection=%s&applied=%s", ctx.FormData["target"], receipt.TransactionID))
+				return nil
+			},
 			"assignMaterial": func(ctx *action.Context) error {
 				receipt, err := executeHumanAssignMaterial(boundWorkspace(), ctx.FormData)
 				if err != nil {
@@ -617,6 +634,7 @@ func init() {
 				"revision":      fmt.Sprintf("%04d", document.Revision),
 				"certification": liveCertificationView(document),
 				"materials":     materialsView(document),
+				"modeling":      modelingView(document, boundWorkspace(), selected),
 				"history":        historyView(boundWorkspace()),
 				"historySummary": fmt.Sprintf("%d entities · revision %04d · command history below", len(document.Entities), document.Revision),
 				"project":       projectView(boundWorkspace()),
@@ -735,6 +753,102 @@ func executeHumanSetMaterial(workspace *studio.Workspace, values map[string]stri
 		ID: fmt.Sprintf("human-set-material-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect,
 		ExpectedRevision: revision,
 		Operations:       []studio.Operation{{Kind: studio.OpSetMaterial, MaterialRecord: &material}},
+	})
+	return receipt, err
+}
+
+// executeHumanSubobjectSelection routes the Inspector sub-object selection
+// form through the same revision-safe selection contract agents use.
+func executeHumanSubobjectSelection(workspace *studio.Workspace, values map[string]string) error {
+	if workspace == nil {
+		return fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return fmt.Errorf("expectedRevision: %w", err)
+	}
+	return workspace.SelectSubobjects(studio.SelectionRequest{
+		ExpectedRevision: revision,
+		Mode:             studio.SelectionMode(strings.TrimSpace(values["mode"])),
+		Object:           studio.ID(strings.TrimSpace(values["target"])),
+		IDs:              parseIDList(values["ids"]),
+	})
+}
+
+func parseIDList(value string) []studio.ID {
+	fields := strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' })
+	out := make([]studio.ID, 0, len(fields))
+	for _, field := range fields {
+		if trimmed := strings.TrimSpace(field); trimmed != "" {
+			out = append(out, studio.ID(trimmed))
+		}
+	}
+	return out
+}
+
+// executeHumanMeshOperator maps the Inspector modeling form onto the shared
+// deterministic operator transactions. Blank ID lists fall back to the current
+// sub-object selection so viewport/Hierarchy selection and forms converge.
+func executeHumanMeshOperator(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	target := studio.ID(strings.TrimSpace(values["target"]))
+	ids := parseIDList(values["ids"])
+	if len(ids) == 0 {
+		if state := workspace.SelectionState(); state.Object == target {
+			ids = append(ids, state.IDs...)
+		}
+	}
+	parseFloat := func(name string) (float64, error) {
+		raw := strings.TrimSpace(values[name])
+		if raw == "" {
+			return 0, nil
+		}
+		value, parseErr := strconv.ParseFloat(raw, 64)
+		if parseErr != nil {
+			return 0, fmt.Errorf("%s: %w", name, parseErr)
+		}
+		return value, nil
+	}
+	distance, err := parseFloat("distance")
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	amount, err := parseFloat("amount")
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	tolerance, err := parseFloat("tolerance")
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	operation := studio.Operation{Target: target, Distance: distance, Amount: amount, Tolerance: tolerance, Projection: strings.TrimSpace(values["projection"])}
+	switch strings.TrimSpace(values["operator"]) {
+	case "extrude-faces":
+		operation.Kind, operation.Faces = studio.OpExtrudeFaces, ids
+	case "inset-faces":
+		operation.Kind, operation.Faces = studio.OpInsetFaces, ids
+	case "triangulate-faces":
+		operation.Kind, operation.Faces = studio.OpTriangulateFaces, ids
+	case "weld-vertices":
+		operation.Kind, operation.Vertices = studio.OpWeldVertices, ids
+	case "dissolve-edges":
+		operation.Kind, operation.Edges = studio.OpDissolveEdges, ids
+	case "recalculate-normals":
+		operation.Kind = studio.OpRecalculateNormals
+	case "project-planar-uv":
+		operation.Kind = studio.OpProjectPlanarUV
+	default:
+		return studio.Receipt{}, fmt.Errorf("unsupported modeling operator %q", values["operator"])
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{
+		ID: fmt.Sprintf("human-mesh-%s-%d", operation.Kind, time.Now().UnixNano()), Actor: "human://local-ui",
+		Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{operation},
 	})
 	return receipt, err
 }

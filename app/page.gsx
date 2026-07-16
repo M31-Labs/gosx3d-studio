@@ -381,6 +381,88 @@ func Page() Node {
 					</form>
 				</details>
 				<details>
+					<summary>Modeling</summary>
+					<p class="placeholder-copy">{data.modeling.status}</p>
+					<dl class="properties">
+						<div>
+							<dt>Vertices</dt>
+							<dd>{data.modeling.vertices}</dd>
+						</div>
+						<div>
+							<dt>Edges</dt>
+							<dd>{data.modeling.edges}</dd>
+						</div>
+						<div>
+							<dt>Faces</dt>
+							<dd>{data.modeling.faces}</dd>
+						</div>
+						<div>
+							<dt>Sub-object selection</dt>
+							<dd class="authored">{data.modeling.selectionSummary}</dd>
+						</div>
+					</dl>
+					<form method="post" action={actionPath("selectSubobjects")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Mode
+							<select name="mode">
+								<option value="face">face</option>
+								<option value="vertex">vertex</option>
+								<option value="edge">edge</option>
+							</select>
+						</label>
+						<label>
+							IDs (comma separated; first face is {data.modeling.firstFace})
+							<textarea name="ids" rows="2" spellcheck="false"></textarea>
+						</label>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Select sub-objects</button>
+					</form>
+					<form method="post" action={actionPath("meshOperator")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Operator
+							<select name="operator">
+								<option value="extrude-faces">extrude-faces</option>
+								<option value="inset-faces">inset-faces</option>
+								<option value="triangulate-faces">triangulate-faces</option>
+								<option value="weld-vertices">weld-vertices</option>
+								<option value="dissolve-edges">dissolve-edges</option>
+								<option value="recalculate-normals">recalculate-normals</option>
+								<option value="project-planar-uv">project-planar-uv</option>
+							</select>
+						</label>
+						<label>
+							IDs (blank uses the current sub-object selection)
+							<textarea name="ids" rows="2" spellcheck="false"></textarea>
+						</label>
+						<div class="vector-inputs">
+							<label>
+								Distance
+								<input name="distance" value="0.25" inputmode="decimal"></input>
+							</label>
+							<label>
+								Amount
+								<input name="amount" value="0.25" inputmode="decimal"></input>
+							</label>
+							<label>
+								Tolerance
+								<input name="tolerance" value="0.0001" inputmode="decimal"></input>
+							</label>
+						</div>
+						<label>
+							Planar projection axis (xz, xy, or yz)
+							<input name="projection" value="xz"></input>
+						</label>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Run operator</button>
+					</form>
+				</details>
+				<details>
 					<summary>Physics</summary>
 					<p class="placeholder-copy">Component surface reserved.</p>
 				</details>

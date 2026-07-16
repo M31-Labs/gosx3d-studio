@@ -304,3 +304,51 @@ func TestHumanMaterialFormsUseSharedValidatedCommands(t *testing.T) {
 		t.Fatalf("assign material receipt=%+v entity=%+v", assignReceipt, assigned.Entities[target].Mesh)
 	}
 }
+
+func TestHumanMeshOperatorConvergesWithSubobjectSelection(t *testing.T) {
+	document := studio.SampleDocument()
+	quad := studio.Geometry{Kind: "indexed-mesh",
+		Vertices: []studio.Vertex{
+			{ID: "v0", Position: studio.Vec3{}}, {ID: "v1", Position: studio.Vec3{X: 1}},
+			{ID: "v2", Position: studio.Vec3{X: 1, Z: 1}}, {ID: "v3", Position: studio.Vec3{Z: 1}},
+		},
+		Faces: []studio.Face{{ID: "quad", Vertices: []studio.ID{"v0", "v1", "v2", "v3"}}},
+	}
+	root := document.Entities["scene-root"]
+	entity := studio.Entity{ID: "modeling-mesh", Name: "Modeling mesh", Parent: root.ID, Transform: studio.IdentityTransform(), Visible: true, Mesh: &studio.MeshComponent{Geometry: quad, Material: "board-material", Pickable: true}}
+	root.Children = append(root.Children, entity.ID)
+	document.Entities[root.ID] = root
+	document.Entities[entity.ID] = entity
+	workspace, err := studio.NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := executeHumanSubobjectSelection(workspace, map[string]string{
+		"target": "modeling-mesh", "mode": "face", "ids": "quad",
+		"expectedRevision": strconv.FormatUint(document.Revision, 10),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := executeHumanMeshOperator(workspace, map[string]string{
+		"target": "modeling-mesh", "operator": "extrude-faces", "ids": "",
+		"distance": "0.5", "expectedRevision": strconv.FormatUint(document.Revision, 10),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Actor != "human://local-ui" || len(receipt.OperatorRecords) != 1 {
+		t.Fatalf("receipt=%+v", receipt)
+	}
+	changed, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changed.Entities["modeling-mesh"].Mesh.Geometry.Faces) <= 1 {
+		t.Fatalf("extrude did not add faces: %d", len(changed.Entities["modeling-mesh"].Mesh.Geometry.Faces))
+	}
+	if _, restored, err := workspace.Undo(changed.Revision, "human://local-ui"); err != nil {
+		t.Fatal(err)
+	} else if len(restored.Entities["modeling-mesh"].Mesh.Geometry.Faces) != 1 {
+		t.Fatal("undo did not restore authored topology")
+	}
+}
