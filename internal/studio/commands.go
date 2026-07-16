@@ -260,6 +260,7 @@ type Workspace struct {
 	selection            []ID
 	selectionState       SelectionState
 	viewportConfirmation *SelectionConfirmation
+	receipts             []Receipt
 	savedRevision        uint64
 	recovered            bool
 	projectDir           string
@@ -443,7 +444,33 @@ func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) 
 		w.selectionState = reconcileSelection(working, w.selectionState)
 		w.syncLegacySelectionLocked()
 	}
+	w.recordReceiptLocked(receipt)
 	return receipt, preview, nil
+}
+
+// recordReceiptLocked keeps a bounded newest-last receipt history so command
+// attribution stays visible to the UI and agents without replaying the
+// journal. Callers must hold w.mu.
+func (w *Workspace) recordReceiptLocked(receipt Receipt) {
+	const receiptHistoryLimit = 32
+	w.receipts = append(w.receipts, receipt)
+	if len(w.receipts) > receiptHistoryLimit {
+		w.receipts = w.receipts[len(w.receipts)-receiptHistoryLimit:]
+	}
+}
+
+// RecentReceipts returns up to limit receipts, newest first.
+func (w *Workspace) RecentReceipts(limit int) []Receipt {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if limit <= 0 || limit > len(w.receipts) {
+		limit = len(w.receipts)
+	}
+	out := make([]Receipt, 0, limit)
+	for i := len(w.receipts) - 1; i >= len(w.receipts)-limit; i-- {
+		out = append(out, w.receipts[i])
+	}
+	return out
 }
 
 func validateTransaction(transaction Transaction, revision uint64) error {
@@ -726,6 +753,7 @@ func (w *Workspace) moveHistory(expectedRevision uint64, actor string, undo bool
 	} else {
 		w.undo = append(w.undo, entry)
 	}
+	w.recordReceiptLocked(receipt)
 	preview, _ := target.Clone()
 	return receipt, preview, nil
 }

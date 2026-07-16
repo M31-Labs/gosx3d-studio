@@ -14,7 +14,18 @@ func Page() Node {
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
 					<button type="submit" title={"Save " + data.project.directory}>Save</button>
 				</form>
-				<button type="button">Edit</button>
+				<form method="post" action={actionPath("undoCommand")} class="menu-save-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<input type="hidden" name="expectedRevision" value={data.revision}></input>
+					<button type="submit" title="Undo the last committed command">Undo</button>
+				</form>
+				<form method="post" action={actionPath("redoCommand")} class="menu-save-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<input type="hidden" name="expectedRevision" value={data.revision}></input>
+					<button type="submit" title="Redo the last undone command">Redo</button>
+				</form>
 				<button type="button">Assets</button>
 				<button type="button">Scene</button>
 				<button type="button">Model</button>
@@ -461,20 +472,23 @@ func Page() Node {
 			<div class="telemetry-content">
 				<div class="console-lines">
 					<p>
-						<time>00:00:01</time>
+						<time>rev {data.revision}</time>
 						<span class="runtime-label">SYSTEM</span>
-						Studio scaffold manifest loaded.
+						{data.historySummary}
 					</p>
-					<p>
-						<time>00:00:02</time>
-						<span class="author-label">AUTHOR</span>
-						Scene3D mount awaiting first vertical slice.
-					</p>
+					<Each of={data.history} as="entry">
+						<p>
+							<time>rev {entry.afterRevision}</time>
+							<span class="author-label">{entry.actorLabel}</span>
+							{entry.summary}
+						</p>
+					</Each>
 				</div>
 				<div class="certification-card">
 					<span>Certification</span>
 					<strong>{data.certification.status}</strong>
 					<small>{data.certification.available} / {data.certification.total} editor dimensions available</small>
+					<small>{data.certification.liveChecksPass} / {data.certification.liveChecksTotal} live evidence checks pass · release {data.certification.releaseStatus}</small>
 					<ul class="certification-dimensions">
 						<Each of={data.certification.dimensions} as="dimension">
 							<li title={dimension.evidence}>

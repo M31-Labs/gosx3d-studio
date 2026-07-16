@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"m31labs.dev/gosx3d-studio/internal/studio"
 )
@@ -252,3 +253,64 @@ func shortID(id studio.ID) string {
 	return value[:12]
 }
 func number(value float64) string { return fmt.Sprintf("%.3f", value) }
+
+// historyView projects the workspace receipt history into console lines so
+// command attribution is visible without replaying the journal.
+func historyView(workspace *studio.Workspace) []map[string]any {
+	if workspace == nil {
+		return []map[string]any{}
+	}
+	receipts := workspace.RecentReceipts(8)
+	out := make([]map[string]any, 0, len(receipts))
+	for _, receipt := range receipts {
+		kind := "transaction"
+		if len(receipt.Changes) > 0 {
+			kind = string(receipt.Changes[0].Kind)
+		}
+		actorLabel := "AGENT"
+		if strings.HasPrefix(receipt.Actor, "human://") {
+			actorLabel = "AUTHOR"
+		}
+		out = append(out, map[string]any{
+			"afterRevision": fmt.Sprintf("%04d", receipt.AfterRevision),
+			"actorLabel":    actorLabel,
+			"summary":       fmt.Sprintf("%s %s (%s, %d op) %s", receipt.Actor, kind, receipt.Mode, receipt.Operations, receipt.TransactionID),
+		})
+	}
+	return out
+}
+
+// liveCertificationView runs the deterministic evidence suite for the current
+// document (cached per revision — the suite renders frames and builds
+// workspaces) and merges its live check results into the certification card.
+var liveCertCache struct {
+	sync.Mutex
+	revision    uint64
+	fingerprint string
+	view        map[string]any
+}
+
+func liveCertificationView(document studio.Document) map[string]any {
+	fingerprint, _ := document.Fingerprint()
+	liveCertCache.Lock()
+	defer liveCertCache.Unlock()
+	if liveCertCache.view != nil && liveCertCache.revision == document.Revision && liveCertCache.fingerprint == fingerprint {
+		return liveCertCache.view
+	}
+	view := certificationView(studio.Certification())
+	report, err := studio.CertifyCurrent(document)
+	if err != nil {
+		view["liveChecksPass"], view["liveChecksTotal"], view["releaseStatus"] = "0", "0", "error: "+err.Error()
+	} else {
+		pass := 0
+		for _, check := range report.Checks {
+			if check.Status == "pass" {
+				pass++
+			}
+		}
+		view = certificationView(report.Certification)
+		view["liveChecksPass"], view["liveChecksTotal"], view["releaseStatus"] = fmt.Sprint(pass), fmt.Sprint(len(report.Checks)), report.ReleaseStatus
+	}
+	liveCertCache.revision, liveCertCache.fingerprint, liveCertCache.view = document.Revision, fingerprint, view
+	return view
+}

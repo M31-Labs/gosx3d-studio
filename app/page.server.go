@@ -443,6 +443,12 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"undoCommand": func(ctx *action.Context) error {
+				return executeHumanHistory(ctx, true)
+			},
+			"redoCommand": func(ctx *action.Context) error {
+				return executeHumanHistory(ctx, false)
+			},
 			"setTransform": func(ctx *action.Context) error {
 				receipt, err := executeHumanTransform(boundWorkspace(), ctx.FormData)
 				if err != nil {
@@ -591,7 +597,9 @@ func init() {
 				"inspector":     inspectorView(document, selected),
 				"entityCount":   fmt.Sprint(len(document.Entities)),
 				"revision":      fmt.Sprintf("%04d", document.Revision),
-				"certification": certificationView(studio.Certification()),
+				"certification": liveCertificationView(document),
+				"history":        historyView(boundWorkspace()),
+				"historySummary": fmt.Sprintf("%d entities · revision %04d · command history below", len(document.Entities), document.Revision),
 				"project":       projectView(boundWorkspace()),
 				"assets":        assetView(document, boundWorkspace()),
 				"assetCount":    fmt.Sprint(len(document.Assets)),
@@ -613,4 +621,30 @@ func init() {
 	}); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// executeHumanHistory routes the menu Undo/Redo forms through the same
+// workspace history path agents use, with the same revision safety.
+func executeHumanHistory(ctx *action.Context, undo bool) error {
+	workspace := boundWorkspace()
+	if workspace == nil {
+		ctx.ValidationFailure("Studio workspace is not bound.", map[string]string{"history": "Workspace unavailable"})
+		return nil
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(ctx.FormData["expectedRevision"]), 10, 64)
+	if err != nil {
+		ctx.ValidationFailure("expectedRevision: "+err.Error(), map[string]string{"history": err.Error()})
+		return nil
+	}
+	if undo {
+		_, _, err = workspace.Undo(revision, "human://local-ui")
+	} else {
+		_, _, err = workspace.Redo(revision, "human://local-ui")
+	}
+	if err != nil {
+		ctx.ValidationFailure(err.Error(), map[string]string{"history": err.Error()})
+		return nil
+	}
+	ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+	return nil
 }
