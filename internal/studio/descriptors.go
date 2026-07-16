@@ -51,6 +51,8 @@ func readActionDescriptors() []ActionDescriptor {
 		{"inspect-certification", "Run and read the deterministic evidence envelope.", "/api/studio/certification/evidence"},
 		{"inspect-platform", "Read machine-readable host capability diagnostics.", "/api/studio/platform"},
 		{"inspect-manifest", "Read the agent-readable scaffold and capability contract.", "/api/studio/manifest"},
+		{"export-scene3d", "Export the canonical .scene3d document with a semantic-loss report.", "/api/studio/export/scene3d"},
+		{"export-scene-ir", "Export the compiled SceneIR artifact with a semantic-loss report.", "/api/studio/export/scene-ir"},
 	}
 	out := make([]ActionDescriptor, 0, len(reads))
 	for _, read := range reads {
@@ -200,6 +202,7 @@ func Certification() CertificationReport {
 	return CertificationReport{Schema: "gosx3d.studio.certification/v1", Status: "partial", Framework: cert.BuildReport(), Dimensions: map[string]Capability{
 		"sceneDoc":                 {ID: "sceneDoc", Status: "available", Evidence: "validation, stable IDs, deterministic fingerprints, migration"},
 		"undoReplay":               {ID: "undoReplay", Status: "available", Evidence: "command, undo/redo, checksummed journal recovery tests"},
+		"importExport":             {ID: "importExport", Status: "partial", Evidence: "byte-deterministic .scene3d and SceneIR exports with machine-readable semantic-loss reports are certified; GLB/prefab-package/generated-Go exporters and glTF geometry decode remain pending"},
 		"projectLifecycle":         {ID: "projectLifecycle", Status: "partial", Evidence: "startup project open, explicit atomic save, dirty/recovered state, torn-tail recovery, and corrupt-save quarantine; native file dialog pending"},
 		"sourceMap":                {ID: "sourceMap", Status: "partial", Evidence: "entity and linked-prefab runtime provenance are available; field-level provenance pending"},
 		"inspector":                {ID: "inspector", Status: "partial", Evidence: "descriptor catalog, live reads, and revision-safe transform writes; remaining component editors pending"},

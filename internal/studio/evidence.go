@@ -140,6 +140,20 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	}
 	add("m1-subobject-selection", selectionOK, fmt.Sprintf("vertices=4 edges=%d faces=1 revision=%d", len(edges), meshDocument.Revision))
 
+	docPayload, docReport, docErr := ExportSceneDoc(document)
+	irPayload, irReport, irErr := ExportSceneIR(document)
+	exportOK := docErr == nil && irErr == nil && len(docReport.Losses) == 0 && len(irReport.Losses) > 0 && len(docPayload) > 0 && len(irPayload) > 0
+	if exportOK {
+		var roundTrip Document
+		exportOK = json.Unmarshal(docPayload, &roundTrip) == nil
+		if exportOK {
+			source, _ := document.Fingerprint()
+			decoded, _ := roundTrip.Fingerprint()
+			exportOK = source == decoded
+		}
+	}
+	add("m1-export-loss-report", exportOK, fmt.Sprintf("scene3dBytes=%d scene3dLosses=%d sceneIRBytes=%d sceneIRLosses=%d roundTripEqual=%t", docReport.Bytes, len(docReport.Losses), irReport.Bytes, len(irReport.Losses), exportOK))
+
 	agree, mismatch, confirmErr := certifyViewportConfirmation(document)
 	confirmationOK := confirmErr == nil &&
 		agree.Confirmed && agree.Method == "exact-cpu" && agree.Disagreement == nil &&

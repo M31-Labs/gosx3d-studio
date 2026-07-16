@@ -50,6 +50,8 @@ released GoSX version.
 - `GET /api/studio/scene-ir` for the shared compiled SceneIR snapshot.
 - `GET /api/studio/rig/skin?target=<stable-id>` for revision-tagged,
   browser-free deformed geometry and influence telemetry.
+- `GET /api/studio/export/scene3d` and `/export/scene-ir` for
+  byte-deterministic exports with machine-readable semantic-loss reports.
 - `GET /api/studio/initialize` for the spec §13.1 handshake: protocol identity,
   document identity, authority modes, and the action-surface summary.
 - `GET /api/studio/actions`, `/descriptors`, and `/certification` for

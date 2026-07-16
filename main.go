@@ -137,6 +137,30 @@ func main() {
 		}
 		return studio.CertifyCurrent(document)
 	})
+	app.API("GET /api/studio/export/scene3d", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		payload, report, err := studio.ExportSceneDoc(document)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"report": report, "document": json.RawMessage(payload)}, nil
+	})
+	app.API("GET /api/studio/export/scene-ir", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		payload, report, err := studio.ExportSceneIR(document)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"report": report, "artifact": json.RawMessage(payload)}, nil
+	})
 	app.API("GET /api/studio/initialize", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
 		document, err := workspace.Snapshot()
