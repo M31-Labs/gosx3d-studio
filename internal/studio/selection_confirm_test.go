@@ -131,3 +131,40 @@ func TestConfirmViewportSelectionPositionGapKeepsAgreementVisible(t *testing.T) 
 		}
 	}
 }
+
+func TestConfirmViewportSelectionPrefersReportedClickRay(t *testing.T) {
+	document := SampleDocument()
+	_, origin := FirstPickTarget(document)
+	ray := ViewportRay{Origin: origin, Direction: Vec3{Y: -1}}
+	picked, err := ExactPick(document, PickRequest{Origin: ray.Origin, Direction: ray.Direction})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hit := picked.Trace.Closest.Point
+	world := Vec3{X: hit.X, Y: hit.Y, Z: hit.Z}
+	confirmation, err := ConfirmViewportSelection(document, ViewportPick{Selected: picked.Selected, Kind: "mesh", World: &world, Ray: &ray})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !confirmation.Confirmed || confirmation.Method != "exact-cpu-ray" || confirmation.Disagreement != nil {
+		t.Fatalf("live-ray confirmation failed: %+v", confirmation)
+	}
+	// Wrong claimed ID with the true ray: canonical result must win.
+	claimed := otherPickableEntity(t, document, picked.Selected)
+	corrected, err := ConfirmViewportSelection(document, ViewportPick{Selected: claimed, Kind: "mesh", World: &world, Ray: &ray})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if corrected.Selected != picked.Selected || corrected.Disagreement == nil || corrected.Disagreement.Reason != "id-mismatch" {
+		t.Fatalf("ray probe must correct the claim: %+v", corrected)
+	}
+	// A ray that misses everything must surface no-cpu-hit.
+	missRay := ViewportRay{Origin: Vec3{X: 100, Y: 100, Z: 100}, Direction: Vec3{Y: 1}}
+	missed, err := ConfirmViewportSelection(document, ViewportPick{Selected: picked.Selected, Kind: "mesh", World: &world, Ray: &missRay})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if missed.Confirmed || missed.Disagreement == nil || missed.Disagreement.Reason != "no-cpu-hit" {
+		t.Fatalf("missing ray must not confirm: %+v", missed)
+	}
+}

@@ -125,10 +125,10 @@ decides the selection, and any GPU/CPU divergence is recorded as a
 machine-readable disagreement (id-mismatch, position-gap, or no-cpu-hit) on
 the selection state and in the `m1-viewport-exact-selection` certification
 check. Clients that cannot report a world hit degrade explicitly to id-only
-validation. The probe direction derives from the authored document camera, so
-confirmation of clicks made from an orbited interactive camera can
-conservatively report a near-miss; carrying the live view ray through the
-mount event is tracked engine work.
+validation. Since gosx v0.31.16 the pick event carries the live camera's
+world-space click ray; the client forwards it and confirmation retraces that
+exact ray, so orbited-camera clicks confirm exactly. The authored-camera
+probe remains the fallback for clients that report only a world point.
 
 `GET /api/studio/geometry/analysis?target=<stable-id>` performs browser-free,
 revision-tagged indexed-mesh inspection. It reports topology counts, bounds,

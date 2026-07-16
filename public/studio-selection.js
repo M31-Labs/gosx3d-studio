@@ -23,6 +23,15 @@
     }
     if (isFinite(input.targetTriangleIndex)) payload.triangle = Number(input.targetTriangleIndex);
     if (isFinite(input.depth)) payload.depth = Number(input.depth);
+    var rayFinite = isFinite(input.rayOriginX) && isFinite(input.rayOriginY) && isFinite(input.rayOriginZ) &&
+      isFinite(input.rayDirX) && isFinite(input.rayDirY) && isFinite(input.rayDirZ);
+    var rayNonZero = rayFinite && (Number(input.rayDirX) !== 0 || Number(input.rayDirY) !== 0 || Number(input.rayDirZ) !== 0);
+    if (rayNonZero) {
+      payload.ray = {
+        origin: { x: Number(input.rayOriginX), y: Number(input.rayOriginY), z: Number(input.rayOriginZ) },
+        direction: { x: Number(input.rayDirX), y: Number(input.rayDirY), z: Number(input.rayDirZ) }
+      };
+    }
     request("/api/studio/viewport-selection", {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/json" },

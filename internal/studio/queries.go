@@ -70,11 +70,21 @@ func ExactPick(document Document, request PickRequest) (PickResult, error) {
 // absence means the client could not report one and confirmation degrades to
 // id-only validation.
 type ViewportPick struct {
-	Selected ID      `json:"selected"`
-	Kind     string  `json:"kind,omitempty"`
-	World    *Vec3   `json:"world,omitempty"`
-	Triangle int     `json:"triangle,omitempty"`
-	Depth    float64 `json:"depth,omitempty"`
+	Selected ID           `json:"selected"`
+	Kind     string       `json:"kind,omitempty"`
+	World    *Vec3        `json:"world,omitempty"`
+	Ray      *ViewportRay `json:"ray,omitempty"`
+	Triangle int          `json:"triangle,omitempty"`
+	Depth    float64      `json:"depth,omitempty"`
+}
+
+// ViewportRay is the world-space click ray the live interactive camera used,
+// reported by the engine's pick event since gosx v0.31.16. When present it is
+// the preferred confirmation input: the canonical CPU query retraces the
+// exact ray instead of probing from the authored camera.
+type ViewportRay struct {
+	Origin    Vec3 `json:"origin"`
+	Direction Vec3 `json:"direction"`
 }
 
 // SelectionDisagreement is the machine-readable record of a GPU/CPU picking
@@ -128,6 +138,9 @@ func ConfirmViewportSelection(document Document, pick ViewportPick) (SelectionCo
 		return SelectionConfirmation{}, err
 	}
 	confirmation := SelectionConfirmation{Selected: validated.Selected, Kind: validated.Kind, Source: validated.Source, Method: "id-only", Revision: document.Revision}
+	if pick.Ray != nil && vectorLength(pick.Ray.Direction) > 1e-9 {
+		return confirmAlongReportedRay(document, pick, confirmation)
+	}
 	if pick.World == nil {
 		return confirmation, nil
 	}
@@ -180,4 +193,50 @@ func normalizeOrDefault(value Vec3, fallback Vec3) Vec3 {
 		return fallback
 	}
 	return Vec3{X: value.X / length, Y: value.Y / length, Z: value.Z / length}
+}
+
+// confirmAlongReportedRay retraces the client's exact click ray through the
+// canonical CPU query. The closest hit along that ray IS the canonical
+// selection: an ID mismatch is corrected in the canonical result's favor, a
+// world-point gap on the same entity stays visible as a diagnostic, and a
+// miss refuses confirmation.
+func confirmAlongReportedRay(document Document, pick ViewportPick, confirmation SelectionConfirmation) (SelectionConfirmation, error) {
+	direction := normalizeOrDefault(pick.Ray.Direction, Vec3{Y: -1})
+	result, err := ExactPick(document, PickRequest{Origin: pick.Ray.Origin, Direction: direction})
+	if err != nil {
+		return SelectionConfirmation{}, err
+	}
+	confirmation.Method = "exact-cpu-ray"
+	confirmation.Source = confirmation.Source + "+exact-cpu-ray"
+	disagreement := &SelectionDisagreement{GPUSelected: pick.Selected, Tolerance: viewportAgreementTolerance}
+	if pick.World != nil {
+		disagreement.GPUWorld = *pick.World
+	}
+	if result.Trace.Closest == nil {
+		disagreement.Reason = "no-cpu-hit"
+		confirmation.Disagreement = disagreement
+		return confirmation, nil
+	}
+	hit := result.Trace.Closest
+	cpuWorld := Vec3{X: hit.Point.X, Y: hit.Point.Y, Z: hit.Point.Z}
+	disagreement.CPUSelected = ID(hit.ID)
+	disagreement.CPUWorld = &cpuWorld
+	if pick.World != nil {
+		disagreement.DistanceGap = vectorLength(Vec3{X: cpuWorld.X - pick.World.X, Y: cpuWorld.Y - pick.World.Y, Z: cpuWorld.Z - pick.World.Z})
+	}
+	switch {
+	case ID(hit.ID) != pick.Selected:
+		disagreement.Reason = "id-mismatch"
+		confirmation.Selected = ID(hit.ID)
+		confirmation.Kind = hit.Kind
+		confirmation.Confirmed = true
+		confirmation.Disagreement = disagreement
+	case pick.World != nil && disagreement.DistanceGap > viewportAgreementTolerance:
+		disagreement.Reason = "position-gap"
+		confirmation.Confirmed = true
+		confirmation.Disagreement = disagreement
+	default:
+		confirmation.Confirmed = true
+	}
+	return confirmation, nil
 }

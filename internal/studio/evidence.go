@@ -155,10 +155,12 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	add("m1-export-loss-report", exportOK, fmt.Sprintf("scene3dBytes=%d scene3dLosses=%d sceneIRBytes=%d sceneIRLosses=%d roundTripEqual=%t", docReport.Bytes, len(docReport.Losses), irReport.Bytes, len(irReport.Losses), exportOK))
 
 	agree, mismatch, confirmErr := certifyViewportConfirmation(document)
-	confirmationOK := confirmErr == nil &&
+	rayAgree, rayErr := certifyViewportRayConfirmation(document)
+	confirmationOK := confirmErr == nil && rayErr == nil &&
 		agree.Confirmed && agree.Method == "exact-cpu" && agree.Disagreement == nil &&
-		mismatch.Disagreement != nil && mismatch.Disagreement.Reason == "id-mismatch" && mismatch.Selected == agree.Selected
-	add("m1-viewport-exact-selection", confirmationOK, fmt.Sprintf("confirmed=%s method=%s disagreementReason=%s canonicalWins=%t", agree.Selected, agree.Method, disagreementReason(mismatch.Disagreement), mismatch.Selected == agree.Selected))
+		mismatch.Disagreement != nil && mismatch.Disagreement.Reason == "id-mismatch" && mismatch.Selected == agree.Selected &&
+		rayAgree.Confirmed && rayAgree.Method == "exact-cpu-ray" && rayAgree.Disagreement == nil
+	add("m1-viewport-exact-selection", confirmationOK, fmt.Sprintf("confirmed=%s method=%s rayMethod=%s disagreementReason=%s canonicalWins=%t", agree.Selected, agree.Method, rayAgree.Method, disagreementReason(mismatch.Disagreement), mismatch.Selected == agree.Selected))
 
 	operations := []Operation{{Kind: OpInsetFaces, Target: "cert-mesh", Faces: []ID{"quad"}, Amount: 0.25}, {Kind: OpTriangulateFaces, Target: "cert-mesh", Faces: []ID{"quad"}}, {Kind: OpRecalculateNormals, Target: "cert-mesh"}, {Kind: OpProjectPlanarUV, Target: "cert-mesh", Projection: "xz"}}
 	transaction := Transaction{ID: "certify:m1-topology", Actor: "certifier://studio", Mode: ModePropose, ExpectedRevision: meshDocument.Revision, Operations: operations}
@@ -1035,4 +1037,21 @@ func disagreementReason(disagreement *SelectionDisagreement) string {
 		return "none"
 	}
 	return disagreement.Reason
+}
+
+// certifyViewportRayConfirmation proves the live-click-ray contract: the
+// exact ray a pick event reports retraces through the canonical CPU query and
+// confirms without disagreement.
+func certifyViewportRayConfirmation(document Document) (SelectionConfirmation, error) {
+	_, origin := FirstPickTarget(document)
+	ray := ViewportRay{Origin: origin, Direction: Vec3{Y: -1}}
+	picked, err := ExactPick(document, PickRequest{Origin: ray.Origin, Direction: ray.Direction})
+	if err != nil {
+		return SelectionConfirmation{}, err
+	}
+	if picked.Selected == "" || picked.Trace.Closest == nil {
+		return SelectionConfirmation{}, fmt.Errorf("certification document produced no exact ray pick")
+	}
+	world := Vec3{X: picked.Trace.Closest.Point.X, Y: picked.Trace.Closest.Point.Y, Z: picked.Trace.Closest.Point.Z}
+	return ConfirmViewportSelection(document, ViewportPick{Selected: picked.Selected, Kind: "mesh", World: &world, Ray: &ray})
 }
