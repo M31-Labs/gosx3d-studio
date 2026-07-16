@@ -137,6 +137,14 @@ func main() {
 		}
 		return studio.CertifyCurrent(document)
 	})
+	app.API("GET /api/studio/initialize", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		return studio.BuildInitializeReport(document)
+	})
 	app.API("GET /api/studio/selection", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
 		return map[string]any{"selection": workspace.Selection(), "state": workspace.SelectionState(), "viewportConfirmation": workspace.ViewportConfirmation()}, nil

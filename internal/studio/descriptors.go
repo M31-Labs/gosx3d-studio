@@ -17,7 +17,52 @@ type ActionDescriptor struct {
 	UndoPolicy      string            `json:"undoPolicy"`
 	Headless        string            `json:"headless"`
 	InputSchema     map[string]any    `json:"inputSchema"`
+	OutputSchema    map[string]any    `json:"outputSchema"`
 	Endpoint        string            `json:"endpoint"`
+}
+
+// receiptOutputSchema describes the Receipt every mutating action returns.
+func receiptOutputSchema() map[string]any {
+	return map[string]any{
+		"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+		"required": []string{"transactionId", "actor", "mode", "applied", "beforeRevision", "afterRevision", "beforeFingerprint", "afterFingerprint"},
+		"properties": map[string]any{
+			"transactionId": map[string]any{"type": "string"}, "actor": map[string]any{"type": "string"},
+			"mode": map[string]any{"type": "string", "enum": []string{"propose", "direct"}}, "applied": map[string]any{"type": "boolean"},
+			"beforeRevision": map[string]any{"type": "integer"}, "afterRevision": map[string]any{"type": "integer"},
+			"beforeFingerprint": map[string]any{"type": "string"}, "afterFingerprint": map[string]any{"type": "string"},
+			"operations": map[string]any{"type": "integer"}, "affected": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"inverseTransactionId": map[string]any{"type": "string"}, "telemetryCorrelationId": map[string]any{"type": "string"},
+			"changes": map[string]any{"type": "array"}, "operatorRecords": map[string]any{"type": "array"},
+		},
+	}
+}
+
+// readActionDescriptors lists the read-authority surface: open GET endpoints
+// that inspect state without transaction authority, per spec section 13.2.
+func readActionDescriptors() []ActionDescriptor {
+	reads := []struct {
+		name, description, endpoint string
+	}{
+		{"inspect-document", "Read the canonical SceneDoc snapshot.", "/api/studio/document"},
+		{"inspect-scene-ir", "Read the compiled shared SceneIR snapshot.", "/api/studio/scene-ir"},
+		{"inspect-selection", "Read canonical selection state and the last viewport pick confirmation.", "/api/studio/selection"},
+		{"inspect-geometry", "Read revision-tagged indexed-mesh analysis for a stable entity.", "/api/studio/geometry/analysis"},
+		{"inspect-certification", "Run and read the deterministic evidence envelope.", "/api/studio/certification/evidence"},
+		{"inspect-platform", "Read machine-readable host capability diagnostics.", "/api/studio/platform"},
+		{"inspect-manifest", "Read the agent-readable scaffold and capability contract.", "/api/studio/manifest"},
+	}
+	out := make([]ActionDescriptor, 0, len(reads))
+	for _, read := range reads {
+		out = append(out, ActionDescriptor{
+			Name: read.name, Version: "1.0.0", Description: read.description, Access: "read",
+			SupportsPreview: false, SupportsBatch: false, UndoPolicy: "none", Headless: "available",
+			Endpoint:     read.endpoint,
+			InputSchema:  map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object"},
+			OutputSchema: map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object"},
+		})
+	}
+	return out
 }
 
 func ActionDescriptors() []ActionDescriptor {
@@ -80,9 +125,9 @@ func ActionDescriptors() []ActionDescriptor {
 			undoPolicy = "explicit-checkpoint"
 			supportsBatch = false
 		}
-		out = append(out, ActionDescriptor{Name: capability.ID, Version: "1.0.0", Description: descriptions[kind], Access: "mutate", AuthorityModes: []TransactionMode{ModePropose, ModeDirect}, SupportsPreview: true, SupportsBatch: supportsBatch, UndoPolicy: undoPolicy, Headless: "available", Endpoint: endpoint, InputSchema: map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "required": required[kind], "properties": operationSchemaProperties()}})
+		out = append(out, ActionDescriptor{Name: capability.ID, Version: "1.0.0", Description: descriptions[kind], Access: "mutate", AuthorityModes: []TransactionMode{ModePropose, ModeDirect}, SupportsPreview: true, SupportsBatch: supportsBatch, UndoPolicy: undoPolicy, Headless: "available", Endpoint: endpoint, InputSchema: map[string]any{"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "required": required[kind], "properties": operationSchemaProperties()}, OutputSchema: receiptOutputSchema()})
 	}
-	return out
+	return append(out, readActionDescriptors()...)
 }
 
 func operationSchemaProperties() map[string]any {
