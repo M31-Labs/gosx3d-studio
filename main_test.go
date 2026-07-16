@@ -30,7 +30,7 @@ func TestGizmoBridgeDrivesSharedModeSignal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"studio.viewport.gizmoMode", "__gosx_set_shared_signal", "data-gizmo-mode"} {
+	for _, required := range []string{"studio.viewport.gizmoMode", "__gosx_set_shared_signal", "data-gizmo-mode", "gizmo-commit", "/api/studio/gizmo-commit", "input.phase"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("gizmo bridge missing %q", required)
 		}

@@ -112,11 +112,14 @@ parameters, result IDs, and checkpoint policy.
 The compiled viewport attaches the engine `TransformControls` helper to the
 current selection at its composed world position, and the toolbar's
 Select/Move/Rotate/Scale buttons drive the shared `studio.viewport.gizmoMode`
-signal so the helper switches modes live without a page round-trip. This is
-honestly a visual helper: the engine documents pointer-drag mutation as the
-browser controls layer's tracked work and exposes no drag-commit output
-signal yet, so transform commits remain on the Inspector/agent transaction
-path until that engine contract exists.
+signal so the helper switches modes live without a page round-trip. Since
+gosx v0.31.17 gizmo drags are interactive: the engine emits `gizmo-commit`
+input events with axis-constrained drag math shared with pure-Go helpers,
+translate drags preview live client-side, and the end phase commits exactly
+one revision-safe `set-transform` transaction (one undo step per drag,
+actor `human://viewport-gizmo`). Scale commits fail explicitly while
+SceneDoc scale compilation remains an honesty gate; ring rotation composes
+a Z-axis quaternion delta onto the authoritative rotation.
 
 Browser viewport clicks are confirmed by the canonical exact CPU query, not
 trusted from the GPU picker alone. The click forwards the GPU-reported world

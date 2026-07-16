@@ -32,6 +32,36 @@
     });
   }
 
+  function request(url, options) {
+    if (window.__gosx && typeof window.__gosx.request === "function") {
+      return window.__gosx.request(url, options);
+    }
+    return fetch(url, options);
+  }
+
+  document.addEventListener("gosx:scene3d:input", function (event) {
+    var detail = event && event.detail;
+    var input = detail && detail.kind === "gizmo-commit" ? detail.input : null;
+    if (!input || input.phase !== "end" || !input.target || input.mode === "scale") return;
+
+    request("/api/studio/gizmo-commit", {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(input)
+    }).then(function (response) {
+      if (!response || !response.ok) return;
+      // One committed drag = one transaction = one undo step; reload so the
+      // Inspector, history, and revision-stamped forms reflect it.
+      window.location.reload();
+    }).catch(function (error) {
+      if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
+        window.__gosx.reportFailure("gizmo commit", error, {
+          scope: "studio", type: "gizmo", fallback: "inspector-forms"
+        });
+      }
+    });
+  });
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bind);
   } else {
