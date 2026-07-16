@@ -330,6 +330,23 @@ func main() {
 		}
 		return map[string]any{"receipt": receipt, "document": document, "asset": asset}, nil
 	})
+	app.API("POST /api/studio/assets/decode-geometry", func(ctx *server.Context) (any, error) {
+		if err := authorizeAction(ctx.Request, actionToken); err != nil {
+			return nil, err
+		}
+		ctx.NoStore()
+		var request studio.GeometryDecodeRequest
+		decoder := json.NewDecoder(io.LimitReader(ctx.Request.Body, 64<<10))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&request); err != nil {
+			return nil, statusError{http.StatusBadRequest, err}
+		}
+		receipt, document, report, err := workspace.DecodeModelGeometry(request)
+		if err != nil {
+			return nil, commandError(err)
+		}
+		return map[string]any{"receipt": receipt, "document": document, "report": report}, nil
+	})
 	app.API("POST /api/studio/assets/reimport", func(ctx *server.Context) (any, error) {
 		if err := authorizeAction(ctx.Request, actionToken); err != nil {
 			return nil, err

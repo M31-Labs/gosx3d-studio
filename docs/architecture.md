@@ -210,7 +210,13 @@ serving them. SceneDoc model entities reference GLB/glTF asset IDs and lower
 through typed `scene.Model` into shared SceneIR, including source-map and
 incremental-cache dependencies. Dependency reports enumerate sorted direct
 entity references, prefab-definition references, and linked instances.
-Reimport inspects a replacement into a new content identity, previews the exact
+Registered glTF/GLB assets can decode one triangles primitive at a time into
+authored stable-ID indexed-mesh geometry through the revision-safe
+`DecodeModelGeometry` request: payload bytes are re-hashed before trust,
+float32 position/normal/uv0 and 8/16/32-bit index accessors are supported
+with a 100k-triangle budget, and Draco, Meshopt, sparse accessors, skinning,
+and morph targets fail explicitly or surface as skipped attributes in the
+decode report. Reimport inspects a replacement into a new content identity, previews the exact
 transaction, stores immutable bytes only after validation, then atomically
 retargets ordinary and prefab-local model records; human Inspector and agent API
 calls converge on that command. The current foundation does not claim external
