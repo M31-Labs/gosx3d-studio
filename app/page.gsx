@@ -249,6 +249,61 @@ func Page() Node {
 							<dd>{data.inspector.roughness}</dd>
 						</div>
 					</dl>
+					<form method="post" action={actionPath("assignMaterial")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Assign material
+							<select name="materialId">
+								<Each of={data.materials} as="material">
+									<option value={material.id}>{material.name}</option>
+								</Each>
+							</select>
+						</label>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Assign material</button>
+					</form>
+					<form method="post" action={actionPath("setMaterial")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="selection" value={data.inspector.id}></input>
+						<input type="hidden" name="materialId" value={data.inspector.materialId}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<div class="vector-inputs">
+							<label>
+								Color
+								<input name="color" value={data.inspector.materialColor}></input>
+							</label>
+							<label>
+								Roughness
+								<input name="roughness" value={data.inspector.roughness} inputmode="decimal"></input>
+							</label>
+							<label>
+								Metalness
+								<input name="metalness" value={data.inspector.metalness} inputmode="decimal"></input>
+							</label>
+						</div>
+						<div class="vector-inputs">
+							<label>
+								Clearcoat
+								<input name="clearcoat" value={data.inspector.clearcoat} inputmode="decimal"></input>
+							</label>
+							<label>
+								Transmission
+								<input name="transmission" value={data.inspector.transmission} inputmode="decimal"></input>
+							</label>
+							<label>
+								Emissive
+								<input name="emissive" value={data.inspector.emissive} inputmode="decimal"></input>
+							</label>
+						</div>
+						<label>
+							Selena source (compiled before replacement; invalid source keeps the last valid material)
+							<textarea name="selenaSource" rows="6" spellcheck="false">{data.inspector.selenaSource}</textarea>
+						</label>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Apply material</button>
+					</form>
 				</details>
 				<details>
 					<summary>Model Asset</summary>

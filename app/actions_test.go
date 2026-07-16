@@ -238,3 +238,69 @@ func TestTimelineMarkupBindsRealHumanActions(t *testing.T) {
 		}
 	}
 }
+
+func TestHumanMaterialFormsUseSharedValidatedCommands(t *testing.T) {
+	document := studio.SampleDocument()
+	workspace, err := studio.NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := studio.ID("piece-player-1-01")
+	materialID := string(document.Entities[target].Mesh.Material)
+	receipt, err := executeHumanSetMaterial(workspace, map[string]string{
+		"selection": string(target), "materialId": materialID,
+		"expectedRevision": strconv.FormatUint(document.Revision, 10),
+		"color":            "#ff8a2a", "roughness": "0.42", "metalness": "0.1",
+		"clearcoat": "0", "transmission": "0", "emissive": "0", "selenaSource": "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Actor != "human://local-ui" || len(receipt.MaterialChanges) != 1 {
+		t.Fatalf("receipt=%+v", receipt)
+	}
+	changed, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.Materials[studio.ID(materialID)].Roughness != 0.42 || changed.Materials[studio.ID(materialID)].Color != "#ff8a2a" {
+		t.Fatalf("material=%+v", changed.Materials[studio.ID(materialID)])
+	}
+	if _, err := executeHumanSetMaterial(workspace, map[string]string{
+		"selection": string(target), "materialId": materialID,
+		"expectedRevision": strconv.FormatUint(changed.Revision, 10),
+		"color":            "", "roughness": "0.4", "metalness": "0", "clearcoat": "0", "transmission": "0", "emissive": "0",
+		"selenaSource":     "this is not valid selena {",
+	}); err == nil {
+		t.Fatal("invalid Selena source was accepted")
+	}
+	after, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Materials[studio.ID(materialID)].Roughness != 0.42 {
+		t.Fatal("failed Selena compile replaced the last valid material")
+	}
+
+	otherMaterial := ""
+	for id := range document.Materials {
+		if string(id) != materialID {
+			otherMaterial = string(id)
+			break
+		}
+	}
+	assignReceipt, err := executeHumanAssignMaterial(workspace, map[string]string{
+		"target": string(target), "materialId": otherMaterial,
+		"expectedRevision": strconv.FormatUint(after.Revision, 10),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assigned, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(assigned.Entities[target].Mesh.Material) != otherMaterial {
+		t.Fatalf("assign material receipt=%+v entity=%+v", assignReceipt, assigned.Entities[target].Mesh)
+	}
+}

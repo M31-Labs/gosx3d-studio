@@ -443,6 +443,24 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"assignMaterial": func(ctx *action.Context) error {
+				receipt, err := executeHumanAssignMaterial(boundWorkspace(), ctx.FormData)
+				if err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"material": err.Error()})
+					return nil
+				}
+				ctx.Redirect(fmt.Sprintf("/?selection=%s&applied=%s", ctx.FormData["target"], receipt.TransactionID))
+				return nil
+			},
+			"setMaterial": func(ctx *action.Context) error {
+				receipt, err := executeHumanSetMaterial(boundWorkspace(), ctx.FormData)
+				if err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"material": err.Error()})
+					return nil
+				}
+				ctx.Redirect(fmt.Sprintf("/?selection=%s&applied=%s", ctx.FormData["selection"], receipt.TransactionID))
+				return nil
+			},
 			"undoCommand": func(ctx *action.Context) error {
 				return executeHumanHistory(ctx, true)
 			},
@@ -598,6 +616,7 @@ func init() {
 				"entityCount":   fmt.Sprint(len(document.Entities)),
 				"revision":      fmt.Sprintf("%04d", document.Revision),
 				"certification": liveCertificationView(document),
+				"materials":     materialsView(document),
 				"history":        historyView(boundWorkspace()),
 				"historySummary": fmt.Sprintf("%d entities · revision %04d · command history below", len(document.Entities), document.Revision),
 				"project":       projectView(boundWorkspace()),
@@ -647,4 +666,75 @@ func executeHumanHistory(ctx *action.Context, undo bool) error {
 	}
 	ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 	return nil
+}
+
+// executeHumanAssignMaterial routes the Inspector assign-material form through
+// the shared transaction path.
+func executeHumanAssignMaterial(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{
+		ID: fmt.Sprintf("human-assign-material-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect,
+		ExpectedRevision: revision,
+		Operations:       []studio.Operation{{Kind: studio.OpAssignMaterial, Target: studio.ID(strings.TrimSpace(values["target"])), Material: studio.ID(strings.TrimSpace(values["materialId"]))}},
+	})
+	return receipt, err
+}
+
+// executeHumanSetMaterial edits the selected entity's material record —
+// PBR ranges validate before commit and invalid Selena keeps the last valid
+// material, identically to the agent path.
+func executeHumanSetMaterial(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	document, err := workspace.Snapshot()
+	if err != nil {
+		return studio.Receipt{}, err
+	}
+	materialID := studio.ID(strings.TrimSpace(values["materialId"]))
+	material, ok := document.Materials[materialID]
+	if !ok {
+		return studio.Receipt{}, fmt.Errorf("material %q does not exist", materialID)
+	}
+	parse := func(name string, into *float64) error {
+		value, parseErr := strconv.ParseFloat(strings.TrimSpace(values[name]), 64)
+		if parseErr != nil {
+			return fmt.Errorf("%s: %w", name, parseErr)
+		}
+		*into = value
+		return nil
+	}
+	if color := strings.TrimSpace(values["color"]); color != "" {
+		material.Color = color
+	}
+	for name, into := range map[string]*float64{"roughness": &material.Roughness, "metalness": &material.Metalness, "clearcoat": &material.Clearcoat, "transmission": &material.Transmission, "emissive": &material.Emissive} {
+		if err := parse(name, into); err != nil {
+			return studio.Receipt{}, err
+		}
+	}
+	source := strings.TrimSpace(values["selenaSource"])
+	switch {
+	case source == "":
+		material.Selena = nil
+	case material.Selena != nil:
+		material.Selena = &studio.SelenaShader{Material: material.Selena.Material, Source: source}
+	default:
+		material.Selena = &studio.SelenaShader{Material: string(material.ID), Source: source}
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{
+		ID: fmt.Sprintf("human-set-material-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect,
+		ExpectedRevision: revision,
+		Operations:       []studio.Operation{{Kind: studio.OpSetMaterial, MaterialRecord: &material}},
+	})
+	return receipt, err
 }

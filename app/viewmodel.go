@@ -202,6 +202,11 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 	modifierStatus := "Requires an indexed mesh"
 	assetID := ""
 	assetName := "No model asset selected"
+	materialColor := "#888888"
+	metalness := "0"
+	clearcoat := "0"
+	emissive := "0"
+	selenaSource := ""
 	if entity.Mesh != nil {
 		materialID = string(entity.Mesh.Material)
 		geometry = entity.Mesh.Geometry.Kind
@@ -229,8 +234,13 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 			materialName = material.Name
 			roughness = number(material.Roughness)
 			transmission = number(material.Transmission)
+			materialColor = material.Color
+			metalness = number(material.Metalness)
+			clearcoat = number(material.Clearcoat)
+			emissive = number(material.Emissive)
 			if material.Selena != nil {
 				shader = "Selena · " + material.Selena.Material
+				selenaSource = material.Selena.Source
 			}
 		}
 	} else if entity.Model != nil {
@@ -242,7 +252,7 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 	} else if entity.Light != nil {
 		geometry = strings.Title(entity.Light.Kind) + " light"
 	}
-	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Euler.X), "ry": number(entity.Transform.Euler.Y), "rz": number(entity.Transform.Euler.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName}
+	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Euler.X), "ry": number(entity.Transform.Euler.Y), "rz": number(entity.Transform.Euler.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName, "materialColor": materialColor, "metalness": metalness, "clearcoat": clearcoat, "emissive": emissive, "selenaSource": selenaSource}
 }
 
 func shortID(id studio.ID) string {
@@ -313,4 +323,19 @@ func liveCertificationView(document studio.Document) map[string]any {
 	}
 	liveCertCache.revision, liveCertCache.fingerprint, liveCertCache.view = document.Revision, fingerprint, view
 	return view
+}
+
+// materialsView lists all document materials for the assign-material select.
+func materialsView(document studio.Document) []map[string]any {
+	ids := make([]string, 0, len(document.Materials))
+	for id := range document.Materials {
+		ids = append(ids, string(id))
+	}
+	sort.Strings(ids)
+	out := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		material := document.Materials[studio.ID(id)]
+		out = append(out, map[string]any{"id": id, "name": material.Name})
+	}
+	return out
 }
