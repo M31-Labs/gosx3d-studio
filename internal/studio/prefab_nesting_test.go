@@ -96,3 +96,42 @@ func TestPrefabVariantInheritsBaseAndAppliesOverrides(t *testing.T) {
 		t.Fatal("variant base cycle must fail validation")
 	}
 }
+
+func TestPrefabVariantAddsEntitiesIntoInheritedTree(t *testing.T) {
+	document := nestedPrefabDocument()
+	document.Prefabs["variant-plus"] = PrefabDefinition{
+		ID: "variant-plus", Name: "Variant with addition", Base: "inner",
+		Entities: map[ID]Entity{
+			"added-marker": {ID: "added-marker", Name: "Added marker", Parent: "inner-root", Transform: TransformFromEuler(Vec3{Y: 0.5}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1}), Visible: true, Mesh: &MeshComponent{Geometry: Geometry{Kind: "sphere", Radius: 0.1, Segments: 8}, Material: "player-1-material", Pickable: true}},
+		},
+	}
+	root := document.Entities["scene-root"]
+	instance := Entity{ID: "plus-instance", Name: "Plus instance", Parent: root.ID, Transform: IdentityTransform(), Visible: true, Prefab: &PrefabInstance{Prefab: "variant-plus"}}
+	root.Children = append(root.Children, instance.ID)
+	document.Entities[root.ID] = root
+	document.Entities[instance.ID] = instance
+	if err := document.Validate(); err != nil {
+		t.Fatalf("variant with additions must validate: %v", err)
+	}
+	props, err := Compile(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, object := range props.SceneIR().Objects {
+		if object.ID == "plus-instance--added-marker" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("variant-added entity did not compile")
+	}
+	// Collision with a base entity ID must fail.
+	broken := document
+	variant := broken.Prefabs["variant-plus"]
+	variant.Entities["inner-root"] = Entity{ID: "inner-root", Name: "Collision", Parent: "", Transform: IdentityTransform(), Visible: true}
+	broken.Prefabs["variant-plus"] = variant
+	if err := broken.Validate(); err == nil {
+		t.Fatal("variant addition colliding with a base entity id must fail validation")
+	}
+}

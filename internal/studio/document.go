@@ -116,6 +116,25 @@ func resolvePrefabDefinition(prefabs map[ID]PrefabDefinition, id ID) (PrefabDefi
 	}
 	for i := len(chain) - 2; i >= 0; i-- {
 		variant := prefabs[chain[i]]
+		additionIDs := make([]ID, 0, len(variant.Entities))
+		for localID := range variant.Entities {
+			additionIDs = append(additionIDs, localID)
+		}
+		sort.Slice(additionIDs, func(a, b int) bool { return additionIDs[a] < additionIDs[b] })
+		for _, localID := range additionIDs {
+			addition := variant.Entities[localID]
+			if _, exists := resolved.Entities[localID]; exists {
+				return PrefabDefinition{}, fmt.Errorf("variant %q addition %q collides with an inherited entity", variant.ID, localID)
+			}
+			parent, ok := resolved.Entities[addition.Parent]
+			if !ok {
+				return PrefabDefinition{}, fmt.Errorf("variant %q addition %q parents into missing entity %q", variant.ID, localID, addition.Parent)
+			}
+			parent.Children = append(parent.Children, localID)
+			resolved.Entities[addition.Parent] = parent
+			addition.Children = nil
+			resolved.Entities[localID] = addition
+		}
 		for localID, override := range variant.Overrides {
 			entity, ok := resolved.Entities[localID]
 			if !ok {
@@ -376,6 +395,11 @@ func (d Document) Validate() error {
 	}
 	if err := validatePrefabReferenceGraph(d.Prefabs); err != nil {
 		return err
+	}
+	for id := range d.Prefabs {
+		if _, err := resolvePrefabDefinition(d.Prefabs, id); err != nil {
+			return fmt.Errorf("prefab %q does not resolve: %w", id, err)
+		}
 	}
 	for key, asset := range d.Assets {
 		if key == "" || asset.ID != key {
@@ -645,8 +669,27 @@ func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material
 		if prefab.ID == "" || strings.TrimSpace(prefab.Name) == "" {
 			return fmt.Errorf("variant id and name are required")
 		}
-		if len(prefab.Entities) != 0 {
-			return fmt.Errorf("variant %q cannot add its own entities; the current floor only overrides the base", prefab.ID)
+		for key, entity := range prefab.Entities {
+			if key == "" || entity.ID != key {
+				return fmt.Errorf("variant entity key %q does not match id %q", key, entity.ID)
+			}
+			if entity.Parent == "" {
+				return fmt.Errorf("variant addition %q must parent into the inherited tree", key)
+			}
+			if entity.Prefab != nil {
+				return fmt.Errorf("variant addition %q cannot be a nested prefab instance in the current floor", key)
+			}
+			if entity.Mesh != nil {
+				if _, ok := materials[entity.Mesh.Material]; !ok {
+					return fmt.Errorf("variant addition %q references missing material %q", key, entity.Mesh.Material)
+				}
+				if err := validateGeometry(entity.Mesh.Geometry); err != nil {
+					return fmt.Errorf("variant addition %q geometry: %w", key, err)
+				}
+			}
+			if !finiteTransform(entity.Transform) || !unitScale(entity.Transform.Scale) {
+				return fmt.Errorf("variant addition %q transform is invalid", key)
+			}
 		}
 		if _, ok := prefabs[prefab.Base]; !ok {
 			return fmt.Errorf("variant %q references missing base %q", prefab.ID, prefab.Base)

@@ -198,8 +198,9 @@ IDs, definition reference cycles (including variant base chains) are rejected
 with the concrete path, and variants inherit a resolved base definition and
 apply per-entity overrides without adding entities of their own. Incremental
 fingerprints hash the resolved definition closure so base or nested edits
-invalidate every dependent instance. Variant-added entities, unpacking, and
-portable prefab packages remain partial.
+invalidate every dependent instance. Variants may also add their own entities parented into the inherited tree,
+with deterministic collision and orphan rejection at validation. Unpacking
+and portable prefab packages remain partial.
 
 Asset imports inspect source bytes before registration and derive identity from
 the complete SHA-256 payload. Direct imports atomically place immutable payloads
