@@ -20,6 +20,15 @@ until exercised on the named operating system.
 | Installed launch/recovery/update | unverified | unsupported | unsupported |
 | Direct native GPU surface | unverified; packaged Scene3D canvas path is current | unsupported | unsupported |
 
+## Continuous Windows evidence
+
+`.github/workflows/windows.yml` runs the full browser-free evidence suite
+(tests, vet, smoke, certify) natively on `windows-latest`, stages the offline
+bundle and MSIX payload, best-effort packs an unsigned `.msix` when MakeAppx
+is present, and uploads the certification JSON as the attached evidence for
+this matrix. Private sibling checkouts require the `SIBLING_REPO_TOKEN`
+repository secret.
+
 ## Windows verification commands
 
 ```powershell

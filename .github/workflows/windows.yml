@@ -1,0 +1,66 @@
+# Windows evidence floor for the desktopHost capability matrix
+# (docs/platform-capabilities.md): native Windows execution of the
+# browser-free evidence suite plus MSIX staging/packing. A green run here is
+# the minimum bar for any "available" desktop claim; the certify JSON is the
+# attached evidence. Sibling checkouts satisfy the go.mod replace directives;
+# private siblings need the SIBLING_REPO_TOKEN secret (repo read scope).
+name: windows-evidence
+
+on:
+  push:
+    branches: [main, codex/deep-implementation-foundation]
+  workflow_dispatch: {}
+
+jobs:
+  evidence:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: gosx3d-studio
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gosx3d-studio
+      - uses: actions/checkout@v4
+        with:
+          repository: odvcencio/gosx
+          token: ${{ secrets.SIBLING_REPO_TOKEN || github.token }}
+          path: gosx
+      - uses: actions/checkout@v4
+        with:
+          repository: odvcencio/arbiter
+          token: ${{ secrets.SIBLING_REPO_TOKEN || github.token }}
+          path: arbiter
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: gosx3d-studio/go.mod
+          cache-dependency-path: gosx3d-studio/go.sum
+      - name: Unit and integration tests
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Browser-free smoke evidence (frame + exact ray)
+        run: go run ./cmd/studio-smoke > studio-smoke.json
+      - name: Deterministic certification evidence
+        run: go run ./cmd/studio-certify > studio-certify.json
+      - name: Build gosx CLI from sibling
+        run: go build -o ../gosx-cli.exe m31labs.dev/gosx/cmd/gosx
+      - name: Offline bundle + MSIX staging
+        run: ..\gosx-cli.exe build --offline .
+      - name: MSIX pack (best effort until signing identity lands)
+        continue-on-error: true
+        run: |
+          $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter MakeAppx.exe |
+            Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
+          if (-not $makeappx) { Write-Host "MakeAppx not found; staging only"; exit 0 }
+          & $makeappx.FullName pack /d dist\msix\package /p dist\gosx3d-studio-unsigned.msix /o
+      - name: Upload evidence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-evidence
+          path: |
+            gosx3d-studio/studio-smoke.json
+            gosx3d-studio/studio-certify.json
+            gosx3d-studio/dist/*.msix
+          if-no-files-found: warn
