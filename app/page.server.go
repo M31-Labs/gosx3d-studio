@@ -636,6 +636,7 @@ func init() {
 				"materials":     materialsView(document),
 				"modeling":      modelingView(document, boundWorkspace(), selected),
 				"agent":         agentView(boundWorkspace(), strings.TrimSpace(os.Getenv("STUDIO_ACTION_TOKEN")) != ""),
+				"cameraHome":    fmt.Sprintf("%g,%g,%g", document.Camera.Position.X, document.Camera.Position.Y, document.Camera.Position.Z),
 				"history":        historyView(boundWorkspace()),
 				"historySummary": fmt.Sprintf("%d entities · revision %04d · command history below", len(document.Entities), document.Revision),
 				"project":       projectView(boundWorkspace()),

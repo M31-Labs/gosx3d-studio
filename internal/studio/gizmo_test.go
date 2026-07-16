@@ -48,3 +48,13 @@ func TestCompileWithoutSelectionEmitsNoGizmo(t *testing.T) {
 		t.Fatalf("unselected compile must not emit a gizmo, got %+v", controls)
 	}
 }
+
+func TestCompilePropsExposeCameraRigSignals(t *testing.T) {
+	props, err := Compile(SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if props.CameraInputSignal != "studio.viewport.cameraIn" || props.CameraOutputSignal != "studio.viewport.cameraOut" {
+		t.Fatalf("camera rig signals missing: in=%q out=%q", props.CameraInputSignal, props.CameraOutputSignal)
+	}
+}

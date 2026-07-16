@@ -112,7 +112,12 @@ parameters, result IDs, and checkpoint policy.
 The compiled viewport attaches the engine `TransformControls` helper to the
 current selection at its composed world position, and the toolbar's
 Select/Move/Rotate/Scale buttons drive the shared `studio.viewport.gizmoMode`
-signal so the helper switches modes live without a page round-trip. Since
+signal so the helper switches modes live without a page round-trip. The viewport
+camera is a Studio-owned rig over the engine's camera signals: the compiled
+props expose `studio.viewport.cameraIn`/`cameraOut`, the header view buttons
+switch between the authored perspective camera and orthographic front/top/
+right authoring views framed on the current selection, and keyboard
+pan/dolly nudges write poses through the same input signal. Since
 gosx v0.31.17 gizmo drags are interactive: the engine emits `gizmo-commit`
 input events with axis-constrained drag math shared with pure-Go helpers,
 translate drags preview live client-side, and the end phase commits exactly

@@ -209,3 +209,24 @@ func TestStudioBearerBypassesCSRFButOtherPostsDoNot(t *testing.T) {
 		t.Fatalf("unauthorized status = %d", unauthorizedResult.Code)
 	}
 }
+
+func TestCameraRigBridgeDrivesCameraSignals(t *testing.T) {
+	asset, err := os.ReadFile("public/studio-camera.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{"studio.viewport.cameraIn", "studio.viewport.cameraOut", "orthographic", "data-camera-view", "data-camera-focus-x"} {
+		if !strings.Contains(string(asset), required) {
+			t.Fatalf("camera rig missing %q", required)
+		}
+	}
+	page, err := os.ReadFile("app/page.gsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{`data-camera-view="perspective"`, `data-camera-view="top"`, "data-camera-home", "/studio-camera.js"} {
+		if !strings.Contains(string(page), required) {
+			t.Fatalf("page camera controls missing %q", required)
+		}
+	}
+}

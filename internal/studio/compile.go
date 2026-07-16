@@ -79,6 +79,8 @@ func compileProps(document Document, nodes []scene.Node) scene.Props {
 		PickSignalNamespace:  "studio.viewport",
 		SelectionInputSignal: "studio.viewport.selectedID",
 		GizmoInputSignal:     "studio.viewport.gizmoMode",
+		CameraInputSignal:    "studio.viewport.cameraIn",
+		CameraOutputSignal:   "studio.viewport.cameraOut",
 		Camera: scene.PerspectiveCamera{
 			Position: toSceneVec(document.Camera.Position),
 			Rotation: toSceneEuler(document.Camera.Rotation),

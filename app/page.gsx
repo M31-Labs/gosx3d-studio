@@ -152,11 +152,13 @@ func Page() Node {
 				<header class="viewport-header">
 					<h2 id="viewport-title">Viewport</h2>
 					<div>
-						<button type="button">Perspective⌄</button>
-						<button type="button">Lit⌄</button>
+						<button type="button" data-camera-view="perspective">Perspective</button>
+						<button type="button" data-camera-view="front">Front</button>
+						<button type="button" data-camera-view="top">Top</button>
+						<button type="button" data-camera-view="right">Right</button>
 					</div>
 				</header>
-				<div class="scene-stage">
+				<div class="scene-stage" data-camera-home={data.cameraHome} data-camera-focus-x={data.inspector.x} data-camera-focus-y={data.inspector.y} data-camera-focus-z={data.inspector.z}>
 					<div class="runtime-readout" aria-label="Observed runtime telemetry">
 						<span>SCENE IR</span>
 						<strong>mounted</strong>
@@ -658,6 +660,7 @@ func Page() Node {
 		<script src="/studio-selection.js" defer></script>
 		<script src="/studio-project.js" defer></script>
 		<script src="/studio-gizmo.js" defer></script>
+		<script src="/studio-camera.js" defer></script>
 		<footer class="status-bar">
 			<span class="runtime-label">GoSX server</span>
 			<span>Scene revision {data.revision}</span>
