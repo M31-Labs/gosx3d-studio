@@ -96,7 +96,7 @@ func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scen
 			return nil, fmt.Errorf("entity %q prefab %q: %w", id, definition.ID, err)
 		}
 		children = append([]scene.Node{prefabRoot}, children...)
-		return scene.Group{ID: string(entity.ID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneEuler(entity.Transform.Rotation), Children: children}, nil
+		return scene.Group{ID: string(entity.ID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneRotation(entity.Transform.Rotation), Children: children}, nil
 	}
 	return compileEntityValue(document, entity, entity.ID, selected == id, children)
 }
@@ -131,7 +131,7 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 		return nil, fmt.Errorf("entity %q has scale %+v; SceneDoc scale compilation is not implemented", runtimeID, entity.Transform.Scale)
 	}
 	position := toSceneVec(entity.Transform.Position)
-	rotation := toSceneEuler(entity.Transform.Rotation)
+	rotation := toSceneRotation(entity.Transform.Rotation)
 	if entity.Mesh != nil {
 		authored := entity.Mesh.Geometry
 		var err error
@@ -263,3 +263,8 @@ func near(left, right float64) bool { return math.Abs(left-right) < 1e-9 }
 
 func toSceneVec(value Vec3) scene.Vector3 { return scene.Vec3(value.X, value.Y, value.Z) }
 func toSceneEuler(value Vec3) scene.Euler { return scene.Rotate(value.X, value.Y, value.Z) }
+
+// toSceneRotation lowers the authoritative quaternion through the engine's
+// euler contract; the engine rebuilds the same quaternion internally because
+// both sides share the Rz*Ry*Rx convention.
+func toSceneRotation(value Quaternion) scene.Euler { return toSceneEuler(value.Euler()) }

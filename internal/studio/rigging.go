@@ -118,17 +118,18 @@ func ArticulatedProofDocument() Document {
 	document.Entities[payload.ID] = payload
 	document.Armatures = map[ID]Armature{"arm": {ID: "arm", Name: "Robot arm", RootBones: []ID{"root"}, Bones: map[ID]Bone{
 		"root":  {ID: "root", Name: "Shoulder", Children: []ID{"lower"}, Rest: IdentityTransform(), Entity: upper.ID},
-		"lower": {ID: "lower", Name: "Elbow", Parent: "root", Children: []ID{"tip"}, Rest: Transform{Position: Vec3{Y: 1}, Scale: Vec3{X: 1, Y: 1, Z: 1}}, Entity: forearm.ID},
-		"tip":   {ID: "tip", Name: "Tool", Parent: "lower", Rest: Transform{Position: Vec3{Y: 1}, Scale: Vec3{X: 1, Y: 1, Z: 1}}},
+		"lower": {ID: "lower", Name: "Elbow", Parent: "root", Children: []ID{"tip"}, Rest: TransformFromEuler(Vec3{Y: 1}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1}), Entity: forearm.ID},
+		"tip":   {ID: "tip", Name: "Tool", Parent: "lower", Rest: TransformFromEuler(Vec3{Y: 1}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1})},
 	}, Pose: map[ID]Transform{"lower": forearm.Transform}, Constraints: []IKConstraint{{ID: "reach-ik", Root: "root", Mid: "lower", Tip: "tip", Target: Vec3{X: 1, Y: 1}, Enabled: true}}}}
 	document.Armatures["target-arm"] = Armature{ID: "target-arm", Name: "Tall robot arm", RootBones: []ID{"target-root"}, Bones: map[ID]Bone{
 		"target-root":  {ID: "target-root", Name: "Target shoulder", Children: []ID{"target-lower"}, Rest: IdentityTransform()},
-		"target-lower": {ID: "target-lower", Name: "Target elbow", Parent: "target-root", Children: []ID{"target-tip"}, Rest: Transform{Position: Vec3{Y: 2}, Scale: Vec3{X: 1, Y: 1, Z: 1}}},
-		"target-tip":   {ID: "target-tip", Name: "Target tool", Parent: "target-lower", Rest: Transform{Position: Vec3{Y: 2}, Scale: Vec3{X: 1, Y: 1, Z: 1}}},
+		"target-lower": {ID: "target-lower", Name: "Target elbow", Parent: "target-root", Children: []ID{"target-tip"}, Rest: TransformFromEuler(Vec3{Y: 2}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1})},
+		"target-tip":   {ID: "target-tip", Name: "Target tool", Parent: "target-lower", Rest: TransformFromEuler(Vec3{Y: 2}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1})},
 	}}
 	start := forearm.Transform
 	end := forearm.Transform
-	end.Rotation = Vec3{X: 2, Y: 2}
+	end.Euler = Vec3{X: 2, Y: 2}
+	end.Rotation = QuaternionFromEuler(end.Euler)
 	document.Animations = map[ID]AnimationClip{"reach": {ID: "reach", Name: "Reach", Duration: 1, Tracks: map[ID]TransformTrack{
 		"lower-track": {ID: "lower-track", Armature: "arm", Bone: "lower", Keys: []TransformKey{{Time: 0, Transform: start}, {Time: 1, Transform: end}}},
 	}}}
@@ -374,8 +375,10 @@ func SolveTwoBoneIK(document Document, armatureID, constraintID ID) (IKResult, D
 	shoulder := math.Atan2(dy, dx) - math.Atan2(l2*math.Sin(elbow), l1+l2*cosElbow)
 	rootPose := poseOrRest(armature, root.ID)
 	midPose := poseOrRest(armature, mid.ID)
-	rootPose.Rotation.Z = shoulder
-	midPose.Rotation.Z = elbow
+	rootEuler, midEuler := rootPose.canonical().Euler, midPose.canonical().Euler
+	rootEuler.Z, midEuler.Z = shoulder, elbow
+	rootPose.Euler, midPose.Euler = rootEuler, midEuler
+	rootPose.Rotation, midPose.Rotation = QuaternionFromEuler(rootEuler), QuaternionFromEuler(midEuler)
 	if armature.Pose == nil {
 		armature.Pose = map[ID]Transform{}
 	}
@@ -419,7 +422,8 @@ func sampleTransformTrack(keys []TransformKey, time float64) Transform {
 }
 
 func lerpTransform(a, b Transform, t float64) Transform {
-	return Transform{Position: lerpVec(a.Position, b.Position, t), Rotation: lerpVec(a.Rotation, b.Rotation, t), Scale: lerpVec(a.Scale, b.Scale, t)}
+	rotation := Slerp(a.Rotation, b.Rotation, t)
+	return Transform{Position: lerpVec(a.Position, b.Position, t), Rotation: rotation, Euler: rotation.Euler(), Scale: lerpVec(a.Scale, b.Scale, t)}
 }
 
 func lerpVec(a, b Vec3, t float64) Vec3 {

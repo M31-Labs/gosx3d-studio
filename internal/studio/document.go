@@ -93,10 +93,45 @@ type PrefabEntityOverride struct {
 	Visible   *bool      `json:"visible,omitempty"`
 }
 
+// Transform carries the spec §8.3 contract: the quaternion is the
+// authoritative rotation and the euler field is display metadata kept for
+// humans and legacy documents. JSON encode/decode canonicalize a zero
+// quaternion so pre-quaternion documents and in-code literals migrate
+// losslessly from their euler values.
 type Transform struct {
-	Position Vec3 `json:"position"`
-	Rotation Vec3 `json:"rotation"`
-	Scale    Vec3 `json:"scale"`
+	Position Vec3       `json:"position"`
+	Rotation Quaternion `json:"quaternion"`
+	Euler    Vec3       `json:"rotation"`
+	Scale    Vec3       `json:"scale"`
+}
+
+func TransformFromEuler(position, euler, scale Vec3) Transform {
+	return Transform{Position: position, Rotation: QuaternionFromEuler(euler), Euler: euler, Scale: scale}
+}
+
+func (t Transform) canonical() Transform {
+	value := t
+	if value.Rotation == (Quaternion{}) {
+		value.Rotation = QuaternionFromEuler(value.Euler)
+	} else if value.Euler == (Vec3{}) && !value.Rotation.IsIdentity() {
+		value.Euler = value.Rotation.Euler()
+	}
+	return value
+}
+
+func (t Transform) MarshalJSON() ([]byte, error) {
+	type transformAlias Transform
+	return json.Marshal(transformAlias(t.canonical()))
+}
+
+func (t *Transform) UnmarshalJSON(data []byte) error {
+	type transformAlias Transform
+	var alias transformAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*t = Transform(alias).canonical()
+	return nil
 }
 
 type Vec3 struct {
@@ -216,7 +251,7 @@ type Environment struct {
 }
 
 func IdentityTransform() Transform {
-	return Transform{Scale: Vec3{X: 1, Y: 1, Z: 1}}
+	return Transform{Rotation: identityQuaternion(), Scale: Vec3{X: 1, Y: 1, Z: 1}}
 }
 
 func (d Document) Clone() (Document, error) {
@@ -346,6 +381,12 @@ func (d Document) Validate() error {
 		if key == "" || entity.ID != key {
 			return fmt.Errorf("entity map key %q does not match id %q", key, entity.ID)
 		}
+		if !finiteTransform(entity.Transform) {
+			return fmt.Errorf("entity %q transform must be finite with a normalized rotation", key)
+		}
+		if !unitScale(entity.Transform.Scale) {
+			return fmt.Errorf("entity %q has scale %+v; SceneDoc scale compilation is not implemented", key, entity.Transform.Scale)
+		}
 		if entity.Parent == "" && !rootSet[key] {
 			return fmt.Errorf("unlisted root entity %q", key)
 		}
@@ -405,6 +446,9 @@ func (d Document) Validate() error {
 				}
 				if override.Transform != nil && !finiteTransform(*override.Transform) {
 					return fmt.Errorf("entity %q prefab override %q has non-finite transform", key, localID)
+				}
+				if override.Transform != nil && !unitScale(override.Transform.Scale) {
+					return fmt.Errorf("entity %q prefab override %q has scale %+v; SceneDoc scale compilation is not implemented", key, localID, override.Transform.Scale)
 				}
 			}
 		}
@@ -561,7 +605,20 @@ func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material
 }
 
 func finiteTransform(value Transform) bool {
-	return finiteVec3(value.Position) && finiteVec3(value.Rotation) && finiteVec3(value.Scale)
+	return finiteVec3(value.Position) && finiteQuaternion(value.Rotation) && finiteVec3(value.Euler) && finiteVec3(value.Scale)
+}
+
+// finiteQuaternion accepts the zero value (legacy identity) and otherwise
+// requires a finite, normalized rotation.
+func finiteQuaternion(value Quaternion) bool {
+	if !finite(value.X) || !finite(value.Y) || !finite(value.Z) || !finite(value.W) {
+		return false
+	}
+	if value == (Quaternion{}) {
+		return true
+	}
+	length := math.Sqrt(value.X*value.X + value.Y*value.Y + value.Z*value.Z + value.W*value.W)
+	return math.Abs(length-1) <= 1e-6
 }
 
 func validateModifiers(geometry Geometry, modifiers []Modifier) error {

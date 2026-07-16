@@ -130,7 +130,7 @@ type ComponentDescriptor struct {
 
 func ComponentCatalog() []ComponentDescriptor {
 	return []ComponentDescriptor{
-		{Type: "transform", Version: 1, Fields: []FieldDescriptor{{Name: "position", Type: "vec3", Editable: true, Semantic: "authoring"}, {Name: "rotation", Type: "euler", Editable: true, Semantic: "authoring"}, {Name: "scale", Type: "vec3", Editable: true, Semantic: "authoring"}}},
+		{Type: "transform", Version: 2, Fields: []FieldDescriptor{{Name: "position", Type: "vec3", Editable: true, Semantic: "authoring"}, {Name: "quaternion", Type: "quaternion", Editable: true, Semantic: "authoring"}, {Name: "rotation", Type: "euler", Editable: true, Semantic: "display"}, {Name: "scale", Type: "vec3", Editable: true, Semantic: "authoring"}}},
 		{Type: "mesh", Version: 1, Fields: []FieldDescriptor{{Name: "geometry", Type: "geometry", Editable: true, Semantic: "authoring"}, {Name: "material", Type: "material-ref", Editable: true, Semantic: "authoring"}, {Name: "pickable", Type: "bool", Editable: true, Semantic: "runtime"}}},
 		{Type: "material", Version: 1, Fields: []FieldDescriptor{{Name: "pbr", Type: "standard-material", Editable: true, Semantic: "authoring"}, {Name: "selena", Type: "selena-source", Editable: true, Semantic: "shader"}}},
 		{Type: "armature", Version: 1, Fields: []FieldDescriptor{{Name: "bones", Type: "bone-graph", Editable: true, Semantic: "rigging"}, {Name: "pose", Type: "bone-transforms", Editable: true, Semantic: "animation"}, {Name: "constraints", Type: "constraint-list", Editable: true, Semantic: "runtime"}}},

@@ -93,7 +93,7 @@ func timelineView(document studio.Document) map[string]any {
 				pose = value
 			}
 			view["boneId"], view["boneName"] = string(bone.ID), bone.Name
-			view["rx"], view["ry"], view["rz"] = number(pose.Rotation.X), number(pose.Rotation.Y), number(pose.Rotation.Z)
+			view["rx"], view["ry"], view["rz"] = number(pose.Euler.X), number(pose.Euler.Y), number(pose.Euler.Z)
 		}
 		if len(armature.Constraints) > 0 {
 			view["constraintId"] = string(armature.Constraints[0].ID)
@@ -241,7 +241,7 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 	} else if entity.Light != nil {
 		geometry = strings.Title(entity.Light.Kind) + " light"
 	}
-	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Rotation.X), "ry": number(entity.Transform.Rotation.Y), "rz": number(entity.Transform.Rotation.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName}
+	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Euler.X), "ry": number(entity.Transform.Euler.Y), "rz": number(entity.Transform.Euler.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName}
 }
 
 func shortID(id studio.ID) string {

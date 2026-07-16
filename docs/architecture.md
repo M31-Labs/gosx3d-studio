@@ -81,7 +81,19 @@ GoSX typed Scene3D ──► shared SceneIR ──► runtime backends
 The compiler supports groups, box/plane/sphere/cylinder and retained indexed meshes,
 StandardMaterial records, and ambient/directional/point lights. Non-unit scale
 fails explicitly because the current typed Scene3D mesh/group contract does not
-carry scale. This is a deliberate honesty gate, not an implicit omission.
+carry scale. This is a deliberate honesty gate, not an implicit omission, and
+document validation now rejects the same non-unit entity and prefab-override
+scale so a valid document is never uncompilable.
+
+Transform rotation follows the spec contract: a normalized quaternion is the
+authoritative value and the euler field is display metadata. Quaternion
+composition mirrors the engine's Rz·Ry·Rx convention, so Studio math, skinning
+matrices, and scene lowering agree. Legacy euler-only documents and zero-valued
+in-code literals migrate losslessly at JSON decode, and encoding canonicalizes
+the identity so fingerprints stay stable across save/reopen. Pose and clip
+sampling interpolate rotations by shortest-arc slerp, and retargeting applies
+rest-relative quaternion deltas. The document-level camera record still stores
+an euler rotation; migrating it to the same contract is tracked work.
 
 The command bus implements `set-field`, `set-transform`, create/delete/reparent/
 duplicate, material assignment, rename, and checkpoint-safe indexed-mesh

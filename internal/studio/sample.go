@@ -45,7 +45,7 @@ func SampleDocument() Document {
 }
 
 func meshEntity(id ID, name string, position Vec3, geometry Geometry, material ID, pickable bool) Entity {
-	return Entity{ID: id, Name: name, Transform: Transform{Position: position, Scale: Vec3{X: 1, Y: 1, Z: 1}}, Visible: true, Mesh: &MeshComponent{Geometry: geometry, Material: material, Pickable: pickable, CastShadow: true, ReceiveShadow: true}}
+	return Entity{ID: id, Name: name, Transform: TransformFromEuler(position, Vec3{}, Vec3{X: 1, Y: 1, Z: 1}), Visible: true, Mesh: &MeshComponent{Geometry: geometry, Material: material, Pickable: pickable, CastShadow: true, ReceiveShadow: true}}
 }
 func checkerMaterials() map[ID]Material {
 	return map[ID]Material{

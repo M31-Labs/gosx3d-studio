@@ -1,6 +1,7 @@
 package studio
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -14,12 +15,19 @@ func TestRigAnimationValidationSamplingAndSceneIRLowering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Vec3{X: 1, Y: 1, Z: 0}
-	if got := sample.Transforms["forearm"].Rotation; got != want {
-		t.Fatalf("sample rotation = %+v, want %+v", got, want)
+	// The clip ends at euler {X:2, Y:2}; the halfway sample must be the
+	// half-arc rotation around that end rotation's own axis.
+	end := QuaternionFromEuler(Vec3{X: 2, Y: 2})
+	angle := 2 * math.Acos(clampFloat(end.W, -1, 1))
+	sine := math.Sin(angle / 2)
+	axis := Vec3{X: end.X / sine, Y: end.Y / sine, Z: end.Z / sine}
+	want := axisAngleQuaternion(axis, angle/2)
+	got := sample.Transforms["forearm"].Rotation
+	for _, probe := range []Vec3{{X: 1}, {Y: 1}, {Z: 1}} {
+		vecNear(t, got.Rotate(probe), want.Rotate(probe), 1e-9, "halfway sample rotation")
 	}
-	if got := evaluated.Entities["forearm"].Transform.Rotation; got != want {
-		t.Fatalf("evaluated entity rotation = %+v", got)
+	if evaluated.Entities["forearm"].Transform.Rotation != got {
+		t.Fatalf("evaluated entity rotation = %+v, want %+v", evaluated.Entities["forearm"].Transform.Rotation, got)
 	}
 	props, err := Compile(evaluated)
 	if err != nil {
@@ -36,7 +44,7 @@ func TestRigActionsSharePreviewDirectReceiptAndUndo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pose := Transform{Position: Vec3{Y: 1}, Rotation: Vec3{Z: 0.4}, Scale: Vec3{X: 1, Y: 1, Z: 1}}
+	pose := TransformFromEuler(Vec3{Y: 1}, Vec3{Z: 0.4}, Vec3{X: 1, Y: 1, Z: 1})
 	key := TransformKey{Time: 0.25, Transform: pose}
 	transaction := Transaction{ID: "agent-rig-pass", Actor: "agent://rig-test", Mode: ModePropose, ExpectedRevision: document.Revision, Operations: []Operation{
 		{Kind: OpSetBonePose, ArmatureID: "arm", BoneID: "lower", Transform: &pose},
@@ -93,7 +101,7 @@ func TestTwoBoneIKIsDeterministicReachableAndCommandDriven(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(receipt.RigChanges) != 2 || solved.Entities["upper-arm"].Transform.Rotation == (Vec3{}) {
+	if len(receipt.RigChanges) != 2 || solved.Entities["forearm"].Transform.Rotation.IsIdentity() {
 		t.Fatalf("IK command evidence = %+v", receipt)
 	}
 }

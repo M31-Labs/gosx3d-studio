@@ -529,7 +529,7 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	pose := Transform{Position: Vec3{Y: 1}, Rotation: Vec3{Z: 0.35}, Scale: Vec3{X: 1, Y: 1, Z: 1}}
+	pose := TransformFromEuler(Vec3{Y: 1}, Vec3{Z: 0.35}, Vec3{X: 1, Y: 1, Z: 1})
 	key := TransformKey{Time: 0.25, Transform: pose}
 	transaction := Transaction{ID: "certify:m2-agent-animation", Actor: "agent://studio-certifier", Mode: ModePropose, ExpectedRevision: document.Revision, Operations: []Operation{{Kind: OpSetBonePose, ArmatureID: "arm", BoneID: "lower", Transform: &pose}, {Kind: OpSetAnimationKey, ClipID: "reach", TrackID: "lower-track", Key: &key}, {Kind: OpSolveIK, ArmatureID: "arm", ConstraintID: "reach-ik"}}}
 	previewReceipt, preview, err := workspace.Execute(transaction)

@@ -112,14 +112,9 @@ func armatureGlobalMatrices(armature Armature, posed bool) (map[ID]matrix4, erro
 func identityMatrix() matrix4 { return matrix4{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1} }
 
 func transformMatrix(value Transform) matrix4 {
-	cx, sx := math.Cos(value.Rotation.X), math.Sin(value.Rotation.X)
-	cy, sy := math.Cos(value.Rotation.Y), math.Sin(value.Rotation.Y)
-	cz, sz := math.Cos(value.Rotation.Z), math.Sin(value.Rotation.Z)
-	rx := matrix4{1, 0, 0, 0, 0, cx, -sx, 0, 0, sx, cx, 0, 0, 0, 0, 1}
-	ry := matrix4{cy, 0, sy, 0, 0, 1, 0, 0, -sy, 0, cy, 0, 0, 0, 0, 1}
-	rz := matrix4{cz, -sz, 0, 0, sz, cz, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
+	rotation := value.canonical().Rotation.rotationMatrix()
 	scale := matrix4{value.Scale.X, 0, 0, 0, 0, value.Scale.Y, 0, 0, 0, 0, value.Scale.Z, 0, 0, 0, 0, 1}
-	result := multiplyMatrix(multiplyMatrix(multiplyMatrix(rz, ry), rx), scale)
+	result := multiplyMatrix(rotation, scale)
 	result[3], result[7], result[11] = value.Position.X, value.Position.Y, value.Position.Z
 	return result
 }

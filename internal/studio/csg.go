@@ -36,7 +36,7 @@ func applyCSGBoolean(document *Document, operation Operation) ([]ID, error) {
 	if left.Parent != right.Parent {
 		return nil, fmt.Errorf("csg operands must share a parent")
 	}
-	if left.Transform.Rotation != (Vec3{}) || right.Transform.Rotation != (Vec3{}) || !unitScale(left.Transform.Scale) || !unitScale(right.Transform.Scale) {
+	if !left.Transform.Rotation.IsIdentity() || !right.Transform.Rotation.IsIdentity() || !unitScale(left.Transform.Scale) || !unitScale(right.Transform.Scale) {
 		return nil, fmt.Errorf("csg operands currently require identity rotation and scale")
 	}
 	leftGeometry, err := evaluateModifiers(left.Mesh.Geometry, left.Mesh.Modifiers)

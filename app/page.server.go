@@ -97,11 +97,10 @@ func executeHumanTransform(workspace *studio.Workspace, values map[string]string
 		ExpectedRevision: revision,
 		Operations: []studio.Operation{{
 			Kind: studio.OpSetTransform, Target: target,
-			Transform: &studio.Transform{
-				Position: studio.Vec3{X: x, Y: y, Z: z},
-				Rotation: studio.Vec3{X: rx, Y: ry, Z: rz},
-				Scale:    entity.Transform.Scale,
-			},
+			Transform: func() *studio.Transform {
+				value := studio.TransformFromEuler(studio.Vec3{X: x, Y: y, Z: z}, studio.Vec3{X: rx, Y: ry, Z: rz}, entity.Transform.Scale)
+				return &value
+			}(),
 		}},
 	}
 	receipt, _, err := workspace.Execute(transaction)
@@ -259,10 +258,11 @@ func executeHumanBonePose(workspace *studio.Workspace, values map[string]string)
 	if value, exists := armature.Pose[boneID]; exists {
 		pose = value
 	}
-	pose.Rotation, err = parseHumanVec3(values, "rx", "ry", "rz")
+	pose.Euler, err = parseHumanVec3(values, "rx", "ry", "rz")
 	if err != nil {
 		return studio.Receipt{}, err
 	}
+	pose.Rotation = studio.QuaternionFromEuler(pose.Euler)
 	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-bone-pose-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSetBonePose, ArmatureID: armatureID, BoneID: boneID, Transform: &pose}}})
 	return receipt, err
 }
@@ -293,10 +293,11 @@ func executeHumanAnimationKey(workspace *studio.Workspace, values map[string]str
 		return studio.Receipt{}, fmt.Errorf("time: %w", err)
 	}
 	transform := track.Keys[0].Transform
-	transform.Rotation, err = parseHumanVec3(values, "rx", "ry", "rz")
+	transform.Euler, err = parseHumanVec3(values, "rx", "ry", "rz")
 	if err != nil {
 		return studio.Receipt{}, err
 	}
+	transform.Rotation = studio.QuaternionFromEuler(transform.Euler)
 	key := studio.TransformKey{Time: keyTime, Transform: transform}
 	receipt, _, err := workspace.Execute(studio.Transaction{ID: fmt.Sprintf("human-animation-key-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{{Kind: studio.OpSetAnimationKey, ClipID: clipID, TrackID: trackID, Key: &key}}})
 	return receipt, err

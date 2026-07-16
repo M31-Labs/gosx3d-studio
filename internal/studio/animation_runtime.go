@@ -193,9 +193,10 @@ func RetargetAnimationClip(document Document, mapID, clipID, newID ID, name stri
 		newTrack := TransformTrack{ID: ID(fmt.Sprintf("%s--%s", newID, targetBoneID)), Armature: mapping.Target, Bone: targetBoneID}
 		for _, key := range track.Keys {
 			positionDelta := addVec(key.Transform.Position, scaleVec(sourceBone.Rest.Position, -1))
-			rotationDelta := addVec(key.Transform.Rotation, scaleVec(sourceBone.Rest.Rotation, -1))
+			rotationDelta := sourceBone.Rest.Rotation.Inverse().Mul(key.Transform.Rotation.Normalized())
 			key.Transform.Position = addVec(targetBone.Rest.Position, scaleVec(positionDelta, scale))
-			key.Transform.Rotation = addVec(targetBone.Rest.Rotation, rotationDelta)
+			key.Transform.Rotation = targetBone.Rest.Rotation.Normalized().Mul(rotationDelta).Normalized()
+			key.Transform.Euler = key.Transform.Rotation.Euler()
 			newTrack.Keys = append(newTrack.Keys, key)
 		}
 		result.Tracks[newTrack.ID] = newTrack
