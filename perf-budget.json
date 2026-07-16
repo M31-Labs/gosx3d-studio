@@ -1,5 +1,19 @@
 {
   "defaultProfile": "starter",
+  "documentOperations": {
+    "entityCount": 1000,
+    "iterationsForGate": 5,
+    "setTransformDirectMs": 100,
+    "undoMs": 100,
+    "compileFullMs": 40,
+    "exactPickMs": 40,
+    "fingerprintMs": 12,
+    "validateMs": 8,
+    "specSelectionFeedbackMs": 16,
+    "specInspectorEditMs": 50,
+    "specUndoMs": 100,
+    "notes": "Gate values are regression tripwires measured on a 1,000-entity synthetic scene (best-of-N, dev hardware x2 headroom). The spec* fields record the product targets from spec section 19; they are aspirations until the O(document) clone/marshal costs in the command bus are addressed."
+  },
   "profiles": {
     "studio-shell": {
       "description": "Initial server-rendered GoSX 3D Studio shell budget.",
