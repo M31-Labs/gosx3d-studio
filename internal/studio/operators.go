@@ -38,6 +38,8 @@ func applyMeshOperation(document *Document, operation Operation) ([]ID, error) {
 		err = projectPlanarUV(&entity.Mesh.Geometry, operation)
 	case OpDissolveEdges:
 		err = dissolveEdges(&entity.Mesh.Geometry, operation)
+	case OpBevelEdges:
+		err = bevelEdges(&entity.Mesh.Geometry, operation)
 	case OpBridgeLoops:
 		err = bridgeLoops(&entity.Mesh.Geometry, operation)
 	case OpLoopCut:
@@ -799,4 +801,120 @@ func removeID(values []ID, target ID) []ID {
 		}
 	}
 	return out
+}
+
+// bevelEdges replaces one shared interior edge with an inset quad. The floor
+// implementation bevels exactly one stable edge whose endpoints belong only
+// to the two adjacent faces; multi-edge bevels, segment counts, and vertex
+// bevels remain explicitly partial.
+func bevelEdges(geometry *Geometry, operation Operation) error {
+	if len(operation.Edges) != 1 {
+		return fmt.Errorf("bevel-edges currently requires exactly one stable edge id")
+	}
+	if operation.NewID == "" {
+		return fmt.Errorf("bevel-edges requires newId for the bevel face")
+	}
+	if !(operation.Amount > 0) {
+		return fmt.Errorf("bevel-edges requires a positive amount")
+	}
+	var target MeshEdge
+	found := false
+	for _, edge := range MeshEdges(*geometry) {
+		if edge.ID == operation.Edges[0] {
+			target, found = edge, true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("edge %q does not exist", operation.Edges[0])
+	}
+	adjacent := make([]int, 0, 2)
+	for index, face := range geometry.Faces {
+		if faceContainsEdge(face, target.A, target.B) {
+			adjacent = append(adjacent, index)
+		}
+	}
+	if len(adjacent) != 2 {
+		return fmt.Errorf("edge %q belongs to %d faces, want exactly two", target.ID, len(adjacent))
+	}
+	endpointUse := map[ID]bool{target.A: true, target.B: true}
+	for index, face := range geometry.Faces {
+		if index == adjacent[0] || index == adjacent[1] {
+			continue
+		}
+		for _, vertex := range face.Vertices {
+			if endpointUse[vertex] {
+				return fmt.Errorf("bevel endpoint %q is shared with face %q; only two-face endpoints are supported", vertex, face.ID)
+			}
+		}
+	}
+	vertices, _ := topologyIndexes(*geometry)
+	existing := map[ID]bool{}
+	for _, vertex := range geometry.Vertices {
+		existing[vertex.ID] = true
+	}
+	replacement := map[int]map[ID]ID{adjacent[0]: {}, adjacent[1]: {}}
+	created := make([]Vertex, 0, 4)
+	for _, faceIndex := range adjacent {
+		face := geometry.Faces[faceIndex]
+		for _, endpoint := range []ID{target.A, target.B} {
+			other := target.B
+			if endpoint == target.B {
+				other = target.A
+			}
+			var neighbor ID
+			for position, vertex := range face.Vertices {
+				if vertex != endpoint {
+					continue
+				}
+				before := face.Vertices[(position-1+len(face.Vertices))%len(face.Vertices)]
+				after := face.Vertices[(position+1)%len(face.Vertices)]
+				neighbor = before
+				if neighbor == other {
+					neighbor = after
+				}
+			}
+			if neighbor == "" || neighbor == other {
+				return fmt.Errorf("bevel endpoint %q has no offset direction in face %q", endpoint, face.ID)
+			}
+			from, to := vertices[endpoint], vertices[neighbor]
+			length := distanceVec(from.Position, to.Position)
+			if operation.Amount >= length {
+				return fmt.Errorf("bevel amount %.6f must be smaller than adjacent segment %.6f", operation.Amount, length)
+			}
+			fraction := operation.Amount / length
+			id := ID(fmt.Sprintf("bevel-%s-%s", endpoint, face.ID))
+			if existing[id] {
+				return fmt.Errorf("bevel vertex id %q already exists", id)
+			}
+			vertex := Vertex{ID: id, Position: lerpVec(from.Position, to.Position, fraction), Normal: lerpVec(from.Normal, to.Normal, fraction)}
+			if from.UV != nil && to.UV != nil {
+				vertex.UV = &Vec2{X: from.UV.X + (to.UV.X-from.UV.X)*fraction, Y: from.UV.Y + (to.UV.Y-from.UV.Y)*fraction}
+			}
+			created = append(created, vertex)
+			existing[id] = true
+			replacement[faceIndex][endpoint] = id
+		}
+	}
+	for _, faceIndex := range adjacent {
+		face := geometry.Faces[faceIndex]
+		for position, vertex := range face.Vertices {
+			if substitute, ok := replacement[faceIndex][vertex]; ok {
+				face.Vertices[position] = substitute
+			}
+		}
+		geometry.Faces[faceIndex] = face
+	}
+	kept := make([]Vertex, 0, len(geometry.Vertices)+2)
+	for _, vertex := range geometry.Vertices {
+		if vertex.ID != target.A && vertex.ID != target.B {
+			kept = append(kept, vertex)
+		}
+	}
+	geometry.Vertices = append(kept, created...)
+	geometry.Faces = append(geometry.Faces, Face{ID: operation.NewID, Vertices: []ID{
+		replacement[adjacent[0]][target.A], replacement[adjacent[0]][target.B],
+		replacement[adjacent[1]][target.B], replacement[adjacent[1]][target.A],
+	}})
+	return nil
 }

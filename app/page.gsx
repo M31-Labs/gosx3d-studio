@@ -432,6 +432,7 @@ func Page() Node {
 								<option value="triangulate-faces">triangulate-faces</option>
 								<option value="weld-vertices">weld-vertices</option>
 								<option value="dissolve-edges">dissolve-edges</option>
+								<option value="bevel-edges">bevel-edges</option>
 								<option value="recalculate-normals">recalculate-normals</option>
 								<option value="project-planar-uv">project-planar-uv</option>
 							</select>

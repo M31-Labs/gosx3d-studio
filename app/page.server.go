@@ -840,6 +840,8 @@ func executeHumanMeshOperator(workspace *studio.Workspace, values map[string]str
 		operation.Kind, operation.Vertices = studio.OpWeldVertices, ids
 	case "dissolve-edges":
 		operation.Kind, operation.Edges = studio.OpDissolveEdges, ids
+	case "bevel-edges":
+		operation.Kind, operation.Edges, operation.NewID = studio.OpBevelEdges, ids, studio.ID(fmt.Sprintf("bevel-face-%d", time.Now().UnixNano()))
 	case "recalculate-normals":
 		operation.Kind = studio.OpRecalculateNormals
 	case "project-planar-uv":

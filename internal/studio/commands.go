@@ -41,6 +41,7 @@ const (
 	OpRecalculateNormals    OperationKind = "recalculate-normals"
 	OpProjectPlanarUV       OperationKind = "project-planar-uv"
 	OpDissolveEdges         OperationKind = "dissolve-edges"
+	OpBevelEdges            OperationKind = "bevel-edges"
 	OpBridgeLoops           OperationKind = "bridge-loops"
 	OpLoopCut               OperationKind = "loop-cut"
 	OpSetCurveControlPoint  OperationKind = "set-curve-control-point"
@@ -677,7 +678,7 @@ func assetChanges(transaction Transaction, before, after Document) []AssetChange
 
 func isMeshOperation(kind OperationKind) bool {
 	switch kind {
-	case OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpApplyModifier, OpCSGBoolean:
+	case OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBevelEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpApplyModifier, OpCSGBoolean:
 		return true
 	default:
 		return false
@@ -768,7 +769,7 @@ func applyOperation(document *Document, operation Operation) ([]ID, error) {
 		return applyReparent(document, operation)
 	case OpDuplicateEntity:
 		return applyDuplicate(document, operation)
-	case OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut:
+	case OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBevelEdges, OpBridgeLoops, OpLoopCut:
 		return applyMeshOperation(document, operation)
 	case OpSetCurveControlPoint:
 		return applySetCurveControlPoint(document, operation)
@@ -886,7 +887,7 @@ type ActionCapability struct {
 }
 
 func ActionCatalog() []ActionCapability {
-	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine, OpSetRenderGraph, OpCollectUnusedAssets}
+	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBevelEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine, OpSetRenderGraph, OpCollectUnusedAssets}
 	out := make([]ActionCapability, 0, len(kinds))
 	for _, kind := range kinds {
 		undo := kind != OpCollectUnusedAssets

@@ -99,7 +99,10 @@ The command bus implements `set-field`, `set-transform`, create/delete/reparent/
 duplicate, material assignment, rename, and checkpoint-safe indexed-mesh
 `extrude-faces`, `inset-faces`, `triangulate-faces`, `weld-vertices`, `fill-face`,
 `recalculate-normals`, `project-planar-uv`, `dissolve-edges`, `bridge-loops`,
-and crack-free stable-edge `loop-cut` traversal across quad rings.
+crack-free stable-edge `loop-cut` traversal across quad rings, and a
+single-segment `bevel-edges` floor that replaces a two-face interior edge
+with a deterministic offset quad (multi-edge bevels, segments, and vertex
+bevels remain partial).
 Object, vertex, deterministic derived-edge, and face
 selection carry the SceneDoc revision; topology changes either preserve valid
 stable IDs or downgrade invalidated sub-object selection to its owning object.
