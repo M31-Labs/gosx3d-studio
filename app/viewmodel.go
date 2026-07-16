@@ -371,3 +371,41 @@ func modelingView(document studio.Document, workspace *studio.Workspace, selecte
 	}
 	return view
 }
+
+// agentView projects real automation state into the Agent Actions panel: the
+// latest propose-mode receipt, session activity counts, and whether the
+// bearer-token mutation surface is configured at all.
+func agentView(workspace *studio.Workspace, tokenConfigured bool) map[string]any {
+	view := map[string]any{
+		"tokenConfigured": fmt.Sprint(tokenConfigured),
+		"authority":       "read: open GET APIs · propose/direct: bearer token",
+		"proposalPresent": false,
+		"proposalSummary": "No proposals this session. POST /api/studio/actions/preview validates a transaction without mutating.",
+		"proposalRevision": "—", "proposalAffected": "—", "proposalFingerprint": "—", "proposalActor": "—",
+		"agentCount": "0", "humanCount": "0",
+	}
+	if !tokenConfigured {
+		view["authority"] = "read: open GET APIs · propose/direct: DISABLED (set STUDIO_ACTION_TOKEN)"
+	}
+	if workspace == nil {
+		return view
+	}
+	agents, humans := 0, 0
+	for _, receipt := range workspace.RecentReceipts(32) {
+		if strings.HasPrefix(receipt.Actor, "human://") {
+			humans++
+			continue
+		}
+		agents++
+		if receipt.Mode == studio.ModePropose && view["proposalPresent"] == false {
+			view["proposalPresent"] = true
+			view["proposalSummary"] = fmt.Sprintf("%s · %d operation(s) validated without mutation", receipt.TransactionID, receipt.Operations)
+			view["proposalRevision"] = fmt.Sprintf("%04d", receipt.BeforeRevision)
+			view["proposalAffected"] = fmt.Sprint(len(receipt.Affected))
+			view["proposalFingerprint"] = shortID(studio.ID(receipt.AfterFingerprint))
+			view["proposalActor"] = receipt.Actor
+		}
+	}
+	view["agentCount"], view["humanCount"] = fmt.Sprint(agents), fmt.Sprint(humans)
+	return view
+}

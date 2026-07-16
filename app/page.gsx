@@ -565,34 +565,46 @@ func Page() Node {
 					<h2 id="agent-title">Agent Actions</h2>
 					<span class="runtime-label">typed surface</span>
 				</header>
-				<div class="authority-tabs">
-					<button type="button">Read</button>
-					<button type="button" class="active">Propose</button>
-					<button type="button" disabled>Trusted Direct</button>
-				</div>
+				<p class="placeholder-copy">{data.agent.authority}</p>
 				<div class="proposal">
-					<span class="overline">Proposed transaction</span>
-					<p>
-						Assign jade material to selected pieces, preserve roughness, then certify native output.
-					</p>
+					<span class="overline">Latest agent proposal</span>
+					<p>{data.agent.proposalSummary}</p>
 					<dl>
 						<div>
+							<dt>Actor</dt>
+							<dd>{data.agent.proposalActor}</dd>
+						</div>
+						<div>
 							<dt>Revision</dt>
-							<dd>0001</dd>
+							<dd>{data.agent.proposalRevision}</dd>
 						</div>
 						<div>
-							<dt>Entities</dt>
-							<dd>10 pieces</dd>
+							<dt>Affected</dt>
+							<dd>{data.agent.proposalAffected}</dd>
 						</div>
 						<div>
-							<dt>Evidence</dt>
-							<dd class="pending">Not run</dd>
+							<dt>Result fingerprint</dt>
+							<dd class="pending">{data.agent.proposalFingerprint}</dd>
 						</div>
 					</dl>
 				</div>
+				<div class="proposal">
+					<span class="overline">Session activity</span>
+					<dl>
+						<div>
+							<dt>Agent transactions</dt>
+							<dd class="runtime-label">{data.agent.agentCount}</dd>
+						</div>
+						<div>
+							<dt>Human transactions</dt>
+							<dd class="authored">{data.agent.humanCount}</dd>
+						</div>
+					</dl>
+					<p class="placeholder-copy">Proposals commit by resubmitting the same operations to /api/studio/transactions/call with the expected revision.</p>
+				</div>
 				<div class="agent-actions">
-					<button type="button" class="primary" disabled>Apply atomically</button>
-					<button type="button">Inspect manifest</button>
+					<a class="primary" href="/api/studio/actions">Action catalog ↗</a>
+					<a href="/api/studio/manifest">Inspect manifest ↗</a>
 				</div>
 			</aside>
 		</div>

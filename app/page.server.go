@@ -635,6 +635,7 @@ func init() {
 				"certification": liveCertificationView(document),
 				"materials":     materialsView(document),
 				"modeling":      modelingView(document, boundWorkspace(), selected),
+				"agent":         agentView(boundWorkspace(), strings.TrimSpace(os.Getenv("STUDIO_ACTION_TOKEN")) != ""),
 				"history":        historyView(boundWorkspace()),
 				"historySummary": fmt.Sprintf("%d entities · revision %04d · command history below", len(document.Entities), document.Revision),
 				"project":       projectView(boundWorkspace()),
