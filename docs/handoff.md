@@ -22,7 +22,10 @@ certification, and desktop packaging remain unimplemented.
 
 ## First vertical slice
 
-1. Bind browser selection to the canonical exact CPU query and surface disagreements.
+1. ~~Bind browser selection to the canonical exact CPU query and surface
+   disagreements.~~ Done: viewport clicks confirm through `ExactPick`, the
+   canonical result wins, and disagreements are machine-readable on selection
+   state and in certification (`m1-viewport-exact-selection`).
 2. Generate Hierarchy and Inspector UI from live document and descriptors.
 3. Add semantic diffs, inverse IDs, telemetry correlation, and action JSON Schemas.
 4. Integrate editor-facing `scene/cert` dimensions and Selena evidence.

@@ -54,8 +54,10 @@ released GoSX version.
 - `GET /api/studio/project/status` plus authenticated
   `POST /api/studio/project/save` for explicit-save and recovery state.
 - Scene3D viewport clicks and Hierarchy links converge on canonical workspace
-  selection; the Transform Inspector converges on the same transaction path as
-  agents.
+  selection; viewport clicks are confirmed against the exact CPU ray query,
+  the canonical result wins disagreements, and GPU/CPU divergences surface as
+  machine-readable diagnostics. The Transform Inspector converges on the same
+  transaction path as agents.
 - Authenticated `POST /api/studio/actions/preview`, `/transactions/call`,
   `/undo`, and `/redo` paths using `STUDIO_ACTION_TOKEN`.
 - Preview/direct command contracts with deterministic fingerprints, revision

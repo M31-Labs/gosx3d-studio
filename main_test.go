@@ -18,7 +18,7 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"gosx:scene3d:input", "input.selectedID", "/api/studio/viewport-selection"} {
+	for _, required := range []string{"gosx:scene3d:input", "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("selection bridge missing %q", required)
 		}

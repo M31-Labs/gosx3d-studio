@@ -55,6 +55,36 @@ func (w *Workspace) SelectionState() SelectionState {
 	return cloneSelection(w.selectionState)
 }
 
+// RecordViewportConfirmation retains the latest viewport pick confirmation so
+// selection state queries expose how the current selection was decided and
+// whether the GPU and CPU pickers disagreed.
+func (w *Workspace) RecordViewportConfirmation(confirmation SelectionConfirmation) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	value := confirmation
+	if confirmation.Disagreement != nil {
+		disagreement := *confirmation.Disagreement
+		value.Disagreement = &disagreement
+	}
+	w.viewportConfirmation = &value
+}
+
+// ViewportConfirmation returns the most recent viewport pick confirmation, or
+// nil when no confirmed viewport selection has happened this session.
+func (w *Workspace) ViewportConfirmation() *SelectionConfirmation {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	if w.viewportConfirmation == nil {
+		return nil
+	}
+	value := *w.viewportConfirmation
+	if value.Disagreement != nil {
+		disagreement := *value.Disagreement
+		value.Disagreement = &disagreement
+	}
+	return &value
+}
+
 func (w *Workspace) selectLocked(request SelectionRequest) error {
 	if request.ExpectedRevision != w.doc.Revision {
 		return fmt.Errorf("%w: have %d, expected %d", ErrRevisionConflict, w.doc.Revision, request.ExpectedRevision)

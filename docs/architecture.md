@@ -106,6 +106,18 @@ stable IDs or downgrade invalidated sub-object selection to its owning object.
 Receipts include normalized operator records with selection, coordinate space,
 parameters, result IDs, and checkpoint policy.
 
+Browser viewport clicks are confirmed by the canonical exact CPU query, not
+trusted from the GPU picker alone. The click forwards the GPU-reported world
+hit; the server probes that point with a short exact ray, the canonical result
+decides the selection, and any GPU/CPU divergence is recorded as a
+machine-readable disagreement (id-mismatch, position-gap, or no-cpu-hit) on
+the selection state and in the `m1-viewport-exact-selection` certification
+check. Clients that cannot report a world hit degrade explicitly to id-only
+validation. The probe direction derives from the authored document camera, so
+confirmation of clicks made from an orbited interactive camera can
+conservatively report a near-miss; carrying the live view ray through the
+mount event is tracked engine work.
+
 `GET /api/studio/geometry/analysis?target=<stable-id>` performs browser-free,
 revision-tagged indexed-mesh inspection. It reports topology counts, bounds,
 surface area, closed-mesh volume, boundary and non-manifold edges, degenerate

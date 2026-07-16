@@ -17,15 +17,26 @@
     if (!input || input.type !== "click" || !input.selectedID) return;
 
     var selected = String(input.selectedID);
+    var payload = { selected: selected, kind: String(input.selectedKind || "") };
+    if (isFinite(input.worldX) && isFinite(input.worldY) && isFinite(input.worldZ)) {
+      payload.world = { x: Number(input.worldX), y: Number(input.worldY), z: Number(input.worldZ) };
+    }
+    if (isFinite(input.targetTriangleIndex)) payload.triangle = Number(input.targetTriangleIndex);
+    if (isFinite(input.depth)) payload.depth = Number(input.depth);
     request("/api/studio/viewport-selection", {
       method: "POST",
       headers: { "Accept": "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify({ selected: selected, kind: String(input.selectedKind || "") })
+      body: JSON.stringify(payload)
     }).then(function (response) {
       if (!response || !response.ok) return;
-      var url = new URL(window.location.href);
-      url.searchParams.set("selection", selected);
-      window.location.assign(url.pathname + url.search);
+      return response.json().catch(function () { return null; }).then(function (confirmation) {
+        // The canonical CPU query decides the selection; follow its answer so
+        // a GPU/CPU disagreement never becomes silent editor selection truth.
+        var confirmed = confirmation && confirmation.selected ? String(confirmation.selected) : selected;
+        var url = new URL(window.location.href);
+        url.searchParams.set("selection", confirmed);
+        window.location.assign(url.pathname + url.search);
+      });
     }).catch(function (error) {
       if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
         window.__gosx.reportFailure("viewport selection", error, {

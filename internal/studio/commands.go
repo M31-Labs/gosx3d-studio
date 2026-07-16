@@ -252,16 +252,17 @@ type workspaceJournal interface {
 }
 
 type Workspace struct {
-	mu             sync.RWMutex
-	doc            Document
-	undo           []historyEntry
-	redo           []historyEntry
-	journal        workspaceJournal
-	selection      []ID
-	selectionState SelectionState
-	savedRevision  uint64
-	recovered      bool
-	projectDir     string
+	mu                   sync.RWMutex
+	doc                  Document
+	undo                 []historyEntry
+	redo                 []historyEntry
+	journal              workspaceJournal
+	selection            []ID
+	selectionState       SelectionState
+	viewportConfirmation *SelectionConfirmation
+	savedRevision        uint64
+	recovered            bool
+	projectDir           string
 }
 
 func (w *Workspace) Select(ids ...ID) error {

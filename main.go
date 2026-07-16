@@ -139,7 +139,7 @@ func main() {
 	})
 	app.API("GET /api/studio/selection", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
-		return map[string]any{"selection": workspace.Selection(), "state": workspace.SelectionState()}, nil
+		return map[string]any{"selection": workspace.Selection(), "state": workspace.SelectionState(), "viewportConfirmation": workspace.ViewportConfirmation()}, nil
 	})
 	app.API("GET /api/studio/geometry/analysis", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
@@ -206,10 +206,7 @@ func main() {
 	})
 	app.API("POST /api/studio/viewport-selection", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
-		var request struct {
-			Selected studio.ID `json:"selected"`
-			Kind     string    `json:"kind,omitempty"`
-		}
+		var request studio.ViewportPick
 		decoder := json.NewDecoder(io.LimitReader(ctx.Request.Body, 64<<10))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&request); err != nil {
@@ -219,14 +216,15 @@ func main() {
 		if err != nil {
 			return nil, err
 		}
-		selection, err := studio.ValidateViewportSelection(document, request.Selected, request.Kind)
+		confirmation, err := studio.ConfirmViewportSelection(document, request)
 		if err != nil {
 			return nil, statusError{http.StatusConflict, err}
 		}
-		if err := workspace.SelectAtRevision(document.Revision, selection.Selected); err != nil {
+		if err := workspace.SelectAtRevision(document.Revision, confirmation.Selected); err != nil {
 			return nil, commandError(err)
 		}
-		return selection, nil
+		workspace.RecordViewportConfirmation(confirmation)
+		return confirmation, nil
 	})
 	app.API("POST /api/studio/pick", func(ctx *server.Context) (any, error) {
 		if err := authorizeAction(ctx.Request, actionToken); err != nil {

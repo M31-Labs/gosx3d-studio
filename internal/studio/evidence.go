@@ -140,6 +140,12 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	}
 	add("m1-subobject-selection", selectionOK, fmt.Sprintf("vertices=4 edges=%d faces=1 revision=%d", len(edges), meshDocument.Revision))
 
+	agree, mismatch, confirmErr := certifyViewportConfirmation(document)
+	confirmationOK := confirmErr == nil &&
+		agree.Confirmed && agree.Method == "exact-cpu" && agree.Disagreement == nil &&
+		mismatch.Disagreement != nil && mismatch.Disagreement.Reason == "id-mismatch" && mismatch.Selected == agree.Selected
+	add("m1-viewport-exact-selection", confirmationOK, fmt.Sprintf("confirmed=%s method=%s disagreementReason=%s canonicalWins=%t", agree.Selected, agree.Method, disagreementReason(mismatch.Disagreement), mismatch.Selected == agree.Selected))
+
 	operations := []Operation{{Kind: OpInsetFaces, Target: "cert-mesh", Faces: []ID{"quad"}, Amount: 0.25}, {Kind: OpTriangulateFaces, Target: "cert-mesh", Faces: []ID{"quad"}}, {Kind: OpRecalculateNormals, Target: "cert-mesh"}, {Kind: OpProjectPlanarUV, Target: "cert-mesh", Projection: "xz"}}
 	transaction := Transaction{ID: "certify:m1-topology", Actor: "certifier://studio", Mode: ModePropose, ExpectedRevision: meshDocument.Revision, Operations: operations}
 	previewReceipt, previewDocument, err := workspace.Execute(transaction)
@@ -967,4 +973,52 @@ func firstMaterialID(document Document) ID {
 
 func (report EvidenceReport) MarshalDeterministic() ([]byte, error) {
 	return json.MarshalIndent(report, "", "  ")
+}
+
+// certifyViewportConfirmation proves the viewport selection contract: a true
+// GPU-reported surface point confirms through the canonical exact CPU query,
+// and a wrong claimed ID at that same point is corrected by the CPU result
+// with a visible id-mismatch diagnostic.
+func certifyViewportConfirmation(document Document) (SelectionConfirmation, SelectionConfirmation, error) {
+	_, origin := FirstPickTarget(document)
+	picked, err := ExactPick(document, PickRequest{Origin: origin, Direction: Vec3{Y: -1}})
+	if err != nil {
+		return SelectionConfirmation{}, SelectionConfirmation{}, err
+	}
+	if picked.Selected == "" || picked.Trace.Closest == nil {
+		return SelectionConfirmation{}, SelectionConfirmation{}, fmt.Errorf("certification document produced no exact pick")
+	}
+	world := Vec3{X: picked.Trace.Closest.Point.X, Y: picked.Trace.Closest.Point.Y, Z: picked.Trace.Closest.Point.Z}
+	agree, err := ConfirmViewportSelection(document, ViewportPick{Selected: picked.Selected, Kind: "mesh", World: &world})
+	if err != nil {
+		return SelectionConfirmation{}, SelectionConfirmation{}, err
+	}
+	claimed := ID("")
+	ids := make([]string, 0, len(document.Entities))
+	for id := range document.Entities {
+		ids = append(ids, string(id))
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		entity := document.Entities[ID(id)]
+		if ID(id) != picked.Selected && entity.Visible && entity.Mesh != nil && entity.Mesh.Pickable {
+			claimed = ID(id)
+			break
+		}
+	}
+	if claimed == "" {
+		return SelectionConfirmation{}, SelectionConfirmation{}, fmt.Errorf("certification document has no second pickable entity")
+	}
+	mismatch, err := ConfirmViewportSelection(document, ViewportPick{Selected: claimed, Kind: "mesh", World: &world})
+	if err != nil {
+		return SelectionConfirmation{}, SelectionConfirmation{}, err
+	}
+	return agree, mismatch, nil
+}
+
+func disagreementReason(disagreement *SelectionDisagreement) string {
+	if disagreement == nil {
+		return "none"
+	}
+	return disagreement.Reason
 }
