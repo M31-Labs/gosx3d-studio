@@ -50,7 +50,18 @@ released GoSX version.
 - `GET /api/studio/scene-ir` for the shared compiled SceneIR snapshot.
 - `GET /api/studio/rig/skin?target=<stable-id>` for revision-tagged,
   browser-free deformed geometry and influence telemetry.
-- `GET /api/studio/actions`, `/descriptors`, and `/certification` for discovery.
+- `GET /api/studio/initialize` for the spec §13.1 handshake: protocol identity,
+  document identity, authority modes, and the action-surface summary.
+- `GET /api/studio/actions`, `/descriptors`, and `/certification` for
+  discovery; every mutating action descriptor carries input and output JSON
+  Schemas, and the read surface is enumerated as read-authority descriptors.
+- Human editing forms for transforms, material assignment and PBR/Selena
+  records, sub-object selection, seven deterministic mesh operators, undo and
+  redo — all converging on the same revision-safe transactions agents use.
+- A live Agent Actions panel (latest proposal receipt, session attribution
+  counts) and a command-history console fed by real receipts.
+- The certification card renders the live deterministic evidence run, cached
+  per document revision.
 - `GET /api/studio/project/status` plus authenticated
   `POST /api/studio/project/save` for explicit-save and recovery state.
 - Scene3D viewport clicks and Hierarchy links converge on canonical workspace
