@@ -106,6 +106,15 @@ stable IDs or downgrade invalidated sub-object selection to its owning object.
 Receipts include normalized operator records with selection, coordinate space,
 parameters, result IDs, and checkpoint policy.
 
+The compiled viewport attaches the engine `TransformControls` helper to the
+current selection at its composed world position, and the toolbar's
+Select/Move/Rotate/Scale buttons drive the shared `studio.viewport.gizmoMode`
+signal so the helper switches modes live without a page round-trip. This is
+honestly a visual helper: the engine documents pointer-drag mutation as the
+browser controls layer's tracked work and exposes no drag-commit output
+signal yet, so transform commits remain on the Inspector/agent transaction
+path until that engine contract exists.
+
 Browser viewport clicks are confirmed by the canonical exact CPU query, not
 trusted from the GPU picker alone. The click forwards the GPU-reported world
 hit; the server probes that point with a short exact ray, the canonical result

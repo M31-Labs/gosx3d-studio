@@ -44,10 +44,10 @@ func Page() Node {
 		</nav>
 		<div class="tool-bar" aria-label="Viewport tools">
 			<div class="tool-group">
-				<button type="button" class="tool active" aria-label="Select">↖</button>
-				<button type="button" class="tool" aria-label="Move">✣</button>
-				<button type="button" class="tool" aria-label="Rotate">↻</button>
-				<button type="button" class="tool" aria-label="Scale">↗</button>
+				<button type="button" class="tool active" aria-label="Select" data-gizmo-mode="">↖</button>
+				<button type="button" class="tool" aria-label="Move" data-gizmo-mode="translate">✣</button>
+				<button type="button" class="tool" aria-label="Rotate" data-gizmo-mode="rotate">↻</button>
+				<button type="button" class="tool" aria-label="Scale" data-gizmo-mode="scale">↗</button>
 			</div>
 			<div class="tool-group segmented" aria-label="Transform orientation">
 				<button type="button" class="active">Global</button>
@@ -493,6 +493,7 @@ func Page() Node {
 		</section>
 		<script src="/studio-selection.js" defer></script>
 		<script src="/studio-project.js" defer></script>
+		<script src="/studio-gizmo.js" defer></script>
 		<footer class="status-bar">
 			<span class="runtime-label">GoSX server</span>
 			<span>Scene revision {data.revision}</span>

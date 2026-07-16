@@ -25,6 +25,27 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	}
 }
 
+func TestGizmoBridgeDrivesSharedModeSignal(t *testing.T) {
+	asset, err := os.ReadFile("public/studio-gizmo.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{"studio.viewport.gizmoMode", "__gosx_set_shared_signal", "data-gizmo-mode"} {
+		if !strings.Contains(string(asset), required) {
+			t.Fatalf("gizmo bridge missing %q", required)
+		}
+	}
+	page, err := os.ReadFile("app/page.gsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{`data-gizmo-mode="translate"`, `data-gizmo-mode="rotate"`, `data-gizmo-mode="scale"`, "/studio-gizmo.js"} {
+		if !strings.Contains(string(page), required) {
+			t.Fatalf("page toolbar missing %q", required)
+		}
+	}
+}
+
 func TestAssetContentHandlerVerifiesHashAndServesImmutableBytes(t *testing.T) {
 	project := t.TempDir()
 	input := filepath.Join(t.TempDir(), "model.gltf")

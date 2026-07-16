@@ -124,5 +124,5 @@ func (compiler *IncrementalCompiler) Compile(document Document, selected ID) (sc
 		nodes = append(nodes, node)
 	}
 	compiler.cache = next
-	return compileProps(document, nodes), stats, nil
+	return appendSelectionGizmo(document, selected, compileProps(document, nodes)), stats, nil
 }

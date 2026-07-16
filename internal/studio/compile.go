@@ -28,7 +28,44 @@ func CompileSelected(document Document, selected ID) (scene.Props, error) {
 		}
 		nodes = append(nodes, node)
 	}
-	return compileProps(document, nodes), nil
+	return appendSelectionGizmo(document, selected, compileProps(document, nodes)), nil
+}
+
+// appendSelectionGizmo attaches the engine TransformControls helper to the
+// current selection. It is a visual helper surface whose mode follows
+// GizmoInputSignal live; pointer-drag mutation is tracked engine work, so
+// transform commits stay on the Inspector/agent transaction path.
+func appendSelectionGizmo(document Document, selected ID, props scene.Props) scene.Props {
+	if _, ok := document.Entities[selected]; !ok || selected == "" {
+		return props
+	}
+	props.Graph.Nodes = append(props.Graph.Nodes, scene.TransformControls{
+		ID:       "studio-gizmo",
+		Target:   string(selected),
+		Mode:     "translate",
+		Size:     1.2,
+		Position: toSceneVec(worldPosition(document, selected)),
+	})
+	return props
+}
+
+// worldPosition composes the parent transform chain so root-level helpers can
+// track entities that sit inside groups.
+func worldPosition(document Document, id ID) Vec3 {
+	chain := make([]Transform, 0, 4)
+	for current := id; current != ""; {
+		entity, ok := document.Entities[current]
+		if !ok {
+			break
+		}
+		chain = append(chain, entity.Transform)
+		current = entity.Parent
+	}
+	matrix := identityMatrix()
+	for i := len(chain) - 1; i >= 0; i-- {
+		matrix = multiplyMatrix(matrix, transformMatrix(chain[i]))
+	}
+	return Vec3{X: matrix[3], Y: matrix[7], Z: matrix[11]}
 }
 
 func compileProps(document Document, nodes []scene.Node) scene.Props {
@@ -41,6 +78,7 @@ func compileProps(document Document, nodes []scene.Node) scene.Props {
 		FillHeight:           scene.Bool(true),
 		PickSignalNamespace:  "studio.viewport",
 		SelectionInputSignal: "studio.viewport.selectedID",
+		GizmoInputSignal:     "studio.viewport.gizmoMode",
 		Camera: scene.PerspectiveCamera{
 			Position: toSceneVec(document.Camera.Position),
 			Rotation: toSceneEuler(document.Camera.Rotation),
