@@ -54,17 +54,14 @@ func TestValidateRejectsNonNormalizedQuaternion(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsNonUnitEntityScaleMatchingCompile(t *testing.T) {
+func TestValidateRejectsGroupScaleMatchingCompile(t *testing.T) {
 	document := SampleDocument()
-	entity := document.Entities["board"]
+	entity := document.Entities["scene-root"]
 	entity.Transform.Scale = Vec3{X: 2, Y: 1, Z: 1}
-	document.Entities["board"] = entity
-	if _, err := Compile(document); err == nil {
-		t.Fatal("compile must reject non-unit scale while lowering lacks scale support")
-	}
+	document.Entities["scene-root"] = entity
 	err := document.Validate()
-	if err == nil || !strings.Contains(err.Error(), "scale") {
-		t.Fatalf("validation must reject what compilation rejects, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "scale-free") {
+		t.Fatalf("validation must reject group scale exactly like compilation, got %v", err)
 	}
 }
 
@@ -92,5 +89,41 @@ func TestEulerAndQuaternionAuthoringCompileEquivalently(t *testing.T) {
 	}
 	if !reflect.DeepEqual(first.SceneIR(), second.SceneIR()) {
 		t.Fatal("euler-authored and quaternion-authored rotations must lower to identical SceneIR")
+	}
+}
+
+func TestMeshEntityScaleCompilesThroughSceneIR(t *testing.T) {
+	document := SampleDocument()
+	entity := document.Entities["board"]
+	entity.Transform.Scale = Vec3{X: 2, Y: 1, Z: 1.5}
+	document.Entities["board"] = entity
+	if err := document.Validate(); err != nil {
+		t.Fatalf("mesh scale must validate since gosx v0.31.18: %v", err)
+	}
+	props, err := Compile(document)
+	if err != nil {
+		t.Fatalf("mesh scale must compile: %v", err)
+	}
+	found := false
+	for _, object := range props.SceneIR().Objects {
+		if object.ID == "board" {
+			found = true
+			if object.ScaleX != 2 || object.ScaleZ != 1.5 {
+				t.Fatalf("board scale = %v,%v,%v", object.ScaleX, object.ScaleY, object.ScaleZ)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("board missing from SceneIR")
+	}
+}
+
+func TestGroupEntityScaleStaysAnHonestyGate(t *testing.T) {
+	document := SampleDocument()
+	entity := document.Entities["scene-root"]
+	entity.Transform.Scale = Vec3{X: 2, Y: 2, Z: 2}
+	document.Entities["scene-root"] = entity
+	if err := document.Validate(); err == nil {
+		t.Fatal("group scale must stay rejected: engine groups are scale-free by design")
 	}
 }

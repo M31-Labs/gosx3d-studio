@@ -42,7 +42,7 @@
   document.addEventListener("gosx:scene3d:input", function (event) {
     var detail = event && event.detail;
     var input = detail && detail.kind === "gizmo-commit" ? detail.input : null;
-    if (!input || input.phase !== "end" || !input.target || input.mode === "scale") return;
+    if (!input || input.phase !== "end" || !input.target) return;
 
     request("/api/studio/gizmo-commit", {
       method: "POST",

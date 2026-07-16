@@ -118,8 +118,8 @@ func CompileIR(document Document) (scene.SceneIR, error) {
 
 func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scene.Node, error)) (scene.Node, error) {
 	entity := document.Entities[id]
-	if !unitScale(entity.Transform.Scale) {
-		return nil, fmt.Errorf("entity %q has scale %+v; SceneDoc scale compilation is not implemented", id, entity.Transform.Scale)
+	if !unitScale(entity.Transform.Scale) && entity.Mesh == nil && entity.Model == nil {
+		return nil, fmt.Errorf("entity %q is a group/light with scale %+v; engine group transforms are scale-free by design", id, entity.Transform.Scale)
 	}
 	children := make([]scene.Node, 0, len(entity.Children))
 	for _, childID := range entity.Children {
@@ -186,8 +186,8 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 }
 
 func compileEntityValue(document Document, entity Entity, runtimeID ID, selected bool, children []scene.Node) (scene.Node, error) {
-	if !unitScale(entity.Transform.Scale) {
-		return nil, fmt.Errorf("entity %q has scale %+v; SceneDoc scale compilation is not implemented", runtimeID, entity.Transform.Scale)
+	if !unitScale(entity.Transform.Scale) && entity.Mesh == nil && entity.Model == nil {
+		return nil, fmt.Errorf("entity %q is a group/light with scale %+v; engine group transforms are scale-free by design", runtimeID, entity.Transform.Scale)
 	}
 	position := toSceneVec(entity.Transform.Position)
 	rotation := toSceneRotation(entity.Transform.Rotation)
@@ -223,9 +223,13 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 		}
 		visible := entity.Visible
 		pickable := entity.Mesh.Pickable
+		meshScale := scene.Vector3{}
+		if !unitScale(entity.Transform.Scale) {
+			meshScale = toSceneVec(entity.Transform.Scale)
+		}
 		return scene.Mesh{
 			ID: string(runtimeID), Geometry: geometry,
-			Material: compiledMaterial,
+			Material: compiledMaterial, Scale: meshScale,
 			Position: position, Rotation: rotation, Visible: &visible, Pickable: &pickable,
 			CastShadow: entity.Mesh.CastShadow, ReceiveShadow: entity.Mesh.ReceiveShadow,
 			Children: children,
@@ -238,7 +242,7 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 		pickable := entity.Model.Pickable
 		return scene.Model{
 			ID: string(runtimeID), Src: asset.URI,
-			Position: position, Rotation: rotation, Scale: scene.Vector3{X: 1, Y: 1, Z: 1},
+			Position: position, Rotation: rotation, Scale: toSceneVec(scaleOrUnit(entity.Transform.Scale)),
 			Bounds: entity.Model.Bounds, Fit: entity.Model.Fit, FitAlign: entity.Model.FitAlign,
 			CastShadow: entity.Model.CastShadow, ReceiveShadow: entity.Model.ReceiveShadow,
 			Pickable: &pickable, Visible: &visible,
@@ -327,3 +331,12 @@ func toSceneEuler(value Vec3) scene.Euler { return scene.Rotate(value.X, value.Y
 // euler contract; the engine rebuilds the same quaternion internally because
 // both sides share the Rz*Ry*Rx convention.
 func toSceneRotation(value Quaternion) scene.Euler { return toSceneEuler(value.Euler()) }
+
+// scaleOrUnit treats the zero-value scale as unit for lowering into engine
+// records that require an explicit scale.
+func scaleOrUnit(scale Vec3) Vec3 {
+	if scale == (Vec3{}) {
+		return Vec3{X: 1, Y: 1, Z: 1}
+	}
+	return scale
+}

@@ -467,8 +467,8 @@ func (d Document) Validate() error {
 		if !finiteTransform(entity.Transform) {
 			return fmt.Errorf("entity %q transform must be finite with a normalized rotation", key)
 		}
-		if !unitScale(entity.Transform.Scale) {
-			return fmt.Errorf("entity %q has scale %+v; SceneDoc scale compilation is not implemented", key, entity.Transform.Scale)
+		if !unitScale(entity.Transform.Scale) && entity.Mesh == nil && entity.Model == nil {
+			return fmt.Errorf("entity %q is a group/light with scale %+v; engine group transforms are scale-free by design", key, entity.Transform.Scale)
 		}
 		if entity.Parent == "" && !rootSet[key] {
 			return fmt.Errorf("unlisted root entity %q", key)

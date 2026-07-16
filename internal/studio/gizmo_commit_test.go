@@ -53,7 +53,7 @@ func TestApplyGizmoCommitRotateComposesQuaternionDelta(t *testing.T) {
 	}
 }
 
-func TestApplyGizmoCommitScaleFailsExplicitlyUntilEngineScaleLands(t *testing.T) {
+func TestApplyGizmoCommitScalePerAxisOnMeshes(t *testing.T) {
 	document := SampleDocument()
 	workspace, err := NewWorkspace(document)
 	if err != nil {
@@ -61,7 +61,18 @@ func TestApplyGizmoCommitScaleFailsExplicitlyUntilEngineScaleLands(t *testing.T)
 	}
 	target, _ := FirstPickTarget(document)
 	factor := 2.0
-	if _, err := ApplyGizmoCommit(workspace, GizmoCommit{Target: target, Mode: "scale", ScaleFactor: &factor}); err == nil {
-		t.Fatal("scale commits must fail explicitly while SceneDoc scale compilation is unsupported")
+	if _, err := ApplyGizmoCommit(workspace, GizmoCommit{Target: target, Mode: "scale", Axis: "x", ScaleFactor: &factor}); err != nil {
+		t.Fatalf("mesh scale commit must succeed since gosx v0.31.18: %v", err)
+	}
+	changed, _ := workspace.Snapshot()
+	scale := changed.Entities[target].Transform.Scale
+	if scale.X != 2 || scale.Y != 1 || scale.Z != 1 {
+		t.Fatalf("scale = %+v, want x doubled only", scale)
+	}
+	if _, err := Compile(changed); err != nil {
+		t.Fatalf("scaled document must compile: %v", err)
+	}
+	if _, err := ApplyGizmoCommit(workspace, GizmoCommit{Target: "scene-root", Mode: "scale", Axis: "x", ScaleFactor: &factor}); err == nil {
+		t.Fatal("group scale commits must stay rejected")
 	}
 }

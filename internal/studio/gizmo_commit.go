@@ -48,7 +48,25 @@ func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 		transform.Rotation = delta.Mul(transform.Rotation).Normalized()
 		transform.Euler = transform.Rotation.Euler()
 	case "scale":
-		return Receipt{}, fmt.Errorf("scale commits are not supported: SceneDoc scale compilation is an explicit honesty gate until engine mesh scale lands")
+		if commit.ScaleFactor == nil {
+			return Receipt{}, fmt.Errorf("scale commit requires scaleFactor")
+		}
+		if entity.Mesh == nil && entity.Model == nil {
+			return Receipt{}, fmt.Errorf("scale commits require a mesh or model entity; engine group transforms are scale-free by design")
+		}
+		scale := scaleOrUnit(transform.Scale)
+		factor := *commit.ScaleFactor
+		switch strings.ToLower(strings.TrimSpace(commit.Axis)) {
+		case "x":
+			scale.X *= factor
+		case "y":
+			scale.Y *= factor
+		case "z":
+			scale.Z *= factor
+		default:
+			scale = Vec3{X: scale.X * factor, Y: scale.Y * factor, Z: scale.Z * factor}
+		}
+		transform.Scale = scale
 	default:
 		return Receipt{}, fmt.Errorf("unsupported gizmo mode %q", commit.Mode)
 	}
