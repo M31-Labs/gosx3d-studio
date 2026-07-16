@@ -163,6 +163,22 @@ func main() {
 		encoded := base64.StdEncoding.EncodeToString(payload)
 		return map[string]any{"report": report, "glbBase64": encoded}, nil
 	})
+	app.API("GET /api/studio/export/go", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		packageName := ctx.Request.URL.Query().Get("package")
+		if packageName == "" {
+			packageName = "scene"
+		}
+		payload, report, err := studio.ExportEmbeddedGo(document, packageName)
+		if err != nil {
+			return nil, statusError{http.StatusBadRequest, err}
+		}
+		return map[string]any{"report": report, "source": string(payload)}, nil
+	})
 	app.API("GET /api/studio/export/scene-ir", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
 		document, err := workspace.Snapshot()
