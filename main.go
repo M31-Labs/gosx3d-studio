@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -148,6 +149,19 @@ func main() {
 			return nil, err
 		}
 		return map[string]any{"report": report, "document": json.RawMessage(payload)}, nil
+	})
+	app.API("GET /api/studio/export/glb", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			return nil, err
+		}
+		payload, report, err := studio.ExportGLB(document)
+		if err != nil {
+			return nil, err
+		}
+		encoded := base64.StdEncoding.EncodeToString(payload)
+		return map[string]any{"report": report, "glbBase64": encoded}, nil
 	})
 	app.API("GET /api/studio/export/scene-ir", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
