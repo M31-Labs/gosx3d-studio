@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 const maxJournalRecords = 256
@@ -130,12 +131,7 @@ func quarantineCorruptDocument(path string, data []byte) (string, error) {
 	if err := os.Rename(path, quarantine); err != nil {
 		return "", err
 	}
-	dir, err := os.Open(filepath.Dir(path))
-	if err == nil {
-		err = dir.Sync()
-		_ = dir.Close()
-	}
-	return quarantine, err
+	return quarantine, syncDir(filepath.Dir(path))
 }
 
 func MigrateAndWriteSeed(path string, seed Document) error {
@@ -212,12 +208,7 @@ func writeDocumentAtomic(path string, document Document) error {
 	if err = os.Rename(tempPath, path); err != nil {
 		return err
 	}
-	dir, err := os.Open(filepath.Dir(path))
-	if err == nil {
-		err = dir.Sync()
-		_ = dir.Close()
-	}
-	return err
+	return syncDir(filepath.Dir(path))
 }
 
 func (j *Journal) bound() error {
@@ -275,4 +266,23 @@ func DecodeTransaction(reader io.Reader) (Transaction, error) {
 		return Transaction{}, err
 	}
 	return transaction, nil
+}
+
+// syncDir makes a rename durable by fsyncing the containing directory on
+// platforms that support it. Windows cannot fsync a directory handle
+// ("Access is denied"); NTFS journals rename metadata, so the sync is
+// skipped there — matching standard Go durability practice.
+func syncDir(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	err = dir.Sync()
+	if closeErr := dir.Close(); err == nil {
+		err = closeErr
+	}
+	return err
 }
