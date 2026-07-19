@@ -350,6 +350,12 @@ valid journal snapshot, reports recovered/dirty state, skips torn records, and
 quarantines corrupt canonical bytes before continuing. Undo/redo use the same
 journal path.
 
+Every Studio form is a GoSX managed form (`data-gosx-form`) and the selection
+and gizmo bridges route through the built-in page-navigation morph, so
+transactions refresh the panels in place without tearing down the Scene3D
+mount or reloading the page; a browser without the navigation runtime
+degrades to ordinary posts and reloads.
+
 The GSX viewport spreads the same compiled `scene.Props` consumed by the native
 harness. No DOM board or editor-only renderer graph is scene truth.
 

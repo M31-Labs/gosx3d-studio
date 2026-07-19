@@ -44,7 +44,13 @@
         var confirmed = confirmation && confirmation.selected ? String(confirmation.selected) : selected;
         var url = new URL(window.location.href);
         url.searchParams.set("selection", confirmed);
-        window.location.assign(url.pathname + url.search);
+        var target = url.pathname + url.search;
+        if (window.__gosx_page_nav && typeof window.__gosx_page_nav.navigate === "function") {
+          // Morph in place: panels refresh, the Scene3D mount stays alive.
+          window.__gosx_page_nav.navigate(target, { preserveScroll: true });
+        } else {
+          window.location.assign(target);
+        }
       });
     }).catch(function (error) {
       if (window.__gosx && typeof window.__gosx.reportFailure === "function") {

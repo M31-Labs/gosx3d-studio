@@ -265,6 +265,12 @@ func TestRecoverySkipsTornJournalTailAndQuarantinesCorruptSave(t *testing.T) {
 func TestProjectSwitchIsRevisionSafeAndRequiresExplicitDiscard(t *testing.T) {
 	firstDir := t.TempDir()
 	secondDir := t.TempDir()
+	// The workspace canonicalizes project paths (Abs + EvalSymlinks); resolve
+	// the expectation the same way so Windows 8.3 short names and macOS
+	// /private symlinked temp dirs compare equal.
+	if resolved, err := filepath.EvalSymlinks(secondDir); err == nil {
+		secondDir = resolved
+	}
 	workspace, err := OpenWorkspace(firstDir, SampleDocument())
 	if err != nil {
 		t.Fatal(err)

@@ -18,7 +18,7 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"gosx:scene3d:input", "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray"} {
+	for _, required := range []string{"gosx:scene3d:input", "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", "__gosx_page_nav"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("selection bridge missing %q", required)
 		}
@@ -30,7 +30,7 @@ func TestGizmoBridgeDrivesSharedModeSignal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"studio.viewport.gizmoMode", "__gosx_set_shared_signal", "data-gizmo-mode", "gizmo-commit", "/api/studio/gizmo-commit", "input.phase"} {
+	for _, required := range []string{"studio.viewport.gizmoMode", "__gosx_set_shared_signal", "data-gizmo-mode", "gizmo-commit", "/api/studio/gizmo-commit", "input.phase", "__gosx_page_nav"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("gizmo bridge missing %q", required)
 		}

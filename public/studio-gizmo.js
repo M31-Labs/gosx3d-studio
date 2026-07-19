@@ -50,9 +50,14 @@
       body: JSON.stringify(input)
     }).then(function (response) {
       if (!response || !response.ok) return;
-      // One committed drag = one transaction = one undo step; reload so the
-      // Inspector, history, and revision-stamped forms reflect it.
-      window.location.reload();
+      // One committed drag = one transaction = one undo step; morph-refresh
+      // so the Inspector, history, and revision-stamped forms update without
+      // tearing down the viewport.
+      if (window.__gosx_page_nav && typeof window.__gosx_page_nav.navigate === "function") {
+        window.__gosx_page_nav.navigate(window.location.href, { replace: true, preserveScroll: true });
+      } else {
+        window.location.reload();
+      }
     }).catch(function (error) {
       if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
         window.__gosx.reportFailure("gizmo commit", error, {
