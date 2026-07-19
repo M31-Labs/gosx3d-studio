@@ -147,6 +147,35 @@ func Page() Node {
 						</li>
 					</Each>
 				</ul>
+				<form data-gosx-form method="post" action={actionPath("entityOp")} class="inspector-form hierarchy-ops-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="target" value={data.inspector.id}></input>
+					<input type="hidden" name="expectedRevision" value={data.revision}></input>
+					<strong>Selected: {data.inspector.name}</strong>
+					<label>
+						Operation
+						<select name="op">
+							<option value="rename">rename</option>
+							<option value="duplicate">duplicate</option>
+							<option value="reparent">reparent</option>
+							<option value="delete">delete</option>
+						</select>
+					</label>
+					<label>
+						New name (rename)
+						<input name="name" value={data.inspector.name}></input>
+					</label>
+					<label>
+						New parent (reparent)
+						<select name="parent">
+							<Each of={data.hierarchy} as="candidate">
+								<option value={candidate.id}>{candidate.name}</option>
+							</Each>
+						</select>
+					</label>
+					<p class="form-status">{action.message}</p>
+					<button type="submit" class="inspector-apply">Apply entity operation</button>
+				</form>
 			</aside>
 			<section class="viewport-panel" aria-labelledby="viewport-title">
 				<header class="viewport-header">
@@ -463,6 +492,66 @@ func Page() Node {
 						</label>
 						<p class="form-status">{action.message}</p>
 						<button type="submit" class="inspector-apply">Run operator</button>
+					</form>
+				</details>
+				<details>
+					<summary>Prefabs</summary>
+					<dl class="properties">
+						<Each of={data.prefabs} as="prefab">
+							<div>
+								<dt>{prefab.name}</dt>
+								<dd>{prefab.kind} · {prefab.entities} entities</dd>
+							</div>
+						</Each>
+					</dl>
+					<form data-gosx-form method="post" action={actionPath("prefabOp")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<label>
+							Operation
+							<select name="op">
+								<option value="capture">capture selection as prefab</option>
+								<option value="instantiate">instantiate</option>
+								<option value="override">set instance override</option>
+								<option value="delete">delete definition</option>
+							</select>
+						</label>
+						<div class="vector-inputs">
+							<label>
+								Prefab ID
+								<input name="prefabId" placeholder="my-prefab"></input>
+							</label>
+							<label>
+								Name (capture)
+								<input name="name" placeholder="My prefab"></input>
+							</label>
+						</div>
+						<label>
+							Parent (instantiate)
+							<select name="parent">
+								<Each of={data.hierarchy} as="candidate">
+									<option value={candidate.id}>{candidate.name}</option>
+								</Each>
+							</select>
+						</label>
+						<div class="vector-inputs">
+							<label>
+								Local entity (override)
+								<input name="prefabEntity" placeholder="local-id"></input>
+							</label>
+							<label>
+								Material (override)
+								<select name="material">
+									<option value="">keep</option>
+									<Each of={data.materials} as="material">
+										<option value={material.id}>{material.name}</option>
+									</Each>
+								</select>
+							</label>
+						</div>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Apply prefab operation</button>
 					</form>
 				</details>
 				<details>

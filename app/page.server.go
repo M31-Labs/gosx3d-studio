@@ -443,6 +443,28 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"prefabOp": func(ctx *action.Context) error {
+				receipt, err := executeHumanPrefabOp(boundWorkspace(), ctx.FormData)
+				if err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"prefab": err.Error()})
+					return nil
+				}
+				ctx.Redirect(fmt.Sprintf("/?selection=%s&applied=%s", ctx.FormData["target"], receipt.TransactionID))
+				return nil
+			},
+			"entityOp": func(ctx *action.Context) error {
+				receipt, err := executeHumanEntityOp(boundWorkspace(), ctx.FormData)
+				if err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"hierarchy": err.Error()})
+					return nil
+				}
+				selection := ctx.FormData["target"]
+				if ctx.FormData["op"] == "delete" {
+					selection = ""
+				}
+				ctx.Redirect(fmt.Sprintf("/?selection=%s&applied=%s", selection, receipt.TransactionID))
+				return nil
+			},
 			"selectSubobjects": func(ctx *action.Context) error {
 				if err := executeHumanSubobjectSelection(boundWorkspace(), ctx.FormData); err != nil {
 					ctx.ValidationFailure(err.Error(), map[string]string{"modeling": err.Error()})
@@ -635,6 +657,7 @@ func init() {
 				"certification": liveCertificationView(document),
 				"materials":     materialsView(document),
 				"modeling":      modelingView(document, boundWorkspace(), selected),
+				"prefabs":       prefabsView(document),
 				"agent":         agentView(boundWorkspace(), strings.TrimSpace(os.Getenv("STUDIO_ACTION_TOKEN")) != ""),
 				"cameraHome":    fmt.Sprintf("%g,%g,%g", document.Camera.Position.X, document.Camera.Position.Y, document.Camera.Position.Z),
 				"history":        historyView(boundWorkspace()),
@@ -852,6 +875,93 @@ func executeHumanMeshOperator(workspace *studio.Workspace, values map[string]str
 	}
 	receipt, _, err := workspace.Execute(studio.Transaction{
 		ID: fmt.Sprintf("human-mesh-%s-%d", operation.Kind, time.Now().UnixNano()), Actor: "human://local-ui",
+		Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{operation},
+	})
+	return receipt, err
+}
+
+// executeHumanEntityOp routes the Hierarchy panel's entity operations
+// (rename, duplicate, delete, reparent) through the shared revision-safe
+// transaction path.
+func executeHumanEntityOp(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	target := studio.ID(strings.TrimSpace(values["target"]))
+	if target == "" {
+		return studio.Receipt{}, fmt.Errorf("select an entity first")
+	}
+	operation := studio.Operation{Target: target}
+	switch strings.TrimSpace(values["op"]) {
+	case "rename":
+		operation.Kind = studio.OpRenameEntity
+		operation.Name = strings.TrimSpace(values["name"])
+	case "duplicate":
+		operation.Kind = studio.OpDuplicateEntity
+		operation.NewID = studio.ID(fmt.Sprintf("%s-copy-%d", target, time.Now().UnixNano()))
+	case "delete":
+		operation.Kind = studio.OpDeleteEntity
+	case "reparent":
+		operation.Kind = studio.OpReparentEntity
+		operation.Parent = studio.ID(strings.TrimSpace(values["parent"]))
+	default:
+		return studio.Receipt{}, fmt.Errorf("unsupported entity operation %q", values["op"])
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{
+		ID: fmt.Sprintf("human-entity-%s-%d", values["op"], time.Now().UnixNano()), Actor: "human://local-ui",
+		Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{operation},
+	})
+	return receipt, err
+}
+
+// executeHumanPrefabOp routes the Prefabs panel operations through the shared
+// transaction path: capture selection, instantiate, set a simple override, or
+// delete an unreferenced definition.
+func executeHumanPrefabOp(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	operation := studio.Operation{}
+	switch strings.TrimSpace(values["op"]) {
+	case "capture":
+		operation.Kind = studio.OpCapturePrefab
+		operation.Target = studio.ID(strings.TrimSpace(values["target"]))
+		operation.PrefabID = studio.ID(strings.TrimSpace(values["prefabId"]))
+		operation.Name = strings.TrimSpace(values["name"])
+	case "instantiate":
+		operation.Kind = studio.OpInstantiatePrefab
+		operation.PrefabID = studio.ID(strings.TrimSpace(values["prefabId"]))
+		operation.NewID = studio.ID(fmt.Sprintf("%s-instance-%d", operation.PrefabID, time.Now().UnixNano()))
+		operation.Parent = studio.ID(strings.TrimSpace(values["parent"]))
+	case "override":
+		operation.Kind = studio.OpSetPrefabOverride
+		operation.Target = studio.ID(strings.TrimSpace(values["target"]))
+		operation.PrefabEntity = studio.ID(strings.TrimSpace(values["prefabEntity"]))
+		override := studio.PrefabEntityOverride{}
+		if material := strings.TrimSpace(values["material"]); material != "" {
+			override.Material = studio.ID(material)
+		}
+		if visible := strings.TrimSpace(values["visible"]); visible != "" {
+			value := visible == "true" || visible == "on"
+			override.Visible = &value
+		}
+		operation.PrefabOverride = &override
+	case "delete":
+		operation.Kind = studio.OpDeletePrefab
+		operation.PrefabID = studio.ID(strings.TrimSpace(values["prefabId"]))
+	default:
+		return studio.Receipt{}, fmt.Errorf("unsupported prefab operation %q", values["op"])
+	}
+	receipt, _, err := workspace.Execute(studio.Transaction{
+		ID: fmt.Sprintf("human-prefab-%s-%d", values["op"], time.Now().UnixNano()), Actor: "human://local-ui",
 		Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{operation},
 	})
 	return receipt, err

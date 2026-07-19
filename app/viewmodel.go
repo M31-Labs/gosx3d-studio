@@ -409,3 +409,18 @@ func agentView(workspace *studio.Workspace, tokenConfigured bool) map[string]any
 	view["agentCount"], view["humanCount"] = fmt.Sprint(agents), fmt.Sprint(humans)
 	return view
 }
+
+// prefabsView lists prefab definitions for the Prefabs panel forms.
+func prefabsView(document studio.Document) []map[string]any {
+	ids := sortedMapIDs(document.Prefabs)
+	out := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		definition := document.Prefabs[id]
+		kind := "definition"
+		if definition.Base != "" {
+			kind = "variant of " + string(definition.Base)
+		}
+		out = append(out, map[string]any{"id": string(id), "name": definition.Name, "kind": kind, "entities": fmt.Sprint(len(definition.Entities))})
+	}
+	return out
+}

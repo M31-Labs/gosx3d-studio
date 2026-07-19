@@ -352,3 +352,91 @@ func TestHumanMeshOperatorConvergesWithSubobjectSelection(t *testing.T) {
 		t.Fatal("undo did not restore authored topology")
 	}
 }
+
+func TestHumanEntityOpsShareRevisionSafePath(t *testing.T) {
+	document := studio.SampleDocument()
+	workspace, err := studio.NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := studio.ID("piece-player-1-01")
+	rev := func() string {
+		snapshot, _ := workspace.Snapshot()
+		return strconv.FormatUint(snapshot.Revision, 10)
+	}
+	if _, err := executeHumanEntityOp(workspace, map[string]string{"op": "rename", "target": string(target), "name": "Hero piece", "expectedRevision": rev()}); err != nil {
+		t.Fatal(err)
+	}
+	renamed, _ := workspace.Snapshot()
+	if renamed.Entities[target].Name != "Hero piece" {
+		t.Fatalf("rename failed: %+v", renamed.Entities[target].Name)
+	}
+	receipt, err := executeHumanEntityOp(workspace, map[string]string{"op": "duplicate", "target": string(target), "expectedRevision": rev()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	duplicated, _ := workspace.Snapshot()
+	if len(duplicated.Entities) != len(renamed.Entities)+1 {
+		t.Fatalf("duplicate did not add an entity: receipt=%+v", receipt)
+	}
+	if _, err := executeHumanEntityOp(workspace, map[string]string{"op": "reparent", "target": string(target), "parent": "board", "expectedRevision": rev()}); err != nil {
+		t.Fatal(err)
+	}
+	reparented, _ := workspace.Snapshot()
+	if reparented.Entities[target].Parent != "board" {
+		t.Fatalf("reparent failed: parent=%s", reparented.Entities[target].Parent)
+	}
+	if _, err := executeHumanEntityOp(workspace, map[string]string{"op": "delete", "target": string(target), "expectedRevision": rev()}); err != nil {
+		t.Fatal(err)
+	}
+	deleted, _ := workspace.Snapshot()
+	if _, exists := deleted.Entities[target]; exists {
+		t.Fatal("delete failed")
+	}
+	if _, restored, err := workspace.Undo(deleted.Revision, "human://tester"); err != nil {
+		t.Fatal(err)
+	} else if _, exists := restored.Entities[target]; !exists {
+		t.Fatal("undo did not restore deleted entity")
+	}
+	if _, err := executeHumanEntityOp(workspace, map[string]string{"op": "rename", "target": string(target), "name": "x", "expectedRevision": "1"}); err == nil {
+		t.Fatal("stale revision accepted")
+	}
+}
+
+func TestHumanPrefabOpsShareRevisionSafePath(t *testing.T) {
+	document := studio.SampleDocument()
+	workspace, err := studio.NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rev := func() string {
+		snapshot, _ := workspace.Snapshot()
+		return strconv.FormatUint(snapshot.Revision, 10)
+	}
+	if _, err := executeHumanPrefabOp(workspace, map[string]string{"op": "capture", "target": "piece-player-1-01", "prefabId": "piece-prefab", "name": "Piece prefab", "expectedRevision": rev()}); err != nil {
+		t.Fatal(err)
+	}
+	captured, _ := workspace.Snapshot()
+	if _, ok := captured.Prefabs["piece-prefab"]; !ok {
+		t.Fatal("capture did not create the definition")
+	}
+	if _, err := executeHumanPrefabOp(workspace, map[string]string{"op": "instantiate", "prefabId": "piece-prefab", "parent": "scene-root", "expectedRevision": rev()}); err != nil {
+		t.Fatal(err)
+	}
+	instantiated, _ := workspace.Snapshot()
+	found := ""
+	for id, entity := range instantiated.Entities {
+		if entity.Prefab != nil && entity.Prefab.Prefab == "piece-prefab" {
+			found = string(id)
+		}
+	}
+	if found == "" {
+		t.Fatal("instantiate did not create an instance")
+	}
+	if _, err := studio.Compile(instantiated); err != nil {
+		t.Fatalf("instance did not compile: %v", err)
+	}
+	if _, err := executeHumanPrefabOp(workspace, map[string]string{"op": "delete", "prefabId": "piece-prefab", "expectedRevision": rev()}); err == nil {
+		t.Fatal("delete of a referenced prefab must fail")
+	}
+}
