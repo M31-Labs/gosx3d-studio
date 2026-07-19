@@ -6,7 +6,7 @@
     "setTransformDirectMs": 100,
     "undoMs": 100,
     "compileFullMs": 40,
-    "exactPickMs": 40,
+    "exactPickMs": 10,
     "fingerprintMs": 12,
     "validateMs": 8,
     "specSelectionFeedbackMs": 16,

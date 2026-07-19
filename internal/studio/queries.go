@@ -2,6 +2,7 @@ package studio
 
 import (
 	"fmt"
+	"sync"
 
 	"m31labs.dev/gosx/scene"
 )
@@ -53,11 +54,11 @@ func ValidateViewportSelection(document Document, selected ID, kind string) (Vie
 }
 
 func ExactPick(document Document, request PickRequest) (PickResult, error) {
-	props, err := Compile(document)
+	graph, err := compiledPickGraph(document)
 	if err != nil {
 		return PickResult{}, err
 	}
-	trace := scene.TraceGraph(props.Graph, scene.Ray{Origin: toSceneVec(request.Origin), Direction: toSceneVec(request.Direction)}, scene.PickableOnly())
+	trace := scene.TraceGraph(graph, scene.Ray{Origin: toSceneVec(request.Origin), Direction: toSceneVec(request.Direction)}, scene.PickableOnly())
 	result := PickResult{Trace: trace}
 	if trace.Closest != nil {
 		result.Selected = ID(trace.Closest.ID)
@@ -239,4 +240,41 @@ func confirmAlongReportedRay(document Document, pick ViewportPick, confirmation 
 		confirmation.Confirmed = true
 	}
 	return confirmation, nil
+}
+
+// pickGraphCache reuses the compiled scene graph across picks against the
+// same document revision+fingerprint. A click confirmation can trace twice
+// (selection + certification paths); recompiling per trace is the dominant
+// cost at scale.
+var pickGraphCache struct {
+	mu          sync.Mutex
+	revision    uint64
+	fingerprint string
+	graph       scene.Graph
+	valid       bool
+}
+
+func compiledPickGraph(document Document) (scene.Graph, error) {
+	fingerprint, err := document.Fingerprint()
+	if err != nil {
+		return scene.Graph{}, err
+	}
+	pickGraphCache.mu.Lock()
+	if pickGraphCache.valid && pickGraphCache.revision == document.Revision && pickGraphCache.fingerprint == fingerprint {
+		graph := pickGraphCache.graph
+		pickGraphCache.mu.Unlock()
+		return graph, nil
+	}
+	pickGraphCache.mu.Unlock()
+	props, err := Compile(document)
+	if err != nil {
+		return scene.Graph{}, err
+	}
+	pickGraphCache.mu.Lock()
+	pickGraphCache.revision = document.Revision
+	pickGraphCache.fingerprint = fingerprint
+	pickGraphCache.graph = props.Graph
+	pickGraphCache.valid = true
+	pickGraphCache.mu.Unlock()
+	return props.Graph, nil
 }

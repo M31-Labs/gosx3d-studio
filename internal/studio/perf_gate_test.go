@@ -160,7 +160,7 @@ func TestDocumentOperationBudgetsAtScale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gateDuration(t, "exact pick (includes full recompile today)", pickDuration, budgets.ExactPickMs)
+	gateDuration(t, "exact pick (revision-cached compiled graph)", pickDuration, budgets.ExactPickMs)
 
 	fingerprintDuration, err := bestDuration(budgets.IterationsForGate, func() error {
 		_, err := document.Fingerprint()
