@@ -329,6 +329,33 @@ func Page() Node {
 							</label>
 						</div>
 						<label>
+							Base color texture (image assets)
+							<select name="texture-color">
+								<option value="">none</option>
+								<Each of={data.imageAssets} as="image">
+									<option value={image.id}>{image.name}</option>
+								</Each>
+							</select>
+						</label>
+						<label>
+							Normal map
+							<select name="texture-normal">
+								<option value="">none</option>
+								<Each of={data.imageAssets} as="image">
+									<option value={image.id}>{image.name}</option>
+								</Each>
+							</select>
+						</label>
+						<label>
+							Roughness map
+							<select name="texture-roughness">
+								<option value="">none</option>
+								<Each of={data.imageAssets} as="image">
+									<option value={image.id}>{image.name}</option>
+								</Each>
+							</select>
+						</label>
+						<label>
 							Selena source (compiled before replacement; invalid source keeps the last valid material)
 							<textarea name="selenaSource" rows="6" spellcheck="false">{data.inspector.selenaSource}</textarea>
 						</label>

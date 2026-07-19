@@ -578,6 +578,13 @@ func applyDeleteAsset(document *Document, operation Operation) ([]ID, error) {
 			return nil, fmt.Errorf("asset %q is referenced by model %q", operation.AssetID, entity.ID)
 		}
 	}
+	for _, material := range document.Materials {
+		for channel, slot := range material.Textures {
+			if slot.Asset == operation.AssetID {
+				return nil, fmt.Errorf("asset %q is referenced by material %q texture %q", operation.AssetID, material.ID, channel)
+			}
+		}
+	}
 	for _, prefab := range document.Prefabs {
 		for _, entity := range prefab.Entities {
 			if entity.Model != nil && entity.Model.Asset == operation.AssetID {

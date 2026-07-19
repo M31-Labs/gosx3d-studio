@@ -325,6 +325,19 @@ func liveCertificationView(document studio.Document) map[string]any {
 	return view
 }
 
+// imageAssetsView lists image assets for texture slot selects.
+func imageAssetsView(document studio.Document) []map[string]any {
+	ids := sortedMapIDs(document.Assets)
+	out := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		asset := document.Assets[id]
+		if asset.Kind == "image" {
+			out = append(out, map[string]any{"id": string(id), "name": asset.SourceName})
+		}
+	}
+	return out
+}
+
 // materialsView lists all document materials for the assign-material select.
 func materialsView(document studio.Document) []map[string]any {
 	ids := make([]string, 0, len(document.Materials))

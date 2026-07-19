@@ -302,6 +302,17 @@ type Material struct {
 	Transmission float64       `json:"transmission,omitempty"`
 	Emissive     float64       `json:"emissive,omitempty"`
 	Selena       *SelenaShader `json:"selena,omitempty"`
+	Textures     map[string]TextureSlot `json:"textures,omitempty"`
+}
+
+// TextureSlot references a content-addressed image asset for one material
+// channel. Channels map onto the engine StandardMaterial texture transport:
+// color, normal, roughness, metalness, emissive.
+type TextureSlot struct {
+	Asset      ID     `json:"asset"`
+	ColorSpace string `json:"colorSpace,omitempty"`
+	Repeat     *Vec2  `json:"repeat,omitempty"`
+	Offset     *Vec2  `json:"offset,omitempty"`
 }
 
 type SelenaShader struct {
@@ -381,7 +392,7 @@ func (d Document) Validate() error {
 		if key == "" || material.ID != key {
 			return fmt.Errorf("material map key %q does not match id %q", key, material.ID)
 		}
-		if err := validateMaterialRecord(material); err != nil {
+		if err := validateMaterialRecord(material, d.Assets); err != nil {
 			return err
 		}
 	}

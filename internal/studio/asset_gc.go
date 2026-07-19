@@ -68,6 +68,11 @@ func PlanAssetGarbage(document Document) (AssetGCPlan, error) {
 			}
 		}
 	}
+	for _, material := range document.Materials {
+		for _, slot := range material.Textures {
+			visit(slot.Asset)
+		}
+	}
 	unused := map[ID]bool{}
 	for id := range document.Assets {
 		if !reachable[id] {

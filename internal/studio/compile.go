@@ -213,6 +213,21 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 			Color: material.Color, Roughness: material.Roughness, Metalness: material.Metalness,
 			Clearcoat: material.Clearcoat, Transmission: material.Transmission, Emissive: material.Emissive,
 		}
+		for channel, slot := range material.Textures {
+			uri := document.Assets[slot.Asset].URI
+			switch channel {
+			case "color":
+				standard.Texture = uri
+			case "normal":
+				standard.NormalMap = uri
+			case "roughness":
+				standard.RoughnessMap = uri
+			case "metalness":
+				standard.MetalnessMap = uri
+			case "emissive":
+				standard.EmissiveMap = uri
+			}
+		}
 		var compiledMaterial scene.Material = standard
 		if material.Selena != nil {
 			compiled, _, err := scene.CompileSelenaMaterial([]byte(material.Selena.Source), scene.SelenaMaterialOptions{Material: material.Selena.Material, Standard: standard})

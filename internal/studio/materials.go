@@ -12,7 +12,7 @@ func applySetMaterial(document *Document, operation Operation) ([]ID, error) {
 		return nil, fmt.Errorf("set-material requires materialRecord with id")
 	}
 	material := *operation.MaterialRecord
-	if err := validateMaterialRecord(material); err != nil {
+	if err := validateMaterialRecord(material, document.Assets); err != nil {
 		return nil, err
 	}
 	if material.Selena != nil {
@@ -41,7 +41,9 @@ func applyDeleteMaterial(document *Document, operation Operation) ([]ID, error) 
 	return []ID{operation.MaterialID}, nil
 }
 
-func validateMaterialRecord(material Material) error {
+var materialTextureChannels = map[string]bool{"color": true, "normal": true, "roughness": true, "metalness": true, "emissive": true}
+
+func validateMaterialRecord(material Material, assets map[ID]AssetRecord) error {
 	if material.ID == "" || strings.TrimSpace(material.Name) == "" || strings.TrimSpace(material.Color) == "" {
 		return fmt.Errorf("material id, name, and color are required")
 	}
@@ -59,6 +61,21 @@ func validateMaterialRecord(material Material) error {
 	}
 	if material.Selena != nil && (strings.TrimSpace(material.Selena.Material) == "" || strings.TrimSpace(material.Selena.Source) == "") {
 		return fmt.Errorf("material %q has incomplete Selena source", material.ID)
+	}
+	for channel, slot := range material.Textures {
+		if !materialTextureChannels[channel] {
+			return fmt.Errorf("material %q texture channel %q is not supported (color, normal, roughness, metalness, emissive)", material.ID, channel)
+		}
+		asset, ok := assets[slot.Asset]
+		if !ok {
+			return fmt.Errorf("material %q texture %q references missing asset %q", material.ID, channel, slot.Asset)
+		}
+		if asset.Kind != "image" {
+			return fmt.Errorf("material %q texture %q references non-image asset %q (kind %q)", material.ID, channel, slot.Asset, asset.Kind)
+		}
+		if slot.ColorSpace != "" && slot.ColorSpace != "srgb" && slot.ColorSpace != "linear" {
+			return fmt.Errorf("material %q texture %q color space %q must be srgb or linear", material.ID, channel, slot.ColorSpace)
+		}
 	}
 	return nil
 }

@@ -658,6 +658,7 @@ func init() {
 				"materials":     materialsView(document),
 				"modeling":      modelingView(document, boundWorkspace(), selected),
 				"prefabs":       prefabsView(document),
+				"imageAssets":   imageAssetsView(document),
 				"agent":         agentView(boundWorkspace(), strings.TrimSpace(os.Getenv("STUDIO_ACTION_TOKEN")) != ""),
 				"cameraHome":    fmt.Sprintf("%g,%g,%g", document.Camera.Position.X, document.Camera.Position.Y, document.Camera.Position.Z),
 				"history":        historyView(boundWorkspace()),
@@ -764,6 +765,18 @@ func executeHumanSetMaterial(workspace *studio.Workspace, values map[string]stri
 		if err := parse(name, into); err != nil {
 			return studio.Receipt{}, err
 		}
+	}
+	channels := []string{"color", "normal", "roughness", "metalness", "emissive"}
+	textures := map[string]studio.TextureSlot{}
+	for _, channel := range channels {
+		if asset := strings.TrimSpace(values["texture-"+channel]); asset != "" {
+			textures[channel] = studio.TextureSlot{Asset: studio.ID(asset)}
+		}
+	}
+	if len(textures) > 0 {
+		material.Textures = textures
+	} else {
+		material.Textures = nil
 	}
 	source := strings.TrimSpace(values["selenaSource"])
 	switch {
