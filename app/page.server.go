@@ -443,6 +443,14 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"playOp": func(ctx *action.Context) error {
+				if err := executeHumanPlayOp(boundWorkspace(), ctx.FormData); err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"play": err.Error()})
+					return nil
+				}
+				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
+				return nil
+			},
 			"prefabOp": func(ctx *action.Context) error {
 				receipt, err := executeHumanPrefabOp(boundWorkspace(), ctx.FormData)
 				if err != nil {
@@ -659,6 +667,7 @@ func init() {
 				"modeling":      modelingView(document, boundWorkspace(), selected),
 				"prefabs":       prefabsView(document),
 				"imageAssets":   imageAssetsView(document),
+				"play":          playView(boundWorkspace()),
 				"agent":         agentView(boundWorkspace(), strings.TrimSpace(os.Getenv("STUDIO_ACTION_TOKEN")) != ""),
 				"cameraHome":    fmt.Sprintf("%g,%g,%g", document.Camera.Position.X, document.Camera.Position.Y, document.Camera.Position.Z),
 				"history":        historyView(boundWorkspace()),
@@ -978,4 +987,25 @@ func executeHumanPrefabOp(workspace *studio.Workspace, values map[string]string)
 		Mode: studio.ModeDirect, ExpectedRevision: revision, Operations: []studio.Operation{operation},
 	})
 	return receipt, err
+}
+
+// executeHumanPlayOp drives play mode: enter clones the document into a
+// runtime world, step advances fixed ticks, exit discards runtime state.
+func executeHumanPlayOp(workspace *studio.Workspace, values map[string]string) error {
+	if workspace == nil {
+		return fmt.Errorf("Studio workspace is not bound")
+	}
+	switch strings.TrimSpace(values["op"]) {
+	case "enter":
+		return workspace.EnterPlay(studio.ID(strings.TrimSpace(values["simulationId"])))
+	case "step":
+		ticks, err := strconv.ParseUint(strings.TrimSpace(values["ticks"]), 10, 64)
+		if err != nil || ticks == 0 {
+			ticks = 1
+		}
+		return workspace.StepPlay(ticks, nil)
+	case "exit":
+		return workspace.ExitPlay()
+	}
+	return fmt.Errorf("unsupported play operation %q", values["op"])
 }

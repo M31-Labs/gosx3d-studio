@@ -66,11 +66,28 @@ func Page() Node {
 			</div>
 			<div class="tool-spacer"></div>
 			<div class="tool-group transport" aria-label="Playback">
-				<button type="button" disabled>◀</button>
-				<button type="button" disabled>▶</button>
-				<button type="button" disabled>■</button>
+				<form data-gosx-form method="post" action={actionPath("playOp")} class="menu-save-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<input type="hidden" name="op" value="enter"></input>
+					<input type="hidden" name="simulationId" value={data.timeline.simulationId}></input>
+					<button type="submit" title="Enter play mode (clones the document)">▶</button>
+				</form>
+				<form data-gosx-form method="post" action={actionPath("playOp")} class="menu-save-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<input type="hidden" name="op" value="step"></input>
+					<input type="hidden" name="ticks" value="60"></input>
+					<button type="submit" title="Step 60 fixed ticks">⏭</button>
+				</form>
+				<form data-gosx-form method="post" action={actionPath("playOp")} class="menu-save-form">
+					<input type="hidden" name="csrf_token" value={csrf.token}></input>
+					<input type="hidden" name="selection" value={data.inspector.id}></input>
+					<input type="hidden" name="op" value="exit"></input>
+					<button type="submit" title="Exit play mode (discards runtime state)">■</button>
+				</form>
 			</div>
-			<span class="frame-readout">Frame 0000 · 24 fps</span>
+			<span class="frame-readout">play={data.play.active} · tick {data.play.tick} · {data.play.diffs} runtime diffs</span>
 		</div>
 		<div class="workbench">
 			<aside class="panel project-panel" aria-labelledby="project-title">

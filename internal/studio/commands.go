@@ -261,6 +261,7 @@ type Workspace struct {
 	selection            []ID
 	selectionState       SelectionState
 	viewportConfirmation *SelectionConfirmation
+	play                 *playSession
 	receipts             []Receipt
 	savedRevision        uint64
 	recovered            bool

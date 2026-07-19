@@ -437,3 +437,12 @@ func prefabsView(document studio.Document) []map[string]any {
 	}
 	return out
 }
+
+// playView reports the play-mode session for the transport controls.
+func playView(workspace *studio.Workspace) map[string]any {
+	if workspace == nil {
+		return map[string]any{"active": "false", "tick": "0", "simulation": ""}
+	}
+	state := workspace.PlayState()
+	return map[string]any{"active": fmt.Sprint(state.Active), "tick": fmt.Sprint(state.Tick), "simulation": string(state.Simulation), "diffs": fmt.Sprint(len(workspace.PlayDiff()))}
+}

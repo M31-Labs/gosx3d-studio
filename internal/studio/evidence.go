@@ -154,6 +154,21 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	}
 	add("m1-export-loss-report", exportOK, fmt.Sprintf("scene3dBytes=%d scene3dLosses=%d sceneIRBytes=%d sceneIRLosses=%d roundTripEqual=%t", docReport.Bytes, len(docReport.Losses), irReport.Bytes, len(irReport.Losses), exportOK))
 
+	playOK := false
+	if playWorkspace, playErr := NewWorkspace(ArticulatedProofDocument()); playErr == nil {
+		playDoc, _ := playWorkspace.Snapshot()
+		before, _ := playDoc.Fingerprint()
+		if playWorkspace.EnterPlay("articulated-physics") == nil && playWorkspace.StepPlay(60, nil) == nil {
+			stepped, _ := playWorkspace.PlaySnapshot()
+			moved := stepped.Entities["physics-payload"].Transform.Position.Y < playDoc.Entities["physics-payload"].Transform.Position.Y
+			exitOK := playWorkspace.ExitPlay() == nil
+			afterDoc, _ := playWorkspace.Snapshot()
+			after, _ := afterDoc.Fingerprint()
+			playOK = moved && exitOK && before == after && playWorkspace.PlayState().Tick == 0
+		}
+	}
+	add("m2-play-mode", playOK, fmt.Sprintf("clone+60 fixed ticks moved the payload, exit discarded runtime state, canonical fingerprint stable=%t", playOK))
+
 	agree, mismatch, confirmErr := certifyViewportConfirmation(document)
 	rayAgree, rayErr := certifyViewportRayConfirmation(document)
 	confirmationOK := confirmErr == nil && rayErr == nil &&
