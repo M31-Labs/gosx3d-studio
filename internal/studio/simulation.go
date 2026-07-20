@@ -20,6 +20,34 @@ type SimulationProfile struct {
 	// (adopted from Box3D's design). Zero keeps the legacy single-step
 	// reference loop byte-identical for existing recordings.
 	SubSteps int `json:"subSteps,omitempty"`
+	// Joints constrain body pairs; the current floor is the distance joint
+	// family (limits, motors, springs). Revolute and prismatic joints are
+	// gated on body rotation landing.
+	Joints []PhysicsJoint `json:"joints,omitempty"`
+}
+
+// PhysicsJoint is a deterministic constraint between two profile bodies.
+// Kind "distance" supports: a rest Length (rigid rod when Stiffness is 0),
+// Min/MaxLength limits (free inside the range), a spring (Stiffness +
+// Damping, semi-implicit), and a motor that drives the current length
+// toward MotorTarget at MotorSpeed with impulses capped by MotorMaxForce.
+// When a motor is active the rest Length is reference-only (the motor owns
+// the axis); limits still clamp the range.
+type PhysicsJoint struct {
+	ID            ID      `json:"id"`
+	Kind          string  `json:"kind"`
+	BodyA         ID      `json:"bodyA"`
+	BodyB         ID      `json:"bodyB"`
+	AnchorA       Vec3    `json:"anchorA,omitempty"`
+	AnchorB       Vec3    `json:"anchorB,omitempty"`
+	Length        float64 `json:"length,omitempty"`
+	MinLength     float64 `json:"minLength,omitempty"`
+	MaxLength     float64 `json:"maxLength,omitempty"`
+	Stiffness     float64 `json:"stiffness,omitempty"`
+	Damping       float64 `json:"damping,omitempty"`
+	MotorTarget   float64 `json:"motorTarget,omitempty"`
+	MotorSpeed    float64 `json:"motorSpeed,omitempty"`
+	MotorMaxForce float64 `json:"motorMaxForce,omitempty"`
 }
 
 type PhysicsBody struct {
@@ -86,6 +114,15 @@ func validateSimulationProfile(profile SimulationProfile, entities map[ID]Entity
 	}
 	if profile.SubSteps < 0 || profile.SubSteps > 8 {
 		return fmt.Errorf("subSteps must be 0 (legacy solver) or 1..8")
+	}
+	if len(profile.Joints) > 0 && profile.SubSteps == 0 {
+		return fmt.Errorf("joints require the soft-step solver (subSteps >= 1)")
+	}
+	seenJoints := map[ID]bool{}
+	for _, joint := range profile.Joints {
+		if err := validatePhysicsJoint(joint, profile, entities, seenJoints); err != nil {
+			return fmt.Errorf("joint %q: %w", joint.ID, err)
+		}
 	}
 	seen := map[ID]bool{}
 	for _, id := range profile.Bodies {
@@ -320,4 +357,81 @@ func simulationChanges(transaction Transaction, before, after Document) []Simula
 		out = append(out, SimulationChange{Profile: operation.SimulationID, Ticks: operation.Ticks, BeforeHash: beforeSnapshot.Hash, AfterHash: afterSnapshot.Hash})
 	}
 	return out
+}
+
+func validatePhysicsJoint(joint PhysicsJoint, profile SimulationProfile, entities map[ID]Entity, seen map[ID]bool) error {
+	if joint.ID == "" || seen[joint.ID] {
+		return fmt.Errorf("id must be non-empty and unique")
+	}
+	seen[joint.ID] = true
+	if strings.ToLower(strings.TrimSpace(joint.Kind)) != "distance" {
+		return fmt.Errorf("kind %q is not supported; the current floor is \"distance\" (revolute/prismatic are gated on body rotation)", joint.Kind)
+	}
+	if joint.BodyA == joint.BodyB {
+		return fmt.Errorf("bodyA and bodyB must differ")
+	}
+	inProfile := map[ID]bool{}
+	for _, id := range profile.Bodies {
+		inProfile[id] = true
+	}
+	for _, id := range []ID{joint.BodyA, joint.BodyB} {
+		entity, ok := entities[id]
+		if !ok || entity.Physics == nil || !inProfile[id] {
+			return fmt.Errorf("body %q must be a profile body with a physics component", id)
+		}
+	}
+	values := []float64{joint.Length, joint.MinLength, joint.MaxLength, joint.Stiffness, joint.Damping, joint.MotorTarget, joint.MotorSpeed, joint.MotorMaxForce}
+	for _, value := range values {
+		if !finite(value) || value < 0 {
+			return fmt.Errorf("joint parameters must be finite and non-negative")
+		}
+	}
+	if joint.MaxLength > 0 && joint.MinLength > joint.MaxLength {
+		return fmt.Errorf("minLength must not exceed maxLength")
+	}
+	if !finiteVec(joint.AnchorA) || !finiteVec(joint.AnchorB) {
+		return fmt.Errorf("anchors must be finite")
+	}
+	return nil
+}
+
+// applySetSimulationJoint adds/replaces (Joint set) or removes (JointID set)
+// a distance joint on a simulation profile. Post-apply document validation
+// enforces the full joint contract.
+func applySetSimulationJoint(document *Document, operation Operation) ([]ID, error) {
+	profile, ok := document.Simulations[operation.SimulationID]
+	if !ok {
+		return nil, fmt.Errorf("simulation %q does not exist", operation.SimulationID)
+	}
+	switch {
+	case operation.Joint != nil:
+		replaced := false
+		for index := range profile.Joints {
+			if profile.Joints[index].ID == operation.Joint.ID {
+				profile.Joints[index] = *operation.Joint
+				replaced = true
+			}
+		}
+		if !replaced {
+			profile.Joints = append(profile.Joints, *operation.Joint)
+		}
+	case operation.JointID != "":
+		kept := profile.Joints[:0]
+		found := false
+		for _, joint := range profile.Joints {
+			if joint.ID == operation.JointID {
+				found = true
+				continue
+			}
+			kept = append(kept, joint)
+		}
+		if !found {
+			return nil, fmt.Errorf("joint %q does not exist on %q", operation.JointID, profile.ID)
+		}
+		profile.Joints = kept
+	default:
+		return nil, fmt.Errorf("set-simulation-joint requires joint (set) or jointId (remove)")
+	}
+	document.Simulations[profile.ID] = profile
+	return []ID{profile.ID}, nil
 }

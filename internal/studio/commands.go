@@ -64,6 +64,7 @@ const (
 	OpSolveIK               OperationKind = "solve-ik"
 	OpSetPhysicsBody        OperationKind = "set-physics-body"
 	OpSimulateTicks         OperationKind = "simulate-ticks"
+	OpSetSimulationJoint    OperationKind = "set-simulation-joint"
 	OpRetargetAnimation     OperationKind = "retarget-animation"
 	OpSetAnimationParameter OperationKind = "set-animation-parameter"
 	OpStepAnimationMachine  OperationKind = "step-animation-machine"
@@ -122,6 +123,8 @@ type Operation struct {
 	TrackID         ID                    `json:"trackId,omitempty"`
 	ConstraintID    ID                    `json:"constraintId,omitempty"`
 	Physics         *PhysicsBody          `json:"physics,omitempty"`
+	Joint           *PhysicsJoint         `json:"joint,omitempty"`
+	JointID         ID                    `json:"jointId,omitempty"`
 	RenderGraph     *RenderGraph          `json:"renderGraph,omitempty"`
 	SimulationID    ID                    `json:"simulationId,omitempty"`
 	Ticks           uint64                `json:"ticks,omitempty"`
@@ -812,6 +815,8 @@ func applyOperation(document *Document, operation Operation) ([]ID, error) {
 		return applySetPhysicsBody(document, operation)
 	case OpSimulateTicks:
 		return applySimulateTicks(document, operation)
+	case OpSetSimulationJoint:
+		return applySetSimulationJoint(document, operation)
 	case OpRetargetAnimation:
 		return applyRetargetAnimation(document, operation)
 	case OpSetAnimationParameter:
@@ -888,7 +893,7 @@ type ActionCapability struct {
 }
 
 func ActionCatalog() []ActionCapability {
-	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBevelEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine, OpSetRenderGraph, OpCollectUnusedAssets}
+	kinds := []OperationKind{OpSetField, OpSetTransform, OpAssignMaterial, OpRenameEntity, OpCreateEntity, OpDeleteEntity, OpReparentEntity, OpDuplicateEntity, OpExtrudeFaces, OpInsetFaces, OpTriangulateFaces, OpWeldVertices, OpFillFace, OpRecalculateNormals, OpProjectPlanarUV, OpDissolveEdges, OpBevelEdges, OpBridgeLoops, OpLoopCut, OpSetCurveControlPoint, OpSetModifier, OpRemoveModifier, OpReorderModifier, OpApplyModifier, OpCSGBoolean, OpSetMaterial, OpDeleteMaterial, OpCapturePrefab, OpInstantiatePrefab, OpSetPrefabOverride, OpDeletePrefab, OpRegisterAsset, OpDeleteAsset, OpReimportAsset, OpSetBonePose, OpSetAnimationKey, OpSolveIK, OpSetPhysicsBody, OpSimulateTicks, OpSetSimulationJoint, OpRetargetAnimation, OpSetAnimationParameter, OpStepAnimationMachine, OpSetRenderGraph, OpCollectUnusedAssets}
 	out := make([]ActionCapability, 0, len(kinds))
 	for _, kind := range kinds {
 		undo := kind != OpCollectUnusedAssets

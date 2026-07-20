@@ -70,6 +70,9 @@ func runSoftStepSimulation(result *Document, profile SimulationProfile, ticks ui
 					}
 					solveSoftContact(result, contact, h, iteration == 0)
 				}
+				for _, joint := range profile.Joints {
+					solveDistanceJoint(result, joint, h)
+				}
 			}
 			for _, id := range bodies {
 				entity := result.Entities[id]
@@ -367,3 +370,73 @@ func solveSoftContact(document *Document, contact *softContact, h float64, first
 }
 
 func subSoftVec(a, b Vec3) Vec3 { return Vec3{X: a.X - b.X, Y: a.Y - b.Y, Z: a.Z - b.Z} }
+
+// solveDistanceJoint applies impulses along the anchor axis for the distance
+// joint family: rigid rod (Length, Stiffness 0), one-sided Min/MaxLength
+// limits, a semi-implicit spring (Stiffness/Damping), and a force-capped
+// motor toward MotorTarget. Deterministic: joints are stored in profile
+// order and solved inside the sorted relaxation loop.
+func solveDistanceJoint(document *Document, joint PhysicsJoint, h float64) {
+	a := document.Entities[joint.BodyA]
+	b := document.Entities[joint.BodyB]
+	if a.Physics == nil || b.Physics == nil {
+		return
+	}
+	invA, invB := 0.0, 0.0
+	if a.Physics.Kind == "dynamic" && a.Physics.Mass > 0 {
+		invA = 1 / a.Physics.Mass
+	}
+	if b.Physics.Kind == "dynamic" && b.Physics.Mass > 0 {
+		invB = 1 / b.Physics.Mass
+	}
+	invSum := invA + invB
+	if invSum <= 0 {
+		return
+	}
+	pa := addVec(a.Transform.Position, joint.AnchorA)
+	pb := addVec(b.Transform.Position, joint.AnchorB)
+	delta := subSoftVec(pb, pa)
+	distance := vectorLength(delta)
+	if distance <= 1e-9 {
+		return
+	}
+	axis := scaleVec(delta, 1/distance)
+	relative := dotVec(subSoftVec(b.Physics.Velocity, a.Physics.Velocity), axis)
+	apply := func(impulse float64) {
+		a.Physics.Velocity = addVec(a.Physics.Velocity, scaleVec(axis, -impulse*invA))
+		b.Physics.Velocity = addVec(b.Physics.Velocity, scaleVec(axis, impulse*invB))
+		relative = dotVec(subSoftVec(b.Physics.Velocity, a.Physics.Velocity), axis)
+	}
+	if joint.Stiffness > 0 {
+		stretch := distance - joint.Length
+		apply((-joint.Stiffness*stretch - joint.Damping*relative) * h)
+	} else if joint.Length > 0 && !(joint.MotorMaxForce > 0 && joint.MotorSpeed > 0) {
+		violation := distance - joint.Length
+		bias := math.Min(math.Abs(softStepBiasFactor*violation/h), softStepMaxBiasSpeed)
+		if violation < 0 {
+			bias = -bias
+		}
+		apply(-(relative + bias) / invSum)
+	}
+	if joint.MaxLength > 0 && distance > joint.MaxLength {
+		bias := math.Min(softStepBiasFactor*(distance-joint.MaxLength)/h, softStepMaxBiasSpeed)
+		impulse := -(relative + bias) / invSum
+		if impulse < 0 {
+			apply(impulse)
+		}
+	}
+	if joint.MinLength > 0 && distance < joint.MinLength {
+		bias := math.Min(softStepBiasFactor*(joint.MinLength-distance)/h, softStepMaxBiasSpeed)
+		impulse := (bias - relative) / invSum
+		if impulse > 0 {
+			apply(impulse)
+		}
+	}
+	if joint.MotorMaxForce > 0 && joint.MotorSpeed > 0 {
+		targetVelocity := clampFloat((joint.MotorTarget-distance)/h, -joint.MotorSpeed, joint.MotorSpeed)
+		impulse := clampFloat((targetVelocity-relative)/invSum, -joint.MotorMaxForce*h, joint.MotorMaxForce*h)
+		apply(impulse)
+	}
+	document.Entities[joint.BodyA] = a
+	document.Entities[joint.BodyB] = b
+}

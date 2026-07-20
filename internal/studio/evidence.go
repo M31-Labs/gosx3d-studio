@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -182,6 +183,25 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 			}
 		}
 	}
+	jointOK := false
+	{
+		jointDoc := ArticulatedProofDocument()
+		profile := jointDoc.Simulations["articulated-physics"]
+		profile.SubSteps = 4
+		profile.Joints = []PhysicsJoint{{ID: "cert-rod", Kind: "distance", BodyA: "physics-ground", BodyB: "physics-payload", Length: 2}}
+		jointDoc.Simulations["articulated-physics"] = profile
+		if first, jointResult, err := RunSimulation(jointDoc, "articulated-physics", 240, nil); err == nil {
+			if second, _, err := RunSimulation(jointDoc, "articulated-physics", 240, nil); err == nil {
+				ground := jointResult.Entities["physics-ground"].Transform.Position
+				payload := jointResult.Entities["physics-payload"].Transform.Position
+				dx, dy, dz := payload.X-ground.X, payload.Y-ground.Y, payload.Z-ground.Z
+				length := math.Sqrt(dx*dx + dy*dy + dz*dz)
+				jointOK = math.Abs(length-2) < 0.1 && first.Final.Hash == second.Final.Hash
+			}
+		}
+	}
+	add("m2-distance-joints", jointOK, fmt.Sprintf("rigid rod held 2.0 under gravity deterministically=%t (limits/motors/springs covered by unit suite)", jointOK))
+
 	add("m2-softstep-solver", softOK, fmt.Sprintf("substepped soft-contact solver deterministic with contact events=%t", softOK))
 
 	agree, mismatch, confirmErr := certifyViewportConfirmation(document)
