@@ -51,13 +51,18 @@ type PhysicsJoint struct {
 }
 
 type PhysicsBody struct {
-	Kind         string   `json:"kind"`
-	Mass         float64  `json:"mass,omitempty"`
-	Velocity     Vec3     `json:"velocity,omitempty"`
-	GravityScale float64  `json:"gravityScale,omitempty"`
-	Restitution  float64  `json:"restitution,omitempty"`
-	Friction     float64  `json:"friction,omitempty"`
-	Collider     Collider `json:"collider"`
+	Kind         string  `json:"kind"`
+	Mass         float64 `json:"mass,omitempty"`
+	Velocity     Vec3    `json:"velocity,omitempty"`
+	GravityScale float64 `json:"gravityScale,omitempty"`
+	Restitution  float64 `json:"restitution,omitempty"`
+	Friction     float64 `json:"friction,omitempty"`
+	// AngularVelocity is world-space (radians/second); orientation itself
+	// lives on the entity transform quaternion. AngularDamping decays spin
+	// per second (0 = none).
+	AngularVelocity Vec3     `json:"angularVelocity,omitempty"`
+	AngularDamping  float64  `json:"angularDamping,omitempty"`
+	Collider        Collider `json:"collider"`
 }
 
 type Collider struct {
@@ -145,6 +150,9 @@ func validatePhysicsBody(body PhysicsBody) error {
 	}
 	if !finite(body.Friction) || body.Friction < 0 || body.Friction > 1 {
 		return fmt.Errorf("friction must be finite and within 0..1")
+	}
+	if !finiteVec(body.AngularVelocity) || !finite(body.AngularDamping) || body.AngularDamping < 0 {
+		return fmt.Errorf("angularVelocity must be finite and angularDamping non-negative")
 	}
 	if kind == "dynamic" && body.Mass <= 0 {
 		return fmt.Errorf("dynamic body mass must be positive")

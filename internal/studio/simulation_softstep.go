@@ -80,6 +80,10 @@ func runSoftStepSimulation(result *Document, profile SimulationProfile, ticks ui
 					continue
 				}
 				entity.Transform.Position = addVec(entity.Transform.Position, scaleVec(entity.Physics.Velocity, h))
+				if entity.Physics.AngularDamping > 0 {
+					entity.Physics.AngularVelocity = scaleVec(entity.Physics.AngularVelocity, 1/(1+entity.Physics.AngularDamping*h))
+				}
+				integrateOrientation(&entity, h)
 				result.Entities[id] = entity
 			}
 			for index := range contacts {
@@ -204,10 +208,25 @@ func softAABB(entity Entity) (Vec3, Vec3, bool) {
 		return Vec3{X: position.X - r, Y: position.Y - r, Z: position.Z - r}, Vec3{X: position.X + r, Y: position.Y + r, Z: position.Z + r}, true
 	case "box":
 		he := *collider.HalfExtents
-		return Vec3{X: position.X - he.X, Y: position.Y - he.Y, Z: position.Z - he.Z}, Vec3{X: position.X + he.X, Y: position.Y + he.Y, Z: position.Z + he.Z}, true
+		orientation := entity.Transform.canonical().Rotation
+		ax := orientation.Rotate(Vec3{X: 1})
+		ay := orientation.Rotate(Vec3{Y: 1})
+		az := orientation.Rotate(Vec3{Z: 1})
+		half := Vec3{
+			X: math.Abs(ax.X)*he.X + math.Abs(ay.X)*he.Y + math.Abs(az.X)*he.Z,
+			Y: math.Abs(ax.Y)*he.X + math.Abs(ay.Y)*he.Y + math.Abs(az.Y)*he.Z,
+			Z: math.Abs(ax.Z)*he.X + math.Abs(ay.Z)*he.Y + math.Abs(az.Z)*he.Z,
+		}
+		return subSoftVec(position, half), addVec(position, half), true
 	case "capsule":
-		r, hh := collider.Radius, collider.HalfHeight
-		return Vec3{X: position.X - r, Y: position.Y - hh - r, Z: position.Z - r}, Vec3{X: position.X + r, Y: position.Y + hh + r, Z: position.Z + r}, true
+		orientation := entity.Transform.canonical().Rotation
+		axis := orientation.Rotate(Vec3{Y: 1})
+		reach := Vec3{
+			X: math.Abs(axis.X)*collider.HalfHeight + collider.Radius,
+			Y: math.Abs(axis.Y)*collider.HalfHeight + collider.Radius,
+			Z: math.Abs(axis.Z)*collider.HalfHeight + collider.Radius,
+		}
+		return subSoftVec(position, reach), addVec(position, reach), true
 	}
 	return Vec3{}, Vec3{}, false // planes and unknowns: no finite AABB
 }
@@ -304,14 +323,19 @@ func softClosestPoint(other Entity, target Vec3, _ Collider) Vec3 {
 		return addVec(position, scaleVec(delta, collider.Radius/length))
 	case "box":
 		he := *collider.HalfExtents
-		return Vec3{
-			X: clampFloat(target.X, position.X-he.X, position.X+he.X),
-			Y: clampFloat(target.Y, position.Y-he.Y, position.Y+he.Y),
-			Z: clampFloat(target.Z, position.Z-he.Z, position.Z+he.Z),
+		orientation := other.Transform.canonical().Rotation
+		local := orientation.Inverse().Rotate(subSoftVec(target, position))
+		clamped := Vec3{
+			X: clampFloat(local.X, -he.X, he.X),
+			Y: clampFloat(local.Y, -he.Y, he.Y),
+			Z: clampFloat(local.Z, -he.Z, he.Z),
 		}
+		return addVec(position, orientation.Rotate(clamped))
 	case "capsule":
-		segmentY := clampFloat(target.Y, position.Y-collider.HalfHeight, position.Y+collider.HalfHeight)
-		center := Vec3{X: position.X, Y: segmentY, Z: position.Z}
+		orientation := other.Transform.canonical().Rotation
+		axis := orientation.Rotate(Vec3{Y: 1})
+		along := clampFloat(dotVec(subSoftVec(target, position), axis), -collider.HalfHeight, collider.HalfHeight)
+		center := addVec(position, scaleVec(axis, along))
 		delta := subSoftVec(target, center)
 		length := vectorLength(delta)
 		if length <= 1e-12 {
@@ -340,30 +364,46 @@ func solveSoftContact(document *Document, contact *softContact, h float64, first
 	if invMassSum <= 0 {
 		return
 	}
-	relative := subSoftVec(body.Physics.Velocity, other.Physics.Velocity)
+	rBody := subSoftVec(contact.point, body.Transform.Position)
+	rOther := subSoftVec(contact.point, other.Transform.Position)
+	applyImpulse := func(direction Vec3, magnitude float64) {
+		body.Physics.Velocity = addVec(body.Physics.Velocity, scaleVec(direction, magnitude*invMassBody))
+		other.Physics.Velocity = addVec(other.Physics.Velocity, scaleVec(direction, -magnitude*invMassOther))
+		body.Physics.AngularVelocity = addVec(body.Physics.AngularVelocity, applyInvInertia(body, crossVec(rBody, scaleVec(direction, magnitude))))
+		other.Physics.AngularVelocity = addVec(other.Physics.AngularVelocity, applyInvInertia(other, crossVec(rOther, scaleVec(direction, -magnitude))))
+	}
+	effectiveMass := func(direction Vec3) float64 {
+		k := invMassSum
+		bodyTerm := crossVec(applyInvInertia(body, crossVec(rBody, direction)), rBody)
+		otherTerm := crossVec(applyInvInertia(other, crossVec(rOther, direction)), rOther)
+		k += dotVec(direction, addVec(bodyTerm, otherTerm))
+		if k < 1e-9 {
+			return 1e-9
+		}
+		return k
+	}
+	relative := subSoftVec(pointVelocity(body, contact.point), pointVelocity(other, contact.point))
 	normalSpeed := dotVec(relative, contact.normal)
 	bias := math.Min(softStepBiasFactor*math.Max(contact.depth-softStepSlop, 0)/h, softStepMaxBiasSpeed)
 	restitution := 0.0
 	if firstPass && normalSpeed < -softStepRestitutionCutoff {
 		restitution = math.Max(body.Physics.Restitution, other.Physics.Restitution) * -normalSpeed
 	}
-	impulse := -(normalSpeed - bias - restitution) / invMassSum
+	impulse := -(normalSpeed - bias - restitution) / effectiveMass(contact.normal)
 	if impulse < 0 {
 		return
 	}
 	contact.normalJ += impulse
-	body.Physics.Velocity = addVec(body.Physics.Velocity, scaleVec(contact.normal, impulse*invMassBody))
-	other.Physics.Velocity = addVec(other.Physics.Velocity, scaleVec(contact.normal, -impulse*invMassOther))
+	applyImpulse(contact.normal, impulse)
 
-	relative = subSoftVec(body.Physics.Velocity, other.Physics.Velocity)
+	relative = subSoftVec(pointVelocity(body, contact.point), pointVelocity(other, contact.point))
 	tangent := subSoftVec(relative, scaleVec(contact.normal, dotVec(relative, contact.normal)))
 	tangentSpeed := vectorLength(tangent)
 	friction := math.Max(body.Physics.Friction, other.Physics.Friction)
 	if tangentSpeed > 1e-9 && friction > 0 {
 		direction := scaleVec(tangent, 1/tangentSpeed)
-		frictionImpulse := math.Min(tangentSpeed/invMassSum, friction*contact.normalJ)
-		body.Physics.Velocity = addVec(body.Physics.Velocity, scaleVec(direction, -frictionImpulse*invMassBody))
-		other.Physics.Velocity = addVec(other.Physics.Velocity, scaleVec(direction, frictionImpulse*invMassOther))
+		frictionImpulse := math.Min(tangentSpeed/effectiveMass(direction), friction*contact.normalJ)
+		applyImpulse(direction, -frictionImpulse)
 	}
 	document.Entities[contact.body] = body
 	document.Entities[contact.other] = other
@@ -393,19 +433,23 @@ func solveDistanceJoint(document *Document, joint PhysicsJoint, h float64) {
 	if invSum <= 0 {
 		return
 	}
-	pa := addVec(a.Transform.Position, joint.AnchorA)
-	pb := addVec(b.Transform.Position, joint.AnchorB)
+	pa := addVec(a.Transform.Position, a.Transform.canonical().Rotation.Rotate(joint.AnchorA))
+	pb := addVec(b.Transform.Position, b.Transform.canonical().Rotation.Rotate(joint.AnchorB))
 	delta := subSoftVec(pb, pa)
 	distance := vectorLength(delta)
 	if distance <= 1e-9 {
 		return
 	}
 	axis := scaleVec(delta, 1/distance)
-	relative := dotVec(subSoftVec(b.Physics.Velocity, a.Physics.Velocity), axis)
+	relative := dotVec(subSoftVec(pointVelocity(b, pb), pointVelocity(a, pa)), axis)
+	ra := subSoftVec(pa, a.Transform.Position)
+	rb := subSoftVec(pb, b.Transform.Position)
 	apply := func(impulse float64) {
 		a.Physics.Velocity = addVec(a.Physics.Velocity, scaleVec(axis, -impulse*invA))
 		b.Physics.Velocity = addVec(b.Physics.Velocity, scaleVec(axis, impulse*invB))
-		relative = dotVec(subSoftVec(b.Physics.Velocity, a.Physics.Velocity), axis)
+		a.Physics.AngularVelocity = addVec(a.Physics.AngularVelocity, applyInvInertia(a, crossVec(ra, scaleVec(axis, -impulse))))
+		b.Physics.AngularVelocity = addVec(b.Physics.AngularVelocity, applyInvInertia(b, crossVec(rb, scaleVec(axis, impulse))))
+		relative = dotVec(subSoftVec(pointVelocity(b, pb), pointVelocity(a, pa)), axis)
 	}
 	if joint.Stiffness > 0 {
 		stretch := distance - joint.Length
@@ -439,4 +483,81 @@ func solveDistanceJoint(document *Document, joint PhysicsJoint, h float64) {
 	}
 	document.Entities[joint.BodyA] = a
 	document.Entities[joint.BodyB] = b
+}
+
+// --- rotational dynamics -------------------------------------------------
+
+// localInvInertia returns the inverse of the solid-shape diagonal inertia
+// tensor in the body frame. Capsules use the cylinder approximation (named
+// floor). Static/kinematic bodies and non-positive masses return zero.
+func localInvInertia(entity Entity) Vec3 {
+	if entity.Physics == nil || entity.Physics.Kind != "dynamic" || entity.Physics.Mass <= 0 {
+		return Vec3{}
+	}
+	m := entity.Physics.Mass
+	collider := entity.Physics.Collider
+	switch collider.Kind {
+	case "sphere":
+		i := 2.0 / 5.0 * m * collider.Radius * collider.Radius
+		if i <= 0 {
+			return Vec3{}
+		}
+		return Vec3{X: 1 / i, Y: 1 / i, Z: 1 / i}
+	case "box":
+		he := *collider.HalfExtents
+		ix := m / 3.0 * (he.Y*he.Y + he.Z*he.Z)
+		iy := m / 3.0 * (he.X*he.X + he.Z*he.Z)
+		iz := m / 3.0 * (he.X*he.X + he.Y*he.Y)
+		return Vec3{X: 1 / ix, Y: 1 / iy, Z: 1 / iz}
+	case "capsule":
+		r, h := collider.Radius, 2*collider.HalfHeight
+		iy := m * r * r / 2
+		ixz := m * (3*r*r + h*h) / 12
+		if iy <= 0 || ixz <= 0 {
+			return Vec3{}
+		}
+		return Vec3{X: 1 / ixz, Y: 1 / iy, Z: 1 / ixz}
+	}
+	return Vec3{}
+}
+
+// applyInvInertia maps a world-space angular impulse through the body's
+// oriented inverse inertia tensor: R * D^-1 * R^T.
+func applyInvInertia(entity Entity, value Vec3) Vec3 {
+	diag := localInvInertia(entity)
+	if diag == (Vec3{}) {
+		return Vec3{}
+	}
+	orientation := entity.Transform.canonical().Rotation
+	local := orientation.Inverse().Rotate(value)
+	scaled := Vec3{X: local.X * diag.X, Y: local.Y * diag.Y, Z: local.Z * diag.Z}
+	return orientation.Rotate(scaled)
+}
+
+// integrateOrientation advances the entity quaternion by the world angular
+// velocity over h and renormalizes, keeping the euler display hint in sync.
+func integrateOrientation(entity *Entity, h float64) {
+	omega := entity.Physics.AngularVelocity
+	if omega == (Vec3{}) {
+		return
+	}
+	q := entity.Transform.canonical().Rotation
+	spin := Quaternion{X: omega.X, Y: omega.Y, Z: omega.Z, W: 0}.Mul(q)
+	q = Quaternion{
+		X: q.X + 0.5*h*spin.X,
+		Y: q.Y + 0.5*h*spin.Y,
+		Z: q.Z + 0.5*h*spin.Z,
+		W: q.W + 0.5*h*spin.W,
+	}.Normalized()
+	entity.Transform.Rotation = q
+	entity.Transform.Euler = q.Euler()
+}
+
+// pointVelocity is the velocity of a world point on a body: v + w x r.
+func pointVelocity(entity Entity, point Vec3) Vec3 {
+	if entity.Physics == nil {
+		return Vec3{}
+	}
+	r := subSoftVec(point, entity.Transform.Position)
+	return addVec(entity.Physics.Velocity, crossVec(entity.Physics.AngularVelocity, r))
 }

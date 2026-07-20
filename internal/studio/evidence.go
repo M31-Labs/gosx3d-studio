@@ -200,6 +200,30 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 			}
 		}
 	}
+	rotationOK := false
+	{
+		rotDoc := ArticulatedProofDocument()
+		tilted := rotDoc.Entities["physics-payload"]
+		tilted.Transform = TransformFromEuler(tilted.Transform.Position, Vec3{Z: 0.3}, Vec3{X: 1, Y: 1, Z: 1})
+		tilted.Physics.Collider = Collider{Kind: "box", HalfExtents: &Vec3{X: 0.3, Y: 0.3, Z: 0.3}}
+		tilted.Physics.Friction = 0.6
+		tilted.Physics.AngularDamping = 0.4
+		tilted.Physics.Restitution = 0
+		rotDoc.Entities["physics-payload"] = tilted
+		profile := rotDoc.Simulations["articulated-physics"]
+		profile.SubSteps = 4
+		rotDoc.Simulations["articulated-physics"] = profile
+		if first, rotResult, err := RunSimulation(rotDoc, "articulated-physics", 600, nil); err == nil {
+			if second, _, err := RunSimulation(rotDoc, "articulated-physics", 600, nil); err == nil {
+				rest := rotResult.Entities["physics-payload"]
+				flat := math.Abs(rest.Transform.Position.Y-0.3) < 0.05
+				calm := vectorLength(rest.Physics.AngularVelocity) < 0.3
+				rotationOK = flat && calm && first.Final.Hash == second.Final.Hash
+			}
+		}
+	}
+	add("m2-body-rotation", rotationOK, fmt.Sprintf("tilted box settled flat onto a face with oriented contacts and torque, deterministically=%t", rotationOK))
+
 	add("m2-distance-joints", jointOK, fmt.Sprintf("rigid rod held 2.0 under gravity deterministically=%t (limits/motors/springs covered by unit suite)", jointOK))
 
 	add("m2-softstep-solver", softOK, fmt.Sprintf("substepped soft-contact solver deterministic with contact events=%t", softOK))
