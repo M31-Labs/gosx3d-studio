@@ -600,7 +600,78 @@ func Page() Node {
 				</details>
 				<details>
 					<summary>Physics</summary>
-					<p class="placeholder-copy">Component surface reserved.</p>
+					<form data-gosx-form method="post" action={actionPath("setPhysics")} class="inspector-form">
+						<input type="hidden" name="csrf_token" value={csrf.token}></input>
+						<input type="hidden" name="target" value={data.inspector.id}></input>
+						<input type="hidden" name="expectedRevision" value={data.revision}></input>
+						<div class="vector-inputs">
+							<label>
+								Body
+								<select name="kind">
+									<option value="dynamic">dynamic</option>
+									<option value="static">static</option>
+									<option value="kinematic">kinematic</option>
+								</select>
+							</label>
+							<label>
+								Mass
+								<input name="mass" value="1" inputmode="decimal"></input>
+							</label>
+							<label>
+								Gravity scale
+								<input name="gravityScale" value="1" inputmode="decimal"></input>
+							</label>
+						</div>
+						<div class="vector-inputs">
+							<label>
+								Friction
+								<input name="friction" value="0.4" inputmode="decimal"></input>
+							</label>
+							<label>
+								Restitution
+								<input name="restitution" value="0.2" inputmode="decimal"></input>
+							</label>
+							<label>
+								Collider
+								<select name="colliderKind">
+									<option value="box">box</option>
+									<option value="sphere">sphere</option>
+									<option value="capsule">capsule</option>
+									<option value="plane">plane</option>
+								</select>
+							</label>
+						</div>
+						<div class="vector-inputs">
+							<label>
+								Radius
+								<input name="radius" value="0.5" inputmode="decimal"></input>
+							</label>
+							<label>
+								Half height (capsule)
+								<input name="halfHeight" value="0.5" inputmode="decimal"></input>
+							</label>
+							<label>
+								Sensor
+								<input type="checkbox" name="sensor" value="true"></input>
+							</label>
+						</div>
+						<div class="vector-inputs">
+							<label>
+								Extent X (box)
+								<input name="extentX" value="0.5" inputmode="decimal"></input>
+							</label>
+							<label>
+								Extent Y
+								<input name="extentY" value="0.5" inputmode="decimal"></input>
+							</label>
+							<label>
+								Extent Z
+								<input name="extentZ" value="0.5" inputmode="decimal"></input>
+							</label>
+						</div>
+						<p class="form-status">{action.message}</p>
+						<button type="submit" class="inspector-apply">Apply physics body</button>
+					</form>
 				</details>
 				<details>
 					<summary>Metadata</summary>

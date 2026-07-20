@@ -16,6 +16,10 @@ type SimulationProfile struct {
 	TickRate int    `json:"tickRate"`
 	Gravity  Vec3   `json:"gravity"`
 	Bodies   []ID   `json:"bodies"`
+	// SubSteps opts the profile into the soft-step substepping solver
+	// (adopted from Box3D's design). Zero keeps the legacy single-step
+	// reference loop byte-identical for existing recordings.
+	SubSteps int `json:"subSteps,omitempty"`
 }
 
 type PhysicsBody struct {
@@ -24,6 +28,7 @@ type PhysicsBody struct {
 	Velocity     Vec3     `json:"velocity,omitempty"`
 	GravityScale float64  `json:"gravityScale,omitempty"`
 	Restitution  float64  `json:"restitution,omitempty"`
+	Friction     float64  `json:"friction,omitempty"`
 	Collider     Collider `json:"collider"`
 }
 
@@ -32,6 +37,13 @@ type Collider struct {
 	Radius float64 `json:"radius,omitempty"`
 	Normal Vec3    `json:"normal,omitempty"`
 	Offset float64 `json:"offset,omitempty"`
+	// HalfExtents sizes a box collider (axis-aligned floor; collider
+	// orientation is a named deferral until OBB SAT lands).
+	HalfExtents *Vec3 `json:"halfExtents,omitempty"`
+	// HalfHeight is the capsule half-length between hemisphere centers.
+	HalfHeight float64 `json:"halfHeight,omitempty"`
+	// Sensor colliders report begin/end events without collision response.
+	Sensor bool `json:"sensor,omitempty"`
 }
 
 type SimulationInput struct {
@@ -72,6 +84,9 @@ func validateSimulationProfile(profile SimulationProfile, entities map[ID]Entity
 	if profile.ID == "" || strings.TrimSpace(profile.Name) == "" || profile.TickRate < 1 || profile.TickRate > 1000 || !finiteVec(profile.Gravity) || len(profile.Bodies) == 0 {
 		return fmt.Errorf("id, name, tickRate 1..1000, finite gravity, and bodies are required")
 	}
+	if profile.SubSteps < 0 || profile.SubSteps > 8 {
+		return fmt.Errorf("subSteps must be 0 (legacy solver) or 1..8")
+	}
 	seen := map[ID]bool{}
 	for _, id := range profile.Bodies {
 		entity, ok := entities[id]
@@ -91,6 +106,9 @@ func validatePhysicsBody(body PhysicsBody) error {
 	if !finite(body.Mass) || !finiteVec(body.Velocity) || !finite(body.GravityScale) || !finite(body.Restitution) || body.Restitution < 0 || body.Restitution > 1 {
 		return fmt.Errorf("mass, velocity, gravityScale, and restitution must be finite; restitution must be 0..1")
 	}
+	if !finite(body.Friction) || body.Friction < 0 || body.Friction > 1 {
+		return fmt.Errorf("friction must be finite and within 0..1")
+	}
 	if kind == "dynamic" && body.Mass <= 0 {
 		return fmt.Errorf("dynamic body mass must be positive")
 	}
@@ -103,8 +121,17 @@ func validatePhysicsBody(body PhysicsBody) error {
 		if vectorLength(body.Collider.Normal) <= 1e-9 || !finiteVec(body.Collider.Normal) || !finite(body.Collider.Offset) {
 			return fmt.Errorf("plane collider requires finite non-zero normal and offset")
 		}
+	case "box":
+		if body.Collider.HalfExtents == nil || !finiteVec(*body.Collider.HalfExtents) ||
+			body.Collider.HalfExtents.X <= 0 || body.Collider.HalfExtents.Y <= 0 || body.Collider.HalfExtents.Z <= 0 {
+			return fmt.Errorf("box collider requires positive finite halfExtents")
+		}
+	case "capsule":
+		if !finite(body.Collider.Radius) || body.Collider.Radius <= 0 || !finite(body.Collider.HalfHeight) || body.Collider.HalfHeight < 0 {
+			return fmt.Errorf("capsule collider requires positive radius and non-negative halfHeight")
+		}
 	default:
-		return fmt.Errorf("collider kind must be sphere or plane")
+		return fmt.Errorf("collider kind must be sphere, plane, box, or capsule")
 	}
 	return nil
 }
@@ -141,6 +168,15 @@ func RunSimulation(document Document, profileID ID, ticks uint64, inputs []Simul
 		return SimulationRecording{}, Document{}, err
 	}
 	recording := SimulationRecording{Schema: SimulationRecordingSchema, Profile: profileID, Ticks: ticks, Inputs: orderedInputs, Initial: initial}
+	if profile.SubSteps > 0 {
+		runSoftStepSimulation(&result, profile, ticks, orderedInputs, &recording)
+		final, err := captureSimulationSnapshot(result, profile, ticks)
+		if err != nil {
+			return SimulationRecording{}, Document{}, err
+		}
+		recording.Final = final
+		return recording, result, nil
+	}
 	dt := 1 / float64(profile.TickRate)
 	inputIndex := 0
 	for tick := uint64(0); tick < ticks; tick++ {

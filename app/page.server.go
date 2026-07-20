@@ -443,6 +443,15 @@ func init() {
 				ctx.Redirect("/?selection=" + ctx.FormData["selection"])
 				return nil
 			},
+			"setPhysics": func(ctx *action.Context) error {
+				receipt, err := executeHumanPhysics(boundWorkspace(), ctx.FormData)
+				if err != nil {
+					ctx.ValidationFailure(err.Error(), map[string]string{"physics": err.Error()})
+					return nil
+				}
+				ctx.Redirect(fmt.Sprintf("/?selection=%s&applied=%s", ctx.FormData["target"], receipt.TransactionID))
+				return nil
+			},
 			"playOp": func(ctx *action.Context) error {
 				if err := executeHumanPlayOp(boundWorkspace(), ctx.FormData); err != nil {
 					ctx.ValidationFailure(err.Error(), map[string]string{"play": err.Error()})
@@ -1008,4 +1017,70 @@ func executeHumanPlayOp(workspace *studio.Workspace, values map[string]string) e
 		return workspace.ExitPlay()
 	}
 	return fmt.Errorf("unsupported play operation %q", values["op"])
+}
+
+// executeHumanPhysics routes the Inspector physics form through the shared
+// set-physics-body transaction.
+func executeHumanPhysics(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
+	if workspace == nil {
+		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
+	}
+	revision, err := strconv.ParseUint(strings.TrimSpace(values["expectedRevision"]), 10, 64)
+	if err != nil {
+		return studio.Receipt{}, fmt.Errorf("expectedRevision: %w", err)
+	}
+	parse := func(name string) (float64, error) {
+		raw := strings.TrimSpace(values[name])
+		if raw == "" {
+			return 0, nil
+		}
+		value, parseErr := strconv.ParseFloat(raw, 64)
+		if parseErr != nil {
+			return 0, fmt.Errorf("%s: %w", name, parseErr)
+		}
+		return value, nil
+	}
+	body := studio.PhysicsBody{Kind: strings.TrimSpace(values["kind"])}
+	if body.Mass, err = parse("mass"); err != nil {
+		return studio.Receipt{}, err
+	}
+	if body.Friction, err = parse("friction"); err != nil {
+		return studio.Receipt{}, err
+	}
+	if body.Restitution, err = parse("restitution"); err != nil {
+		return studio.Receipt{}, err
+	}
+	if body.GravityScale, err = parse("gravityScale"); err != nil {
+		return studio.Receipt{}, err
+	}
+	collider := studio.Collider{Kind: strings.TrimSpace(values["colliderKind"]), Sensor: strings.TrimSpace(values["sensor"]) != ""}
+	if collider.Radius, err = parse("radius"); err != nil {
+		return studio.Receipt{}, err
+	}
+	if collider.HalfHeight, err = parse("halfHeight"); err != nil {
+		return studio.Receipt{}, err
+	}
+	switch collider.Kind {
+	case "box":
+		extents := studio.Vec3{}
+		if extents.X, err = parse("extentX"); err != nil {
+			return studio.Receipt{}, err
+		}
+		if extents.Y, err = parse("extentY"); err != nil {
+			return studio.Receipt{}, err
+		}
+		if extents.Z, err = parse("extentZ"); err != nil {
+			return studio.Receipt{}, err
+		}
+		collider.HalfExtents = &extents
+	case "plane":
+		collider.Normal = studio.Vec3{Y: 1}
+	}
+	body.Collider = collider
+	receipt, _, err := workspace.Execute(studio.Transaction{
+		ID: fmt.Sprintf("human-physics-%d", time.Now().UnixNano()), Actor: "human://local-ui", Mode: studio.ModeDirect,
+		ExpectedRevision: revision,
+		Operations:       []studio.Operation{{Kind: studio.OpSetPhysicsBody, Target: studio.ID(strings.TrimSpace(values["target"])), Physics: &body}},
+	})
+	return receipt, err
 }

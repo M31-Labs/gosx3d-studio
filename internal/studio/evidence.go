@@ -169,6 +169,21 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	}
 	add("m2-play-mode", playOK, fmt.Sprintf("clone+60 fixed ticks moved the payload, exit discarded runtime state, canonical fingerprint stable=%t", playOK))
 
+	softOK := false
+	{
+		soft := ArticulatedProofDocument()
+		profile := soft.Simulations["articulated-physics"]
+		profile.SubSteps = 4
+		soft.Simulations["articulated-physics"] = profile
+		if first, result, err := RunSimulation(soft, "articulated-physics", 120, nil); err == nil {
+			if second, _, err := RunSimulation(soft, "articulated-physics", 120, nil); err == nil {
+				settled := result.Entities["physics-payload"].Transform.Position.Y < soft.Entities["physics-payload"].Transform.Position.Y
+				softOK = settled && first.Final.Hash == second.Final.Hash && len(first.Events) > 0
+			}
+		}
+	}
+	add("m2-softstep-solver", softOK, fmt.Sprintf("substepped soft-contact solver deterministic with contact events=%t", softOK))
+
 	agree, mismatch, confirmErr := certifyViewportConfirmation(document)
 	rayAgree, rayErr := certifyViewportRayConfirmation(document)
 	confirmationOK := confirmErr == nil && rayErr == nil &&
