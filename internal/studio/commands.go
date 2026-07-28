@@ -256,8 +256,14 @@ type workspaceJournal interface {
 }
 
 type Workspace struct {
-	mu                   sync.RWMutex
-	doc                  Document
+	mu sync.RWMutex
+	doc Document
+	// docFingerprint is the fingerprint of doc, or "" when it has not been
+	// computed since doc last changed. Fingerprint marshals the entire
+	// SceneDoc, and every transaction needs the fingerprint of the document
+	// it started from — which is the one the previous transaction just
+	// produced. Carrying it forward removes one full marshal per command.
+	docFingerprint       string
 	undo                 []historyEntry
 	redo                 []historyEntry
 	journal              workspaceJournal
@@ -360,7 +366,8 @@ func (w *Workspace) SwitchProjectFile(path string, expectedRevision uint64, disc
 		return ProjectStatus{}, ErrUnsavedChanges
 	}
 	candidate.mu.RLock()
-	w.doc = candidate.doc
+	// Empty fingerprint: the newly opened document has not been hashed yet.
+	w.setDocumentLocked(candidate.doc, candidate.docFingerprint)
 	w.journal = candidate.journal
 	w.savedRevision = candidate.savedRevision
 	w.recovered = candidate.recovered
@@ -441,13 +448,41 @@ func (w *Workspace) Read(fn func(document *Document) error) error {
 	return fn(&w.doc)
 }
 
+// setDocumentLocked installs a new canonical document and the fingerprint that
+// describes it. Pass an empty fingerprint to have it computed on next use.
+// Callers must hold w.mu for writing.
+func (w *Workspace) setDocumentLocked(document Document, fingerprint string) {
+	w.doc = document
+	w.docFingerprint = fingerprint
+}
+
+// documentFingerprintLocked returns the current document's fingerprint,
+// computing and caching it if a previous write did not supply one. Callers
+// must hold w.mu.
+func (w *Workspace) documentFingerprintLocked() (string, error) {
+	if w.docFingerprint != "" {
+		return w.docFingerprint, nil
+	}
+	fingerprint, err := w.doc.Fingerprint()
+	if err != nil {
+		return "", err
+	}
+	w.docFingerprint = fingerprint
+	return fingerprint, nil
+}
+
 func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if err := validateTransaction(transaction, w.doc.Revision); err != nil {
 		return Receipt{}, Document{}, err
 	}
-	before, err := w.doc.Clone()
+	// `before` is the outgoing document, not a copy of it. Nothing mutates a
+	// document in place: operations run against `working`, and a commit
+	// rebinds w.doc rather than editing it. Cloning here bought nothing and
+	// cost a full marshal-and-unmarshal of the whole scene per command.
+	before := w.doc
+	beforeFingerprint, err := w.documentFingerprintLocked()
 	if err != nil {
 		return Receipt{}, Document{}, err
 	}
@@ -467,27 +502,39 @@ func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) 
 	if err := working.Validate(); err != nil {
 		return Receipt{}, Document{}, fmt.Errorf("transaction result: %w", err)
 	}
-	receipt, err := makeReceipt(transaction, before, working, affected)
+	afterFingerprint, err := working.Fingerprint()
 	if err != nil {
 		return Receipt{}, Document{}, err
 	}
+	receipt, err := makeReceipt(transaction, before, working, beforeFingerprint, afterFingerprint, affected)
+	if err != nil {
+		return Receipt{}, Document{}, err
+	}
+	if transaction.Mode != ModeDirect {
+		// A proposal never becomes canonical state, so `working` is already a
+		// private copy the caller may keep. Cloning it again only to discard
+		// the original doubled the cost of every preview.
+		w.recordReceiptLocked(receipt)
+		return receipt, working, nil
+	}
+	// A direct commit keeps `working` as canonical state, so the caller gets
+	// its own copy. Handing back the live document would let a caller mutate
+	// the workspace by editing a value it was merely shown.
 	preview, err := working.Clone()
 	if err != nil {
 		return Receipt{}, Document{}, err
 	}
-	if transaction.Mode == ModeDirect {
-		if w.journal != nil {
-			if err := w.journal.Commit(transaction, receipt, working); err != nil {
-				return Receipt{}, Document{}, err
-			}
+	if w.journal != nil {
+		if err := w.journal.Commit(transaction, receipt, working); err != nil {
+			return Receipt{}, Document{}, err
 		}
-		w.undo = append(w.undo, historyEntry{before: before, after: working, transaction: transaction})
-		w.trimUndoLocked()
-		w.redo = nil
-		w.doc = working
-		w.selectionState = reconcileSelection(working, w.selectionState)
-		w.syncLegacySelectionLocked()
 	}
+	w.undo = append(w.undo, historyEntry{before: before, after: working, transaction: transaction})
+	w.trimUndoLocked()
+	w.redo = nil
+	w.setDocumentLocked(working, afterFingerprint)
+	w.selectionState = reconcileSelection(working, w.selectionState)
+	w.syncLegacySelectionLocked()
 	w.recordReceiptLocked(receipt)
 	return receipt, preview, nil
 }
@@ -552,15 +599,11 @@ func validateTransaction(transaction Transaction, revision uint64) error {
 	return nil
 }
 
-func makeReceipt(transaction Transaction, before, after Document, affected []ID) (Receipt, error) {
-	beforeFingerprint, err := before.Fingerprint()
-	if err != nil {
-		return Receipt{}, err
-	}
-	afterFingerprint, err := after.Fingerprint()
-	if err != nil {
-		return Receipt{}, err
-	}
+// makeReceipt takes both fingerprints already computed. Each one marshals a
+// whole SceneDoc, and callers can supply them from a cache: the fingerprint of
+// the document a transaction starts from is the one the previous transaction
+// produced.
+func makeReceipt(transaction Transaction, before, after Document, beforeFingerprint, afterFingerprint string, affected []ID) (Receipt, error) {
 	correlation := afterFingerprint
 	if len(correlation) > 12 {
 		correlation = correlation[:12]
@@ -791,15 +834,29 @@ func (w *Workspace) moveHistory(expectedRevision uint64, actor string, undo bool
 	}
 	entry := (*stack)[len(*stack)-1]
 	*stack = (*stack)[:len(*stack)-1]
-	before, _ := w.doc.Clone()
+	// The outgoing document, not a copy: see the note in Execute.
+	before := w.doc
+	beforeFingerprint, err := w.documentFingerprintLocked()
+	if err != nil {
+		return Receipt{}, Document{}, err
+	}
 	target := entry.after
 	if undo {
 		target = entry.before
 	}
-	target, _ = target.Clone()
+	// The history entry stays on the opposite stack, so the document that
+	// becomes canonical has to be its own copy.
+	target, err = target.Clone()
+	if err != nil {
+		return Receipt{}, Document{}, err
+	}
 	target.Revision = before.Revision + 1
+	afterFingerprint, err := target.Fingerprint()
+	if err != nil {
+		return Receipt{}, Document{}, err
+	}
 	transaction := Transaction{ID: label + ":" + entry.transaction.ID, Actor: actor, Mode: ModeDirect, ExpectedRevision: before.Revision, Operations: entry.transaction.Operations}
-	receipt, err := makeReceipt(transaction, before, target, nil)
+	receipt, err := makeReceipt(transaction, before, target, beforeFingerprint, afterFingerprint, nil)
 	if err != nil {
 		return Receipt{}, Document{}, err
 	}
@@ -808,7 +865,7 @@ func (w *Workspace) moveHistory(expectedRevision uint64, actor string, undo bool
 			return Receipt{}, Document{}, err
 		}
 	}
-	w.doc = target
+	w.setDocumentLocked(target, afterFingerprint)
 	w.selectionState = reconcileSelection(target, w.selectionState)
 	w.syncLegacySelectionLocked()
 	if undo {

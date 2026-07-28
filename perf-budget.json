@@ -3,16 +3,16 @@
   "documentOperations": {
     "entityCount": 1000,
     "iterationsForGate": 5,
-    "setTransformDirectMs": 100,
-    "undoMs": 100,
-    "compileFullMs": 40,
-    "exactPickMs": 10,
-    "fingerprintMs": 12,
-    "validateMs": 8,
+    "setTransformDirectMs": 45,
+    "undoMs": 55,
+    "compileFullMs": 30,
+    "exactPickMs": 8,
+    "fingerprintMs": 6,
+    "validateMs": 3,
     "specSelectionFeedbackMs": 16,
     "specInspectorEditMs": 50,
     "specUndoMs": 100,
-    "notes": "Gate values are regression tripwires measured on a 1,000-entity synthetic scene (best-of-N, dev hardware x2 headroom). The gate skips under -race, where the numbers measure race instrumentation rather than the code. The spec* fields record the product targets from spec section 19. Read paths no longer deep-clone the document, which removed the clone from viewport picks and gizmo commits, but Execute still clones the whole document three times and fingerprints it twice per transaction. The spec targets stay aspirations until undo stores inverse operations and the journal stores operations with periodic snapshots."
+    "notes": "Gate values are regression tripwires measured on a 1,000-entity synthetic scene (best-of-N, dev hardware x2 headroom). The gate skips under -race, where the numbers measure race instrumentation rather than the code. The spec* fields record the product targets from spec section 19. Budgets were retightened on 2026-07-28 after the command bus dropped from three document clones and two fingerprints per transaction to one clone and one fingerprint for a direct commit, and one clone for a proposal: set-transform went 51.8ms to 22.4ms and undo 59.5ms to 27.1ms at 1,000 entities. Retighten again whenever a change moves these numbers, or the tripwires stop tripping. Still O(document): a direct commit clones the whole SceneDoc once and the journal writes a whole SceneDoc per record. Undo storing inverse operations, and the journal storing operations with periodic snapshots, are what remove that."
   },
   "profiles": {
     "studio-shell": {
