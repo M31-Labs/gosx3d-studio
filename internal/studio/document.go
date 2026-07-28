@@ -388,6 +388,12 @@ func (d Document) Validate() error {
 			return fmt.Errorf("root entity %q has parent %q", id, entity.Parent)
 		}
 	}
+	if err := validateCamera(d.Camera); err != nil {
+		return err
+	}
+	if err := validateEnvironment(d.Environment); err != nil {
+		return err
+	}
 	for key, material := range d.Materials {
 		if key == "" || material.ID != key {
 			return fmt.Errorf("material map key %q does not match id %q", key, material.ID)
@@ -519,6 +525,11 @@ func (d Document) Validate() error {
 			}
 			if err := validateModifiers(entity.Mesh.Geometry, entity.Mesh.Modifiers); err != nil {
 				return fmt.Errorf("entity %q modifiers: %w", key, err)
+			}
+		}
+		if entity.Light != nil {
+			if err := validateLightComponent(key, *entity.Light); err != nil {
+				return err
 			}
 		}
 		if entity.Prefab != nil {
@@ -944,6 +955,40 @@ func finiteVec3(value Vec3) bool {
 }
 
 func finite(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
+
+// A SceneDoc that validates has to be a SceneDoc that persists. encoding/json
+// refuses NaN and +/-Inf, so a non-finite value that survives validation
+// produces a document the workspace cannot clone, fingerprint, journal, or
+// save — and certification checks that compare fingerprints would compare two
+// empty strings and read the failure as a match. Camera, environment, and
+// light records reached that state; every float they carry is checked here.
+
+func validateCamera(camera Camera) error {
+	if !finiteVec3(camera.Position) || !finiteVec3(camera.Rotation) {
+		return fmt.Errorf("camera position and rotation must be finite")
+	}
+	if !finite(camera.FOV) || !finite(camera.Near) || !finite(camera.Far) {
+		return fmt.Errorf("camera fov, near, and far must be finite")
+	}
+	return nil
+}
+
+func validateEnvironment(environment Environment) error {
+	if !finite(environment.AmbientIntensity) || !finite(environment.Exposure) {
+		return fmt.Errorf("environment ambient intensity and exposure must be finite")
+	}
+	return nil
+}
+
+func validateLightComponent(id ID, light LightComponent) error {
+	if !finite(light.Intensity) || !finite(light.Range) {
+		return fmt.Errorf("light %q intensity and range must be finite", id)
+	}
+	if !finiteVec3(light.Direction) || !finiteVec3(light.Position) {
+		return fmt.Errorf("light %q direction and position must be finite", id)
+	}
+	return nil
+}
 
 // resolvedPrefabClosure returns a definition whose entities include the fully
 // resolved definition plus every transitively nested resolved definition, so
