@@ -314,9 +314,23 @@ func triangulateFaces(geometry *Geometry, operation Operation) error {
 	return nil
 }
 
+// weldToleranceLimit bounds how far apart welded vertices may be. Without an
+// upper bound, a tolerance of 1e308 makes the distance check below true for
+// every finite distance, which is the same unbounded weld a non-finite
+// tolerance produced.
+const weldToleranceLimit = 1e6
+
 func weldVertices(geometry *Geometry, operation Operation) error {
-	if len(operation.Vertices) < 2 || operation.Tolerance <= 0 {
-		return fmt.Errorf("weld-vertices requires at least two vertices and positive tolerance")
+	// Test the tolerance for finiteness first. Every comparison against NaN is
+	// false, so `Tolerance <= 0` admitted NaN here and `distance > Tolerance`
+	// then accepted every vertex, welding arbitrarily distant ones into their
+	// centroid. The result validates and commits. The browser form reaches
+	// this through strconv.ParseFloat, which accepts the literal "NaN".
+	if !finite(operation.Tolerance) || operation.Tolerance <= 0 || operation.Tolerance > weldToleranceLimit {
+		return fmt.Errorf("weld-vertices requires a finite tolerance in (0, %g]", weldToleranceLimit)
+	}
+	if len(operation.Vertices) < 2 {
+		return fmt.Errorf("weld-vertices requires at least two vertices")
 	}
 	vertices, _ := topologyIndexes(*geometry)
 	ids := uniqueIDs(operation.Vertices)

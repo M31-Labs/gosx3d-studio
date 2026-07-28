@@ -223,3 +223,48 @@ func TestNURBSTessellationAndDegreeAreBounded(t *testing.T) {
 		t.Fatalf("validation accepted degree %d; basis evaluation is exponential in degree", degree)
 	}
 }
+
+// Every comparison against NaN is false, so `Tolerance <= 0` admitted NaN and
+// `distance > Tolerance` then accepted every vertex. The operator welded
+// vertices a million units apart into their centroid, and the result validated
+// and committed. A large finite tolerance does the same thing over JSON, which
+// cannot carry NaN.
+func TestWeldToleranceRejectsNonFiniteAndUnboundedValues(t *testing.T) {
+	build := func() (*Geometry, []ID) {
+		geometry := &Geometry{Kind: "indexed-mesh", Vertices: []Vertex{
+			{ID: "a", Position: Vec3{}},
+			{ID: "b", Position: Vec3{X: 1_000_000}},
+			{ID: "c", Position: Vec3{Z: 1}},
+			{ID: "d", Position: Vec3{X: 1, Z: 1}},
+		}, Faces: []Face{{ID: "f", Vertices: []ID{"a", "b", "c", "d"}}}}
+		return geometry, []ID{"a", "b"}
+	}
+
+	for name, tolerance := range map[string]float64{
+		"NaN":                math.NaN(),
+		"positive infinity":  math.Inf(1),
+		"negative infinity":  math.Inf(-1),
+		"absurd but finite":  1e308,
+		"just over the cap":  weldToleranceLimit * 10,
+		"zero":               0,
+		"negative tolerance": -1,
+	} {
+		t.Run(name, func(t *testing.T) {
+			geometry, ids := build()
+			err := weldVertices(geometry, Operation{Kind: OpWeldVertices, Vertices: ids, Tolerance: tolerance})
+			if err == nil {
+				t.Fatalf("tolerance %v welded vertices 1,000,000 units apart", tolerance)
+			}
+		})
+	}
+
+	// A real tolerance still rejects distant vertices and accepts near ones.
+	geometry, _ := build()
+	if err := weldVertices(geometry, Operation{Kind: OpWeldVertices, Vertices: []ID{"a", "b"}, Tolerance: 1}); err == nil {
+		t.Fatal("a tolerance of 1 accepted vertices 1,000,000 units apart")
+	}
+	geometry, _ = build()
+	if err := weldVertices(geometry, Operation{Kind: OpWeldVertices, Vertices: []ID{"a", "c"}, Tolerance: 1}); err != nil {
+		t.Fatalf("a tolerance of 1 rejected vertices one unit apart: %v", err)
+	}
+}

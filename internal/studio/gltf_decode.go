@@ -124,6 +124,12 @@ func DecodeGLTFGeometry(payload []byte, format string, meshIndex, primitiveIndex
 		if accessor.BufferView == nil {
 			return nil, fmt.Errorf("accessor %d has no buffer view", accessorIndex)
 		}
+		// The index itself was never range-checked; the line below checked
+		// view.Buffer, a different value entirely. A crafted file with a
+		// bufferView index past the end, or -1, panicked the decoder.
+		if *accessor.BufferView < 0 || *accessor.BufferView >= len(root.BufferViews) {
+			return nil, fmt.Errorf("accessor %d references buffer view %d, out of %d", accessorIndex, *accessor.BufferView, len(root.BufferViews))
+		}
 		view := root.BufferViews[*accessor.BufferView]
 		if view.Buffer < 0 || view.Buffer >= len(buffers) {
 			return nil, fmt.Errorf("accessor %d buffer view is out of range", accessorIndex)
@@ -136,6 +142,18 @@ func DecodeGLTFGeometry(payload []byte, format string, meshIndex, primitiveIndex
 		stride := view.ByteStride
 		if stride == 0 {
 			stride = componentSize * components
+		}
+		// Count sizes the allocation, so it has to be checked before the
+		// allocation rather than by the per-element bounds check below. A
+		// 250-byte file declaring a count near 2^53 either panicked in
+		// makeslice or asked the allocator for tens of gigabytes, and the
+		// caller chose which by picking the number. No real accessor can
+		// hold more elements than its buffer has bytes.
+		if accessor.Count < 0 {
+			return nil, fmt.Errorf("accessor %d declares a negative count", accessorIndex)
+		}
+		if accessor.Count > len(data) {
+			return nil, fmt.Errorf("accessor %d declares %d elements, more than its %d byte buffer can hold", accessorIndex, accessor.Count, len(data))
 		}
 		out := make([]float64, 0, accessor.Count*components)
 		base := view.ByteOffset + accessor.ByteOffset

@@ -487,7 +487,11 @@ func certifyGLTFCompatibility() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	incompatible := true
+	// Seed from the count, not from true. An empty Targets slice left the
+	// accumulator true and the check reported pass while proving nothing —
+	// the honesty gate's exact failure mode. The Selena check at the top of
+	// this file already seeds this way.
+	incompatible := len(inspection.Targets) > 0
 	for _, target := range inspection.Targets {
 		incompatible = incompatible && target.Status == "incompatible"
 	}
@@ -495,7 +499,7 @@ func certifyGLTFCompatibility() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	degraded := true
+	degraded := len(optional.Targets) > 0
 	for _, target := range optional.Targets {
 		degraded = degraded && target.Status == "degraded"
 	}
@@ -667,9 +671,24 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	secondFingerprint := fingerprintOf(repeated)
 	_, compileErr := Compile(evaluated)
 	deformed, deformation, deformationErr := DeformSkinnedGeometry(evaluated, "skinned")
-	authoredIR, authoredCompileErr := Compile(document)
-	deformedIR, deformedCompileErr := Compile(evaluated)
-	authoredIRJSON, _ := json.Marshal(authoredIR.SceneIR())
+	// Both sides of this comparison used to be Compile(evaluated), so the
+	// deformed geometry never reached an IR at all: the check printed
+	// "sceneIRChanged" beside the skinning numbers while actually proving
+	// that sampling the clip changed the IR. Compile the sampled pose against
+	// the same pose with the deformed geometry substituted, so the difference
+	// is the deformation and nothing else.
+	deformedDocument, deformedCloneErr := evaluated.Clone()
+	if deformedCloneErr == nil {
+		if skinned, ok := deformedDocument.Entities["skinned"]; ok && skinned.Mesh != nil {
+			mesh := *skinned.Mesh
+			mesh.Geometry = deformed
+			skinned.Mesh = &mesh
+			deformedDocument.Entities["skinned"] = skinned
+		}
+	}
+	sampledIR, authoredCompileErr := Compile(evaluated)
+	deformedIR, deformedCompileErr := Compile(deformedDocument)
+	authoredIRJSON, _ := json.Marshal(sampledIR.SceneIR())
 	deformedIRJSON, _ := json.Marshal(deformedIR.SceneIR())
 	workspace, err := NewWorkspace(document)
 	if err != nil {
@@ -691,7 +710,7 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	directFingerprint := fingerprintOf(direct)
 	ikResult, _, ikErr := SolveTwoBoneIK(document, "arm", "reach-ik")
 	semanticReceipt := len(directReceipt.RigChanges) == 3 && len(directReceipt.AnimationChanges) == 1
-	skinOK := deformationErr == nil && authoredCompileErr == nil && deformedCompileErr == nil && len(deformed.Vertices) == 3 && deformation.MovedVertices > 0 && !bytes.Equal(authoredIRJSON, deformedIRJSON)
+	skinOK := deformationErr == nil && deformedCloneErr == nil && authoredCompileErr == nil && deformedCompileErr == nil && len(deformed.Vertices) == 3 && deformation.MovedVertices > 0 && !bytes.Equal(authoredIRJSON, deformedIRJSON)
 	ok := firstFingerprint.Equal(secondFingerprint) && reflect.DeepEqual(first, second) && compileErr == nil && previewFingerprint.Equal(directFingerprint) && semanticReceipt && len(previewReceipt.RigChanges) == 3 && ikErr == nil && ikResult.Error < 1e-8 && skinOK
 	return fmt.Sprintf("armatures=1 bones=3 normalizedWeights=3 skin=LBS movedVertices=%d maxDelta=%.9f sceneIRChanged=%t ik=two-bone-cpu ikError=%.9f clips=1 sample=0.5 deterministic=%t agentActor=%s previewEquivalent=%t semanticRigReceipt=%t sceneIR=%t", deformation.MovedVertices, deformation.MaximumDelta, !bytes.Equal(authoredIRJSON, deformedIRJSON), ikResult.Error, firstFingerprint.Equal(secondFingerprint), directReceipt.Actor, previewFingerprint.Equal(directFingerprint), semanticReceipt, compileErr == nil), ok, nil
 }
