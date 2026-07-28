@@ -3,6 +3,7 @@ package studio
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -262,6 +263,105 @@ func TestRecoverySkipsTornJournalTailAndQuarantinesCorruptSave(t *testing.T) {
 	}
 }
 
+// gridMeshGeometry builds an n by n quad grid as an authored indexed mesh.
+func gridMeshGeometry(n int) Geometry {
+	geometry := Geometry{Kind: "indexed-mesh"}
+	vertexID := func(row, column int) ID { return ID(fmt.Sprintf("v-%04d-%04d", row, column)) }
+	for row := 0; row <= n; row++ {
+		for column := 0; column <= n; column++ {
+			geometry.Vertices = append(geometry.Vertices, Vertex{
+				ID:       vertexID(row, column),
+				Position: Vec3{X: float64(column) * 0.01, Z: float64(row) * 0.01},
+				Normal:   Vec3{Y: 1},
+				UV:       &Vec2{X: float64(column) / float64(n), Y: float64(row) / float64(n)},
+			})
+		}
+	}
+	for row := 0; row < n; row++ {
+		for column := 0; column < n; column++ {
+			geometry.Faces = append(geometry.Faces, Face{
+				ID:       ID(fmt.Sprintf("f-%04d-%04d", row, column)),
+				Vertices: []ID{vertexID(row, column), vertexID(row, column+1), vertexID(row+1, column+1), vertexID(row+1, column)},
+			})
+		}
+	}
+	return geometry
+}
+
+// A journal record carries a whole SceneDoc, so a large authored mesh produces
+// a record larger than any fixed line buffer. The reader used a 16 MiB
+// bufio.Scanner cap: the record was fsynced, the trim that followed failed,
+// the command was rejected with its record already on disk, and every later
+// open of that project failed the same way. One edit on a scene inside the
+// documented 100k-triangle import budget made the project unopenable.
+func TestLargeDocumentCommitsAndReopensPastTheOldScannerCap(t *testing.T) {
+	if testing.Short() {
+		t.Skip("large-record journal evidence skipped in short mode")
+	}
+	document := SampleDocument()
+	root := document.Entities["scene-root"]
+	entity := meshEntity("large-mesh", "Large mesh", Vec3{}, gridMeshGeometry(200), "board-material", true)
+	entity.Parent = root.ID
+	root.Children = append(root.Children, entity.ID)
+	document.Entities[entity.ID] = entity
+	document.Entities[root.ID] = root
+	if err := document.Validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	if err := MigrateAndWriteSeed(filepath.Join(dir, "scene.scene3d"), document); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := OpenWorkspace(dir, document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	transform := TransformFromEuler(Vec3{X: 1}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1})
+	receipt, _, err := workspace.Execute(Transaction{
+		ID: "large-edit", Actor: "human://inspector", Mode: ModeDirect,
+		ExpectedRevision: snapshot.Revision,
+		Operations:       []Operation{{Kind: OpSetTransform, Target: "large-mesh", Transform: &transform}},
+	})
+	if err != nil {
+		t.Fatalf("edit on a large document: %v", err)
+	}
+	if !receipt.Applied || receipt.AfterRevision != snapshot.Revision+1 {
+		t.Fatalf("receipt = applied %t, revision %d, want applied at %d", receipt.Applied, receipt.AfterRevision, snapshot.Revision+1)
+	}
+
+	info, err := os.Stat(filepath.Join(dir, "commands.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() <= 16<<20 {
+		t.Fatalf("journal is %d bytes; this test must exceed the old 16 MiB cap to prove anything", info.Size())
+	}
+	if warning := workspace.ProjectStatus().CompactionWarning; warning != "" {
+		t.Fatalf("compaction warning = %q", warning)
+	}
+
+	reopened, err := OpenWorkspace(dir, document)
+	if err != nil {
+		t.Fatalf("reopen after a large edit: %v", err)
+	}
+	recovered, err := reopened.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered.Revision != receipt.AfterRevision {
+		t.Fatalf("recovered revision = %d, want %d", recovered.Revision, receipt.AfterRevision)
+	}
+	if got := recovered.Entities["large-mesh"].Transform.Position.X; got != 1 {
+		t.Fatalf("recovered position.x = %v, want 1", got)
+	}
+}
+
 func TestProjectSwitchIsRevisionSafeAndRequiresExplicitDiscard(t *testing.T) {
 	firstDir := t.TempDir()
 	secondDir := t.TempDir()
@@ -303,6 +403,18 @@ func TestProjectSwitchIsRevisionSafeAndRequiresExplicitDiscard(t *testing.T) {
 	}
 	if selection := workspace.Selection(); len(selection) != 0 {
 		t.Fatalf("selection leaked across projects: %v", selection)
+	}
+	// Receipts, the play session, and the viewport confirmation describe the
+	// project that produced them. Carrying them across a switch attributed
+	// the previous project's history to the newly opened one.
+	if receipts := workspace.RecentReceipts(10); len(receipts) != 0 {
+		t.Fatalf("receipts leaked across projects: %d retained, first %q", len(receipts), receipts[0].TransactionID)
+	}
+	if confirmation := workspace.ViewportConfirmation(); confirmation != nil {
+		t.Fatalf("viewport confirmation leaked across projects: %+v", confirmation)
+	}
+	if status.UndoDepth != 0 {
+		t.Fatalf("undo history leaked across projects: depth %d", status.UndoDepth)
 	}
 	if _, err := workspace.SwitchProjectFile(filepath.Join(secondDir, "other.scene3d"), opened.Revision, true); err == nil {
 		t.Fatal("non-canonical project entry was accepted")

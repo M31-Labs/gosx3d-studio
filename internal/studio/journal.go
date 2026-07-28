@@ -2,6 +2,7 @@ package studio
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -15,7 +16,49 @@ import (
 
 const maxJournalRecords = 256
 
-type Journal struct{ dir, documentPath, journalPath string }
+type Journal struct {
+	dir, documentPath, journalPath string
+	// compactionWarning records a failed tail trim. Compaction is an
+	// optimization; the journal stays correct when it does not run, so a
+	// compaction failure must never reject a command whose record is
+	// already durable. The warning surfaces in ProjectStatus instead.
+	compactionWarning string
+}
+
+// CompactionWarning reports the last failed journal trim, or the empty string.
+func (j *Journal) CompactionWarning() string { return j.compactionWarning }
+
+// eachJournalLine calls visit for every newline-terminated record in the
+// journal, oldest first. It uses a growing reader rather than bufio.Scanner:
+// a Scanner caps one token, and one record holds a whole SceneDoc, so a large
+// authored scene produced a record the reader could never scan again. That
+// turned an ordinary edit into a project that would not reopen.
+func eachJournalLine(path string, visit func(line []byte) error) error {
+	file, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	reader := bufio.NewReaderSize(file, 64*1024)
+	for {
+		line, readErr := reader.ReadBytes('\n')
+		line = bytes.TrimRight(line, "\n")
+		if len(line) > 0 {
+			if err := visit(line); err != nil {
+				return err
+			}
+		}
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) {
+				return nil
+			}
+			return readErr
+		}
+	}
+}
 type journalPayload struct {
 	Transaction Transaction `json:"transaction"`
 	Receipt     Receipt     `json:"receipt"`
@@ -70,7 +113,16 @@ func (j *Journal) Commit(transaction Transaction, receipt Receipt, document Docu
 	if closeErr != nil {
 		return closeErr
 	}
-	return j.bound()
+	// The record is durable from here. Trimming the tail is an optimization,
+	// so a failure is reported through ProjectStatus rather than returned:
+	// returning it rejected a command that the journal had already accepted,
+	// which lost the edit while keeping its record on disk.
+	if boundErr := j.bound(); boundErr != nil {
+		j.compactionWarning = boundErr.Error()
+	} else {
+		j.compactionWarning = ""
+	}
+	return nil
 }
 
 func (j *Journal) Save(document Document) error {
@@ -143,39 +195,30 @@ func MigrateAndWriteSeed(path string, seed Document) error {
 }
 
 func (j *Journal) latestRecord() (Document, bool, error) {
-	file, err := os.Open(j.journalPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return Document{}, false, nil
-	}
-	if err != nil {
-		return Document{}, false, err
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
 	var latest Document
 	found := false
-	for scanner.Scan() {
+	err := eachJournalLine(j.journalPath, func(line []byte) error {
 		var record journalRecord
-		if json.Unmarshal(scanner.Bytes(), &record) != nil {
-			continue
+		if json.Unmarshal(line, &record) != nil {
+			return nil
 		}
 		sum := sha256.Sum256(record.Payload)
 		if hex.EncodeToString(sum[:]) != record.Checksum {
-			continue
+			return nil
 		}
 		var payload journalPayload
 		if json.Unmarshal(record.Payload, &payload) != nil {
-			continue
+			return nil
 		}
-		migrated, err := MigrateDocument(payload.Document)
-		if err != nil {
-			continue
+		migrated, migrateErr := MigrateDocument(payload.Document)
+		if migrateErr != nil {
+			return nil
 		}
 		latest = migrated
 		found = true
-	}
-	if err := scanner.Err(); err != nil {
+		return nil
+	})
+	if err != nil {
 		return Document{}, false, err
 	}
 	return latest, found, nil
@@ -211,37 +254,37 @@ func writeDocumentAtomic(path string, document Document) error {
 	return syncDir(filepath.Dir(path))
 }
 
+// bound trims the journal to its newest maxJournalRecords records. It reads
+// twice and holds one record at a time: one record carries a whole SceneDoc,
+// so buffering every line put the entire retained history in memory at once.
 func (j *Journal) bound() error {
-	file, err := os.Open(j.journalPath)
-	if err != nil {
+	total := 0
+	if err := eachJournalLine(j.journalPath, func([]byte) error { total++; return nil }); err != nil {
 		return err
 	}
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
-	lines := make([][]byte, 0, maxJournalRecords+1)
-	for scanner.Scan() {
-		line := append([]byte(nil), scanner.Bytes()...)
-		lines = append(lines, line)
-	}
-	scanErr := scanner.Err()
-	_ = file.Close()
-	if scanErr != nil {
-		return scanErr
-	}
-	if len(lines) <= maxJournalRecords {
+	if total <= maxJournalRecords {
 		return nil
 	}
+	skip := total - maxJournalRecords
+
 	temp, err := os.CreateTemp(j.dir, ".journal-*.tmp")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(temp.Name())
 	writer := bufio.NewWriter(temp)
-	for _, line := range lines[len(lines)-maxJournalRecords:] {
-		if _, err = writer.Write(append(line, '\n')); err != nil {
-			break
+	index := 0
+	err = eachJournalLine(j.journalPath, func(line []byte) error {
+		index++
+		if index <= skip {
+			return nil
 		}
-	}
+		if _, writeErr := writer.Write(line); writeErr != nil {
+			return writeErr
+		}
+		_, writeErr := writer.Write([]byte{'\n'})
+		return writeErr
+	})
 	if err == nil {
 		err = writer.Flush()
 	}
@@ -255,7 +298,10 @@ func (j *Journal) bound() error {
 	if closeErr != nil {
 		return closeErr
 	}
-	return os.Rename(temp.Name(), j.journalPath)
+	if err := os.Rename(temp.Name(), j.journalPath); err != nil {
+		return err
+	}
+	return syncDir(j.dir)
 }
 
 func DecodeTransaction(reader io.Reader) (Transaction, error) {

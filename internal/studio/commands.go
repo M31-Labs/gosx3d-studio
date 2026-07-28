@@ -305,7 +305,18 @@ type ProjectStatus struct {
 	SavedRevision uint64 `json:"savedRevision"`
 	Dirty         bool   `json:"dirty"`
 	Recovered     bool   `json:"recovered"`
+	// CompactionWarning names a failed journal trim. Commands stay durable
+	// when it is set; the journal keeps more history than its bound.
+	CompactionWarning string `json:"compactionWarning,omitempty"`
+	// UndoDepth and UndoLimit make the bounded history observable, so a user
+	// who cannot undo further can tell that the step was dropped rather than
+	// that undo is broken.
+	UndoDepth int `json:"undoDepth"`
+	UndoLimit int `json:"undoLimit"`
 }
+
+// journalCompactor is implemented by journals that trim their own tail.
+type journalCompactor interface{ CompactionWarning() string }
 
 func (w *Workspace) ProjectStatus() ProjectStatus {
 	w.mu.RLock()
@@ -355,9 +366,16 @@ func (w *Workspace) SwitchProjectFile(path string, expectedRevision uint64, disc
 	w.recovered = candidate.recovered
 	w.projectDir = candidate.projectDir
 	candidate.mu.RUnlock()
+	// Every field describing the previous project has to go. Receipts, the
+	// play session, and the viewport confirmation used to survive a switch,
+	// so the command console and Agent Actions panel attributed the old
+	// project's history to the newly opened one.
 	w.undo = nil
 	w.redo = nil
 	w.selection = nil
+	w.receipts = nil
+	w.play = nil
+	w.viewportConfirmation = nil
 	w.selectionState = SelectionState{Revision: w.doc.Revision, Mode: SelectionObject, IDs: []ID{}}
 	return projectStatusLocked(w), nil
 }
@@ -389,7 +407,10 @@ func canonicalProjectFile(path string) (string, error) {
 }
 
 func projectStatusLocked(w *Workspace) ProjectStatus {
-	status := ProjectStatus{Directory: w.projectDir, Revision: w.doc.Revision, SavedRevision: w.savedRevision, Dirty: w.doc.Revision != w.savedRevision, Recovered: w.recovered}
+	status := ProjectStatus{Directory: w.projectDir, Revision: w.doc.Revision, SavedRevision: w.savedRevision, Dirty: w.doc.Revision != w.savedRevision, Recovered: w.recovered, UndoDepth: len(w.undo), UndoLimit: undoHistoryLimit}
+	if compactor, ok := w.journal.(journalCompactor); ok {
+		status.CompactionWarning = compactor.CompactionWarning()
+	}
 	if w.projectDir != "" {
 		status.DocumentPath = filepath.Join(w.projectDir, "scene.scene3d")
 		status.JournalPath = filepath.Join(w.projectDir, "commands.jsonl")
@@ -401,6 +422,23 @@ func (w *Workspace) Snapshot() (Document, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.doc.Clone()
+}
+
+// Read runs fn against the live document under a read lock.
+//
+// It exists because Snapshot deep-clones through JSON: marshal plus unmarshal
+// of the whole SceneDoc. Readers that wanted one entity's transform paid the
+// cost of the entire scene, which on a large authored mesh is hundreds of
+// milliseconds per viewport interaction.
+//
+// fn must treat the document as immutable and must not retain it or anything
+// reachable from it past the call. fn must not call back into the workspace:
+// this holds the read lock, and a write would deadlock. Use Snapshot when the
+// value has to outlive the call.
+func (w *Workspace) Read(fn func(document *Document) error) error {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return fn(&w.doc)
 }
 
 func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) {
@@ -444,6 +482,7 @@ func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) 
 			}
 		}
 		w.undo = append(w.undo, historyEntry{before: before, after: working, transaction: transaction})
+		w.trimUndoLocked()
 		w.redo = nil
 		w.doc = working
 		w.selectionState = reconcileSelection(working, w.selectionState)
@@ -451,6 +490,25 @@ func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) 
 	}
 	w.recordReceiptLocked(receipt)
 	return receipt, preview, nil
+}
+
+// undoHistoryLimit bounds the undo stack. Each entry retains the complete
+// document before and after its transaction, so the stack grows by twice the
+// document size per edit. Unbounded, a long session on a large authored scene
+// consumed gigabytes. The oldest steps are dropped, never the newest.
+const undoHistoryLimit = 128
+
+// trimUndoLocked enforces undoHistoryLimit. Callers must hold w.mu.
+func (w *Workspace) trimUndoLocked() {
+	if len(w.undo) <= undoHistoryLimit {
+		return
+	}
+	dropped := len(w.undo) - undoHistoryLimit
+	// Re-slice into a fresh backing array so the dropped documents become
+	// unreachable instead of being pinned by the slice header.
+	kept := make([]historyEntry, undoHistoryLimit)
+	copy(kept, w.undo[dropped:])
+	w.undo = kept
 }
 
 // recordReceiptLocked keeps a bounded newest-last receipt history so command

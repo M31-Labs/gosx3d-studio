@@ -25,15 +25,32 @@ type GizmoCommit struct {
 // quaternion; scale commits fail explicitly while SceneDoc scale compilation
 // remains an honesty gate.
 func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
-	document, err := w.Snapshot()
-	if err != nil {
+	// A drag needs one entity's transform and the current revision. Reading
+	// them under the read lock avoids deep-cloning the whole SceneDoc on
+	// every drag; the transaction below is what makes the change, and its
+	// expected revision still rejects a concurrent edit.
+	var (
+		revision  uint64
+		transform Transform
+		hasMesh   bool
+		found     bool
+	)
+	if err := w.Read(func(document *Document) error {
+		revision = document.Revision
+		entity, ok := document.Entities[commit.Target]
+		if !ok {
+			return nil
+		}
+		found = true
+		transform = entity.Transform.canonical()
+		hasMesh = entity.Mesh != nil || entity.Model != nil
+		return nil
+	}); err != nil {
 		return Receipt{}, err
 	}
-	entity, ok := document.Entities[commit.Target]
-	if !ok {
+	if !found {
 		return Receipt{}, fmt.Errorf("gizmo target %q does not exist", commit.Target)
 	}
-	transform := entity.Transform.canonical()
 	switch strings.ToLower(strings.TrimSpace(commit.Mode)) {
 	case "translate":
 		if commit.Position == nil {
@@ -51,7 +68,7 @@ func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 		if commit.ScaleFactor == nil {
 			return Receipt{}, fmt.Errorf("scale commit requires scaleFactor")
 		}
-		if entity.Mesh == nil && entity.Model == nil {
+		if !hasMesh {
 			return Receipt{}, fmt.Errorf("scale commits require a mesh or model entity; engine group transforms are scale-free by design")
 		}
 		scale := scaleOrUnit(transform.Scale)
@@ -71,8 +88,8 @@ func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 		return Receipt{}, fmt.Errorf("unsupported gizmo mode %q", commit.Mode)
 	}
 	receipt, _, err := w.Execute(Transaction{
-		ID:    fmt.Sprintf("gizmo-%s-%s-r%d", commit.Mode, commit.Target, document.Revision),
-		Actor: "human://viewport-gizmo", Mode: ModeDirect, ExpectedRevision: document.Revision,
+		ID:    fmt.Sprintf("gizmo-%s-%s-r%d", commit.Mode, commit.Target, revision),
+		Actor: "human://viewport-gizmo", Mode: ModeDirect, ExpectedRevision: revision,
 		Operations: []Operation{{Kind: OpSetTransform, Target: commit.Target, Transform: &transform}},
 	})
 	return receipt, err
