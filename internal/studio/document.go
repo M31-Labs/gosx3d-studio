@@ -477,6 +477,21 @@ func (d Document) Validate() error {
 			return fmt.Errorf("animation machine %q: %w", key, err)
 		}
 	}
+	// listedBy inverts every Children list once. Asking "does my parent list
+	// me?" by scanning the parent's slice made validation quadratic: a flat
+	// scene puts every entity in one parent's list, so each of N entities
+	// scanned N children. Validation runs on the result of every transaction,
+	// so that cost landed on every edit — measured at 36.7 ms for 8,000
+	// entities and growing as the square.
+	//
+	// A child listed by two parents is still rejected: the loop below requires
+	// every listed child to name that parent, and a child names only one.
+	listedBy := make(map[ID]ID, len(d.Entities))
+	for parentID, parent := range d.Entities {
+		for _, childID := range parent.Children {
+			listedBy[childID] = parentID
+		}
+	}
 	for key, entity := range d.Entities {
 		if key == "" || entity.ID != key {
 			return fmt.Errorf("entity map key %q does not match id %q", key, entity.ID)
@@ -491,11 +506,10 @@ func (d Document) Validate() error {
 			return fmt.Errorf("unlisted root entity %q", key)
 		}
 		if entity.Parent != "" {
-			parent, ok := d.Entities[entity.Parent]
-			if !ok {
+			if _, ok := d.Entities[entity.Parent]; !ok {
 				return fmt.Errorf("entity %q references missing parent %q", key, entity.Parent)
 			}
-			if !containsID(parent.Children, key) {
+			if listedBy[key] != entity.Parent {
 				return fmt.Errorf("parent %q does not list child %q", entity.Parent, key)
 			}
 		}
@@ -827,9 +841,41 @@ func finiteQuaternion(value Quaternion) bool {
 	return math.Abs(length-1) <= 1e-6
 }
 
+// modifierStackLimit and modifierEvaluationBudget bound what a modifier stack
+// may cost to evaluate. Each modifier was bounded on its own (array count at
+// most 1000, subdivision at most 4 levels) but the stack was not, and array and
+// mirror multiply. Three stacked arrays of 1000 turn four vertices into four
+// billion — hundreds of gigabytes — and nothing evaluates at commit time, so
+// the commit is cheap and the document is journaled. Every later compile then
+// dies, including the compile on the page-load path, so the project stops
+// opening. A Go out-of-memory abort is a runtime throw that recover cannot
+// catch, so this has to be refused before it is stored.
+const (
+	modifierStackLimit       = 8
+	modifierEvaluationBudget = 4_000_000
+)
+
+// modifierGrowth reports the multiplier a modifier applies to element count.
+func modifierGrowth(modifier Modifier) float64 {
+	switch strings.ToLower(strings.TrimSpace(modifier.Kind)) {
+	case "array":
+		return float64(modifier.Count)
+	case "mirror":
+		return 2
+	case "solidify":
+		return 2
+	case "subdivision":
+		return math.Pow(4, float64(modifier.Levels))
+	}
+	return 1
+}
+
 func validateModifiers(geometry Geometry, modifiers []Modifier) error {
 	if len(modifiers) > 0 && strings.ToLower(strings.TrimSpace(geometry.Kind)) != "indexed-mesh" {
 		return fmt.Errorf("modifiers currently require indexed-mesh geometry")
+	}
+	if len(modifiers) > modifierStackLimit {
+		return fmt.Errorf("modifier stack holds %d modifiers, limit is %d", len(modifiers), modifierStackLimit)
 	}
 	seen := map[ID]bool{}
 	for _, modifier := range modifiers {
@@ -858,6 +904,20 @@ func validateModifiers(geometry Geometry, modifiers []Modifier) error {
 			return fmt.Errorf("modifier %q has unsupported kind %q", modifier.ID, modifier.Kind)
 		}
 	}
+	// Individually valid modifiers still compose. Project the stack forward
+	// from the authored element count and refuse a stack whose result nothing
+	// could hold. float64 carries the projection past any budget without
+	// wrapping.
+	elements := float64(len(geometry.Vertices))
+	if elements == 0 {
+		elements = 1
+	}
+	for _, modifier := range modifiers {
+		elements *= modifierGrowth(modifier)
+		if !finite(elements) || elements > modifierEvaluationBudget {
+			return fmt.Errorf("modifier stack evaluates to %.0f elements, budget is %d", elements, modifierEvaluationBudget)
+		}
+	}
 	return nil
 }
 
@@ -883,6 +943,16 @@ func validateGeometry(geometry Geometry) error {
 	kind := strings.ToLower(strings.TrimSpace(geometry.Kind))
 	if kind == "nurbs-curve" {
 		return validateCurveGeometry(geometry.Curve)
+	}
+	// Primitive dimensions returned early with no finiteness check, so a NaN
+	// width validated and then broke every marshal of the document. No code
+	// path assigns a computed float here today, and JSON cannot express NaN,
+	// so this closes the gap for symmetry with the camera, environment, and
+	// light records rather than against a live trigger.
+	for _, value := range []float64{geometry.Width, geometry.Height, geometry.Depth, geometry.Radius, geometry.RadiusTop, geometry.RadiusBottom} {
+		if !finite(value) {
+			return fmt.Errorf("geometry %q has a non-finite dimension", kind)
+		}
 	}
 	if kind != "indexed-mesh" {
 		return nil
@@ -918,6 +988,16 @@ func validateGeometry(geometry Geometry) error {
 	return nil
 }
 
+// NURBS evaluation bounds. Degree drives an exponential recursion in
+// nurbsBasis; the segment counts drive allocation and the analysis walk that
+// GET /api/studio/curve/analysis performs without a credential.
+const (
+	nurbsMaxDegree               = 16
+	nurbsMaxSegments             = 100_000
+	nurbsMaxRadialSegments       = 512
+	nurbsMaxTessellationVertices = 2_000_000
+)
+
 func validateCurveGeometry(curve *CurveGeometry) error {
 	if curve == nil {
 		return fmt.Errorf("nurbs-curve requires curve data")
@@ -925,6 +1005,14 @@ func validateCurveGeometry(curve *CurveGeometry) error {
 	count := len(curve.ControlPoints)
 	if count < 2 || curve.Degree < 1 || curve.Degree >= count {
 		return fmt.Errorf("nurbs-curve degree must be between one and controlPoints-1")
+	}
+	// nurbsBasis recurses on two children per level, so evaluation cost is
+	// exponential in degree: measured at 10 microseconds for degree 10 and
+	// 31 milliseconds for degree 22, roughly 3.5x per two degrees. Degree 40
+	// is about forty minutes for a single sample. Degree was capped only
+	// against the control-point count, so 40 control points admitted it.
+	if curve.Degree > nurbsMaxDegree {
+		return fmt.Errorf("nurbs-curve degree %d exceeds %d; basis evaluation is exponential in degree", curve.Degree, nurbsMaxDegree)
 	}
 	if len(curve.Knots) != count+curve.Degree+1 {
 		return fmt.Errorf("nurbs-curve requires controlPoints+degree+1 knots")
@@ -946,6 +1034,20 @@ func validateCurveGeometry(curve *CurveGeometry) error {
 	}
 	if curve.Segments < 2 || curve.Radius <= 0 || curve.RadialSegments < 3 {
 		return fmt.Errorf("nurbs-curve requires at least two path segments, positive radius, and three radial segments")
+	}
+	if !finite(curve.Radius) {
+		return fmt.Errorf("nurbs-curve radius must be finite")
+	}
+	// Only lower bounds were checked. compileNURBSCurve allocates
+	// Segments+1 path points before it does any work, so a segment count of
+	// one billion asks for 24 GB, and the unauthenticated
+	// GET /api/studio/curve/analysis walks the same count. Tessellation is
+	// the product of the two counts, so bound the product as well.
+	if curve.Segments > nurbsMaxSegments || curve.RadialSegments > nurbsMaxRadialSegments {
+		return fmt.Errorf("nurbs-curve tessellation exceeds %d path segments or %d radial segments", nurbsMaxSegments, nurbsMaxRadialSegments)
+	}
+	if vertices := float64(curve.Segments+1) * float64(curve.RadialSegments); vertices > nurbsMaxTessellationVertices {
+		return fmt.Errorf("nurbs-curve tessellates to %.0f vertices, budget is %d", vertices, nurbsMaxTessellationVertices)
 	}
 	return nil
 }

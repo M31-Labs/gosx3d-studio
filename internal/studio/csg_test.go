@@ -1,6 +1,10 @@
 package studio
 
-import "testing"
+import (
+	"math"
+	"testing"
+	"time"
+)
 
 func TestVoxelCSGBooleanProducesClosedDeterministicMeshes(t *testing.T) {
 	for _, test := range []struct {
@@ -73,6 +77,45 @@ func TestVoxelCSGRejectsOpenInputsAndExcessiveBudgets(t *testing.T) {
 	_, _, err = workspace.Execute(Transaction{ID: "budget-csg", Actor: "agent://test", Mode: ModePropose, ExpectedRevision: document.Revision, Operations: []Operation{{Kind: OpCSGBoolean, Target: "editable", Operand: "operand", Boolean: "union", VoxelSize: 0.001, NewID: "too-large"}}})
 	if err == nil {
 		t.Fatal("CSG accepted excessive voxel budget")
+	}
+}
+
+// The budget guard multiplied three axis counts as int64. A small enough voxel
+// size pushes each axis past two billion, and that product wraps: the guard
+// read a small number and admitted a grid of about 1e28 cells. The evaluation
+// runs inside the workspace write lock, so admitting one never returns the
+// lock and every later request — render, pick, save — waits on it forever.
+//
+// This test must reject in well under the time an admitted grid would take,
+// which is unbounded, so a regression shows up as a hang rather than a
+// failure. Keep it out of any parallel group for that reason.
+func TestCSGVoxelBudgetSurvivesIntegerOverflow(t *testing.T) {
+	document := csgDocument(t)
+	workspace, err := NewWorkspace(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, voxelSize := range []float64{1e-6, 1e-9, math.SmallestNonzeroFloat64} {
+		done := make(chan error, 1)
+		go func() {
+			_, _, execErr := workspace.Execute(Transaction{
+				ID: "overflow-csg", Actor: "agent://test", Mode: ModePropose,
+				ExpectedRevision: document.Revision,
+				Operations: []Operation{{
+					Kind: OpCSGBoolean, Target: "editable", Operand: "operand",
+					Boolean: "union", VoxelSize: voxelSize, NewID: "overflow",
+				}},
+			})
+			done <- execErr
+		}()
+		select {
+		case execErr := <-done:
+			if execErr == nil {
+				t.Fatalf("voxelSize %g was accepted; the cell count guard overflowed", voxelSize)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("voxelSize %g was admitted and is still evaluating: the workspace write lock is now held forever", voxelSize)
+		}
 	}
 }
 

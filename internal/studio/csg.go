@@ -9,6 +9,12 @@ import (
 type csgTriangle struct{ A, B, C Vec3 }
 type voxelCell struct{ X, Y, Z int }
 
+// csgVoxelBudget caps the voxel grid one boolean may evaluate. The evaluation
+// runs inside the workspace write lock, so an unbounded grid does not merely
+// take a long time: it never returns the lock, and every later request waits
+// on it forever.
+const csgVoxelBudget = 1_000_000
+
 func applyCSGBoolean(document *Document, operation Operation) ([]ID, error) {
 	if operation.NewID == "" || operation.Operand == "" || operation.Target == operation.Operand {
 		return nil, fmt.Errorf("csg-boolean requires distinct target and operand plus newId")
@@ -57,11 +63,21 @@ func applyCSGBoolean(document *Document, operation Operation) ([]ID, error) {
 	maximum := maxVec(leftMax, rightMax)
 	size := operation.VoxelSize
 	origin := Vec3{X: math.Floor(minimum.X/size) * size, Y: math.Floor(minimum.Y/size) * size, Z: math.Floor(minimum.Z/size) * size}
+	// Count cells in float64 before converting. A large span over a small
+	// voxel size makes each axis exceed two billion, and the int64 product of
+	// three such axes wraps: the guard then read a small number and admitted a
+	// grid of 1e28 cells. The loop below runs inside the workspace write lock,
+	// so admitting one never returns the lock and wedges every later request.
+	// float64 has no wraparound, and this stays exact far past the budget.
+	cells := math.Ceil((maximum.X-origin.X)/size) * math.Ceil((maximum.Y-origin.Y)/size) * math.Ceil((maximum.Z-origin.Z)/size)
+	if !finite(cells) || cells <= 0 || cells > csgVoxelBudget {
+		return nil, fmt.Errorf("csg voxel budget exceeds %d cells (%.0f requested)", csgVoxelBudget, cells)
+	}
 	nx := int(math.Ceil((maximum.X - origin.X) / size))
 	ny := int(math.Ceil((maximum.Y - origin.Y) / size))
 	nz := int(math.Ceil((maximum.Z - origin.Z) / size))
-	if nx <= 0 || ny <= 0 || nz <= 0 || int64(nx)*int64(ny)*int64(nz) > 1_000_000 {
-		return nil, fmt.Errorf("csg voxel budget exceeds 1000000 cells (%dx%dx%d)", nx, ny, nz)
+	if nx <= 0 || ny <= 0 || nz <= 0 {
+		return nil, fmt.Errorf("csg voxel grid is empty (%dx%dx%d)", nx, ny, nz)
 	}
 	occupied := map[voxelCell]bool{}
 	for x := 0; x < nx; x++ {
