@@ -39,21 +39,58 @@ func main() {
 
 	appName := getenv("APP_NAME", "GoSX 3D Studio")
 	port := getenv("PORT", "8080")
-	actionToken := os.Getenv("STUDIO_ACTION_TOKEN")
-	// desktopHost decides whether native-host-only routes answer at all.
-	desktopHost := desktopMode(runtime.GOOS, os.Getenv("STUDIO_DESKTOP"), os.Getenv("STUDIO_SERVER_ONLY"))
-	sessionSecret, err := resolveSessionSecret(os.Getenv("SESSION_SECRET"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	sessions, err := session.New(sessionSecret, session.Options{})
-	if err != nil {
-		log.Fatal(err)
-	}
 	projectDir := getenv("STUDIO_PROJECT_DIR", filepath.Join(root, ".studio"))
 	workspace, err := studio.OpenWorkspace(projectDir, studio.SampleDocument())
 	if err != nil {
 		log.Fatal(err)
+	}
+	app, err := buildStudioApp(studioConfig{
+		root:        root,
+		appName:     appName,
+		workspace:   workspace,
+		actionToken: os.Getenv("STUDIO_ACTION_TOKEN"),
+		// desktopHost decides whether native-host-only routes answer at all.
+		desktopHost:   desktopMode(runtime.GOOS, os.Getenv("STUDIO_DESKTOP"), os.Getenv("STUDIO_SERVER_ONLY")),
+		sessionSecret: os.Getenv("SESSION_SECRET"),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := runApplication(app, appName, port); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// studioConfig is everything buildStudioApp needs from the environment. Taking
+// it as a value rather than reading os.Getenv inline is what lets a test build
+// the real router and exercise the real routes, instead of asserting on
+// helpers the routes might not use.
+type studioConfig struct {
+	root          string
+	appName       string
+	workspace     *studio.Workspace
+	actionToken   string
+	desktopHost   bool
+	sessionSecret string
+}
+
+// buildStudioApp wires the Studio HTTP surface. Route authority is declared in
+// studioRouteAuthority and checked against this file by the tests in
+// route_authority_test.go.
+func buildStudioApp(config studioConfig) (*server.App, error) {
+	root := config.root
+	appName := config.appName
+	workspace := config.workspace
+	actionToken := config.actionToken
+	desktopHost := config.desktopHost
+
+	sessionSecret, err := resolveSessionSecret(config.sessionSecret)
+	if err != nil {
+		return nil, err
+	}
+	sessions, err := session.New(sessionSecret, session.Options{})
+	if err != nil {
+		return nil, err
 	}
 	studioapp.BindWorkspace(workspace)
 
@@ -67,7 +104,7 @@ func main() {
 		return server.HTMLDocument(ctx.Title(appName), ctx.Head(), body)
 	})
 	if err := router.AddDir(filepath.Join(root, "app"), route.FileRoutesOptions{}); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	app := server.New()
@@ -452,14 +489,11 @@ func main() {
 	app.API("POST /api/studio/redo", func(ctx *server.Context) (any, error) { return historyAction(ctx, workspace, actionToken, false) })
 	rootHandler, err := router.BuildChecked()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	app.Mount("/api/studio/assets/content/", assetContentHandler(workspace))
 	app.Mount("/", rootHandler)
-
-	if err := runApplication(app, appName, port); err != nil {
-		log.Fatal(err)
-	}
+	return app, nil
 }
 
 func assetContentHandler(workspace *studio.Workspace) http.Handler {
