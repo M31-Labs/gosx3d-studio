@@ -3,7 +3,7 @@ package studio
 import (
 	"encoding/json"
 
-	"m31labs.dev/gosx/scene/cert"
+	"m31labs.dev/gosx"
 )
 
 type ActionDescriptor struct {
@@ -195,15 +195,36 @@ func ComponentCatalog() []ComponentDescriptor {
 	}
 }
 
+// FrameworkRecord names the GoSX build this Studio linked against. It does not
+// republish the framework's own feature matrix. Studio cannot re-derive that
+// matrix from evidence it owns, and a copied framework self-report inside a
+// Studio envelope would read like Studio evidence. Framework certification
+// belongs to the framework repository; this record says which build to ask.
+type FrameworkRecord struct {
+	Module      string `json:"module"`
+	Version     string `json:"version"`
+	MatrixOwner string `json:"matrixOwner"`
+	Matrix      string `json:"matrix"`
+}
+
+func linkedFramework() FrameworkRecord {
+	return FrameworkRecord{
+		Module:      "m31labs.dev/gosx",
+		Version:     gosx.Version,
+		MatrixOwner: "m31labs.dev/gosx",
+		Matrix:      "notRepublished",
+	}
+}
+
 type CertificationReport struct {
 	Schema     string                `json:"schema"`
 	Status     string                `json:"status"`
 	Dimensions map[string]Capability `json:"dimensions"`
-	Framework  cert.Report           `json:"framework"`
+	Framework  FrameworkRecord       `json:"framework"`
 }
 
 func Certification() CertificationReport {
-	return CertificationReport{Schema: "gosx3d.studio.certification/v1", Status: "partial", Framework: cert.BuildReport(), Dimensions: map[string]Capability{
+	return CertificationReport{Schema: "gosx3d.studio.certification/v1", Status: "partial", Framework: linkedFramework(), Dimensions: map[string]Capability{
 		"sceneDoc":                 {ID: "sceneDoc", Status: "available", Evidence: "validation, stable IDs, deterministic fingerprints, migration"},
 		"undoReplay":               {ID: "undoReplay", Status: "available", Evidence: "command, undo/redo, checksummed journal recovery tests"},
 		"importExport":             {ID: "importExport", Status: "partial", Evidence: "byte-deterministic .scene3d, SceneIR, minimal GLB, and generated-Go embed exports with semantic-loss reports and hash-verified glTF/GLB triangle-primitive geometry decode into stable-ID indexed meshes are certified; Draco/Meshopt/sparse/skinned decode and GLB/prefab-package exporters remain pending"},

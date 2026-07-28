@@ -12,7 +12,7 @@
     "specSelectionFeedbackMs": 16,
     "specInspectorEditMs": 50,
     "specUndoMs": 100,
-    "notes": "Gate values are regression tripwires measured on a 1,000-entity synthetic scene (best-of-N, dev hardware x2 headroom). The spec* fields record the product targets from spec section 19; they are aspirations until the O(document) clone/marshal costs in the command bus are addressed."
+    "notes": "Gate values are regression tripwires measured on a 1,000-entity synthetic scene (best-of-N, dev hardware x2 headroom). The gate skips under -race, where the numbers measure race instrumentation rather than the code. The spec* fields record the product targets from spec section 19. Read paths no longer deep-clone the document, which removed the clone from viewport picks and gizmo commits, but Execute still clones the whole document three times and fingerprints it twice per transaction. The spec targets stay aspirations until undo stores inverse operations and the journal stores operations with periodic snapshots."
   },
   "profiles": {
     "studio-shell": {

@@ -29,11 +29,17 @@ diagnostics, and documentation are complete or explicitly not applicable.
 
 ```bash
 gosx check app/page.gsx
-go test ./...
 go vet ./...
+go test ./...
+go test -race ./internal/... ./app/... .
 go run ./cmd/studio-smoke
 gosx build .
 ```
+
+Do not add a `replace` directive to `go.mod` for sibling development. `go.mod`
+pins released versions and `go.sum` checksums them; a replace switches version
+resolution off for everyone and hides upstream removals until the build breaks.
+Use `go.work` (see `go.work.example`), which stays in your working tree.
 
 Preserve the Industrial Void semantics: orange is authored state, cyan is
 observed runtime state, and gold is trusted certification state.

@@ -96,20 +96,30 @@ func compileProps(document Document, nodes []scene.Node) scene.Props {
 	}
 }
 
+// SceneIR is the shared GoSX SceneIR plus the Studio-owned render-graph plan.
+// The embedded framework IR is the canonical scene contract and stays byte
+// for byte what GoSX emits; the plan rides beside it under the same
+// "renderGraph" key it used when GoSX still declared the type. Studio never
+// adds scene semantics here — only the lowering GoSX has no consumer for.
+type SceneIR struct {
+	scene.SceneIR
+	RenderGraph *RenderGraphIR `json:"renderGraph,omitempty"`
+}
+
 // CompileIR emits the portable SceneIR artifact shape. Props.SceneIR keeps the
 // schema optional for same-version runtime traffic; Studio artifacts cross
 // process and persistence boundaries, so they always carry the schema.
-func CompileIR(document Document) (scene.SceneIR, error) {
+func CompileIR(document Document) (SceneIR, error) {
 	props, err := Compile(document)
 	if err != nil {
-		return scene.SceneIR{}, err
+		return SceneIR{}, err
 	}
-	ir := props.SceneIR()
+	ir := SceneIR{SceneIR: props.SceneIR()}
 	ir.Schema = scene.SceneIRSchema
 	if document.RenderGraph != nil {
 		plan, err := CompileRenderGraph(*document.RenderGraph)
 		if err != nil {
-			return scene.SceneIR{}, err
+			return SceneIR{}, err
 		}
 		ir.RenderGraph = &plan
 	}

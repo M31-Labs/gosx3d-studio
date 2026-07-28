@@ -33,9 +33,21 @@ gosx desktop --native-bridge --app-id m31labs.gosx3d-studio dev .
 Set `STUDIO_SERVER_ONLY=1` only for a Windows server probe or deployment that
 must not create a native window.
 
-The module uses the sibling `../gosx` checkout through a development `replace`
-directive. Remove or change that directive when the application moves to a
-released GoSX version.
+## Dependencies
+
+`go.mod` pins released `m31labs.dev/gosx` and `m31labs.dev/arbiter` versions,
+and `go.sum` checksums them. That is what CI, a release, and a fresh clone all
+build. To move to a newer GoSX, publish the tag and bump `go.mod`.
+
+To edit GoSX or Arbiter next to the Studio, use a workspace:
+
+```bash
+cp go.work.example go.work
+```
+
+`go.work` is gitignored. It overrides the pinned versions for your working tree
+only, so local sibling edits never decide what anyone else builds. Delete it to
+return to the pinned versions.
 
 ## Current surfaces
 
@@ -92,12 +104,18 @@ released GoSX version.
 
 ```bash
 gosx check app/page.gsx
-go test ./...
 go vet ./...
+go test ./...
+go test -race ./internal/... ./app/... .
 go run ./cmd/studio-smoke
 go run ./cmd/studio-certify
 gosx build .
 ```
+
+The command bus, the workspace caches, and the background evidence run all
+share state across goroutines, so the race detector is part of the floor. The
+`-race` run names its packages because `./...` picks up generated `dist/`
+copies once a bundle has been built.
 
 See [docs/handoff.md](docs/handoff.md) for the next implementation slice and
 [docs/design-spec.md](docs/design-spec.md) for the binding visual system.

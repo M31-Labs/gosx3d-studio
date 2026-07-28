@@ -1,0 +1,90 @@
+# Linux evidence floor. Windows carries the desktop-host matrix; this carries
+# the everyday one: the suite the primary development platform runs, plus the
+# race detector.
+#
+# There are no sibling checkouts here. go.mod pins m31labs.dev/gosx and
+# m31labs.dev/arbiter to released versions and go.sum checksums them, so this
+# job builds exactly what a release builds. Local sibling work happens through
+# go.work (see go.work.example), which never reaches CI.
+name: linux-evidence
+
+on:
+  push:
+    branches: [main, codex/deep-implementation-foundation]
+  pull_request:
+  workflow_dispatch: {}
+
+env:
+  # The m31labs.dev vanity module paths resolve straight to their private
+  # repositories, so the module proxy is bypassed and git needs credentials.
+  GOPRIVATE: m31labs.dev/*,github.com/odvcencio/*,github.com/M31-Labs/*
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Authenticate private module fetches
+        run: git config --global url."https://x-access-token:${{ secrets.SIBLING_REPO_TOKEN || github.token }}@github.com/".insteadOf "https://github.com/"
+      # A stale go.mod or go.sum means the pinned versions are not the ones
+      # being built. Fail loudly instead of resolving something else.
+      - name: Module pins are current
+        run: go mod verify && go mod tidy -diff
+      - name: Vet
+        run: go vet ./...
+      - name: Unit and integration tests
+        run: go test ./...
+      # The command bus, the workspace caches, and the background evidence run
+      # all share state across goroutines. Run them under the detector.
+      - name: Race detector
+        run: go test -race ./internal/... ./app/... .
+      - name: Browser-free smoke evidence (frame + exact ray)
+        run: go run ./cmd/studio-smoke > studio-smoke.json
+      - name: Deterministic certification evidence
+        run: go run ./cmd/studio-certify > studio-certify.json
+      - name: Upload evidence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-evidence
+          path: |
+            studio-smoke.json
+            studio-certify.json
+          if-no-files-found: warn
+
+  # Non-blocking early warning. GoSX removed scene/cert and the render-graph IR
+  # types as dead code on 2026-07-26 — Studio was the consumer neither
+  # repository could see — and nothing noticed until someone tried to compile.
+  # This job builds against the sibling default branches so the next removal
+  # arrives as a warning here, well before a version bump.
+  upstream-drift:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: gosx3d-studio
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: gosx3d-studio
+      - uses: actions/checkout@v4
+        with:
+          repository: odvcencio/gosx
+          token: ${{ secrets.SIBLING_REPO_TOKEN || github.token }}
+          path: gosx
+      - uses: actions/checkout@v4
+        with:
+          repository: odvcencio/arbiter
+          token: ${{ secrets.SIBLING_REPO_TOKEN || github.token }}
+          path: arbiter
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: gosx3d-studio/go.mod
+          cache-dependency-path: gosx3d-studio/go.sum
+      - name: Point a workspace at the sibling default branches
+        run: cp go.work.example go.work
+      - name: Build and test against unreleased siblings
+        run: go build ./... && go test ./internal/... ./app/... .

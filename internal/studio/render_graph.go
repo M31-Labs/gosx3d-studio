@@ -3,9 +3,46 @@ package studio
 import (
 	"fmt"
 	"sort"
-
-	"m31labs.dev/gosx/scene"
 )
+
+// RenderGraphIR is the backend-neutral retained render/resource schedule that
+// CompileRenderGraph lowers authored records into. Studio owns this type.
+// GoSX carried an identical contract until it removed the types as dead: no
+// GoSX renderer, Go or client-side, ever read them. Studio was the only
+// writer. Owning the plan here keeps the same portable JSON and stops a
+// Studio contract from depending on a framework type nothing else consumes.
+// SceneDoc still does not own an editor renderer graph; it owns authored
+// resource and pass records, and this is their deterministic lowering.
+type RenderGraphIR struct {
+	Resources   []RenderResourceIR   `json:"resources"`
+	Passes      []RenderGraphPassIR  `json:"passes"`
+	Allocations []RenderAllocationIR `json:"allocations,omitempty"`
+}
+
+type RenderResourceIR struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	Ownership string `json:"ownership"`
+	Format    string `json:"format,omitempty"`
+	Width     int    `json:"width,omitempty"`
+	Height    int    `json:"height,omitempty"`
+	Bytes     int64  `json:"bytes,omitempty"`
+}
+
+type RenderGraphPassIR struct {
+	ID      string   `json:"id"`
+	Kind    string   `json:"kind"`
+	Reads   []string `json:"reads,omitempty"`
+	Writes  []string `json:"writes,omitempty"`
+	Depends []string `json:"depends,omitempty"`
+}
+
+type RenderAllocationIR struct {
+	Resource string `json:"resource"`
+	Slot     int    `json:"slot"`
+	FirstUse int    `json:"firstUse"`
+	LastUse  int    `json:"lastUse"`
+}
 
 type RenderGraph struct {
 	Resources map[ID]RenderResource `json:"resources"`
@@ -42,14 +79,14 @@ func applySetRenderGraph(document *Document, operation Operation) ([]ID, error) 
 }
 
 // CompileRenderGraph validates, schedules, and aliases a retained graph into
-// the shared GoSX SceneIR contract. Ordering is stable across map iteration.
-func CompileRenderGraph(graph RenderGraph) (scene.RenderGraphIR, error) {
+// the portable Studio plan. Ordering is stable across map iteration.
+func CompileRenderGraph(graph RenderGraph) (RenderGraphIR, error) {
 	resourceIDs := sortedIDs(graph.Resources)
 	passIDs := sortedIDs(graph.Passes)
 	for _, id := range resourceIDs {
 		r := graph.Resources[id]
 		if r.ID != id || (r.Ownership != "imported" && r.Ownership != "persistent" && r.Ownership != "transient") {
-			return scene.RenderGraphIR{}, fmt.Errorf("render resource %q has invalid id or ownership", id)
+			return RenderGraphIR{}, fmt.Errorf("render resource %q has invalid id or ownership", id)
 		}
 	}
 	indegree := make(map[ID]int, len(passIDs))
@@ -57,16 +94,16 @@ func CompileRenderGraph(graph RenderGraph) (scene.RenderGraphIR, error) {
 	for _, id := range passIDs {
 		p := graph.Passes[id]
 		if p.ID != id {
-			return scene.RenderGraphIR{}, fmt.Errorf("render pass %q has mismatched id", id)
+			return RenderGraphIR{}, fmt.Errorf("render pass %q has mismatched id", id)
 		}
 		for _, resource := range append(append([]ID{}, p.Reads...), p.Writes...) {
 			if _, ok := graph.Resources[resource]; !ok {
-				return scene.RenderGraphIR{}, fmt.Errorf("render pass %q references missing resource %q", id, resource)
+				return RenderGraphIR{}, fmt.Errorf("render pass %q references missing resource %q", id, resource)
 			}
 		}
 		for _, dependency := range p.Depends {
 			if _, ok := graph.Passes[dependency]; !ok {
-				return scene.RenderGraphIR{}, fmt.Errorf("render pass %q depends on missing pass %q", id, dependency)
+				return RenderGraphIR{}, fmt.Errorf("render pass %q depends on missing pass %q", id, dependency)
 			}
 			edges[dependency] = append(edges[dependency], id)
 			indegree[id]++
@@ -93,7 +130,7 @@ func CompileRenderGraph(graph RenderGraph) (scene.RenderGraphIR, error) {
 		}
 	}
 	if len(order) != len(passIDs) {
-		return scene.RenderGraphIR{}, fmt.Errorf("render graph contains a dependency cycle")
+		return RenderGraphIR{}, fmt.Errorf("render graph contains a dependency cycle")
 	}
 	written := map[ID]bool{}
 	first, last := map[ID]int{}, map[ID]int{}
@@ -101,7 +138,7 @@ func CompileRenderGraph(graph RenderGraph) (scene.RenderGraphIR, error) {
 		p := graph.Passes[id]
 		for _, r := range p.Reads {
 			if graph.Resources[r].Ownership == "transient" && !written[r] {
-				return scene.RenderGraphIR{}, fmt.Errorf("render pass %q reads transient resource %q before write", id, r)
+				return RenderGraphIR{}, fmt.Errorf("render pass %q reads transient resource %q before write", id, r)
 			}
 			markUse(first, last, r, index)
 		}
@@ -110,14 +147,14 @@ func CompileRenderGraph(graph RenderGraph) (scene.RenderGraphIR, error) {
 			markUse(first, last, r, index)
 		}
 	}
-	result := scene.RenderGraphIR{}
+	result := RenderGraphIR{}
 	for _, id := range resourceIDs {
 		r := graph.Resources[id]
-		result.Resources = append(result.Resources, scene.RenderResourceIR{ID: string(id), Kind: r.Kind, Ownership: r.Ownership, Format: r.Format, Width: r.Width, Height: r.Height, Bytes: r.Bytes})
+		result.Resources = append(result.Resources, RenderResourceIR{ID: string(id), Kind: r.Kind, Ownership: r.Ownership, Format: r.Format, Width: r.Width, Height: r.Height, Bytes: r.Bytes})
 	}
 	for _, id := range order {
 		p := graph.Passes[id]
-		result.Passes = append(result.Passes, scene.RenderGraphPassIR{ID: string(id), Kind: p.Kind, Reads: idsToStrings(p.Reads), Writes: idsToStrings(p.Writes), Depends: idsToStrings(p.Depends)})
+		result.Passes = append(result.Passes, RenderGraphPassIR{ID: string(id), Kind: p.Kind, Reads: idsToStrings(p.Reads), Writes: idsToStrings(p.Writes), Depends: idsToStrings(p.Depends)})
 	}
 	slotsLast := []int{}
 	for _, id := range resourceIDs {
@@ -137,7 +174,7 @@ func CompileRenderGraph(graph RenderGraph) (scene.RenderGraphIR, error) {
 		} else {
 			slotsLast[slot] = last[id]
 		}
-		result.Allocations = append(result.Allocations, scene.RenderAllocationIR{Resource: string(id), Slot: slot, FirstUse: first[id], LastUse: last[id]})
+		result.Allocations = append(result.Allocations, RenderAllocationIR{Resource: string(id), Slot: slot, FirstUse: first[id], LastUse: last[id]})
 	}
 	return result, nil
 }

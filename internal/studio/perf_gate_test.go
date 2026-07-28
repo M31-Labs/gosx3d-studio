@@ -94,6 +94,9 @@ func TestDocumentOperationBudgetsAtScale(t *testing.T) {
 	if testing.Short() {
 		t.Skip("perf gate skipped in short mode")
 	}
+	if raceEnabled {
+		t.Skip("perf gate skipped under -race: the budgets measure the code, not race instrumentation")
+	}
 	budgets := loadDocumentOperationBudgets(t)
 	if budgets.EntityCount <= 0 || budgets.IterationsForGate <= 0 {
 		t.Fatal("documentOperations budgets must declare entityCount and iterationsForGate")

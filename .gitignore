@@ -1,5 +1,11 @@
 /build
 /dist
+# The `go build` default output takes the module name. A 57 MB binary was
+# committed this way once; never again.
+/gosx3d-studio
+# Local sibling development only. See go.work.example.
+/go.work
+/go.work.sum
 .env
 .DS_Store
 .canopy/

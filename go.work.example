@@ -1,0 +1,26 @@
+// Local sibling development. Copy to go.work to edit GoSX or Arbiter next to
+// the Studio:
+//
+//     cp go.work.example go.work
+//
+// go.work is gitignored on purpose. It overrides the pinned versions in
+// go.mod for your working tree only, so your local edits never decide what
+// CI, a release, or another developer builds.
+//
+// This replaces the `replace m31labs.dev/gosx => ../gosx` directive go.mod
+// used to carry. That directive switched off version resolution for everyone:
+// the build read whatever the sibling folder happened to hold, with no
+// version and no checksum, so `require m31labs.dev/gosx v0.29.5` was inert
+// while the tree actually built against something months newer. A sibling
+// deleting a package Studio used broke the build with nothing to point at.
+//
+// go.mod now pins real versions that go.sum checksums. To move to a newer
+// GoSX, publish the tag and bump go.mod — deliberately, in a commit that
+// shows the suite still passes.
+go 1.26
+
+use .
+
+replace m31labs.dev/gosx => ../gosx
+
+replace m31labs.dev/arbiter => ../arbiter

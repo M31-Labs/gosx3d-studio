@@ -1,7 +1,5 @@
 package studio
 
-import "m31labs.dev/gosx/scene"
-
 type SourceLocation struct {
 	Entity   ID     `json:"entity"`
 	Kind     string `json:"kind"`
@@ -9,7 +7,7 @@ type SourceLocation struct {
 }
 type CompileArtifact struct {
 	DocumentFingerprint string                `json:"documentFingerprint"`
-	SceneIR             scene.SceneIR         `json:"sceneIR"`
+	SceneIR             SceneIR               `json:"sceneIR"`
 	SourceMap           map[ID]SourceLocation `json:"sourceMap"`
 }
 
