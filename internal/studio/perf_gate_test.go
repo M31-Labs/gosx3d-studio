@@ -22,6 +22,7 @@ type documentOperationBudgets struct {
 	UndoMs             float64 `json:"undoMs"`
 	CompileFullMs      float64 `json:"compileFullMs"`
 	ExactPickMs        float64 `json:"exactPickMs"`
+	WorkspacePickMs    float64 `json:"workspacePickMs"`
 	FingerprintMs      float64 `json:"fingerprintMs"`
 	ValidateMs         float64 `json:"validateMs"`
 	IterationsForGate  int     `json:"iterationsForGate"`
@@ -164,6 +165,20 @@ func TestDocumentOperationBudgetsAtScale(t *testing.T) {
 		t.Fatal(err)
 	}
 	gateDuration(t, "exact pick (revision-cached compiled graph)", pickDuration, budgets.ExactPickMs)
+
+	// The viewport does not call the package function: a click goes through
+	// the workspace, which reuses the fingerprint it already recorded rather
+	// than re-deriving the document identity that keys the compiled-graph
+	// cache. That is the number a user feels, so it is the one gated against
+	// the spec's selection-feedback target.
+	workspacePickDuration, err := bestDuration(budgets.IterationsForGate, func() error {
+		_, _, err := workspace.ExactPick(PickRequest{Origin: Vec3{Y: 6, Z: 6}, Direction: Vec3{Y: -0.707, Z: -0.707}})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gateDuration(t, "exact pick through the workspace", workspacePickDuration, budgets.WorkspacePickMs)
 
 	fingerprintDuration, err := bestDuration(budgets.IterationsForGate, func() error {
 		_, err := document.Fingerprint()

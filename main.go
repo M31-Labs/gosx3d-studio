@@ -291,17 +291,10 @@ func main() {
 		if err := decoder.Decode(&request); err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		// Confirming a click reads the document; it does not need a private
-		// copy of the whole scene. Read holds the read lock, so the selection
-		// write below has to happen after it returns.
-		var confirmation studio.SelectionConfirmation
-		var revision uint64
-		err := workspace.Read(func(document *studio.Document) error {
-			revision = document.Revision
-			result, confirmErr := studio.ConfirmViewportSelection(*document, request)
-			confirmation = result
-			return confirmErr
-		})
+		// Confirming a click reads the document under the workspace read lock
+		// and reuses the recorded fingerprint, so it neither copies the scene
+		// nor re-derives its identity. The selection write happens after.
+		confirmation, revision, err := workspace.ConfirmViewportSelection(request)
 		if err != nil {
 			return nil, statusError{http.StatusConflict, err}
 		}
@@ -335,17 +328,10 @@ func main() {
 		if err := decoder.Decode(&request); err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		// An exact pick reads the scene. Read avoids the whole-document deep
-		// clone Snapshot performs; the optional selection write runs after
-		// the read lock is released.
-		var result studio.PickResult
-		var revision uint64
-		err := workspace.Read(func(document *studio.Document) error {
-			revision = document.Revision
-			picked, pickErr := studio.ExactPick(*document, request)
-			result = picked
-			return pickErr
-		})
+		// The pick reads the scene under the workspace read lock and reuses
+		// the recorded fingerprint; the optional selection write runs after
+		// that lock is released.
+		result, revision, err := workspace.ExactPick(request)
 		if err != nil {
 			return nil, err
 		}

@@ -456,9 +456,21 @@ func (w *Workspace) setDocumentLocked(document Document, fingerprint string) {
 	w.docFingerprint = fingerprint
 }
 
+// documentFingerprintForRead returns the current document's fingerprint
+// without writing the cache. Callers hold w.mu for reading, and filling the
+// cache under a read lock would be a data race. Every commit records a
+// fingerprint, so the uncached path only runs before the first commit against
+// a freshly opened project.
+func (w *Workspace) documentFingerprintForRead() (string, error) {
+	if w.docFingerprint != "" {
+		return w.docFingerprint, nil
+	}
+	return w.doc.Fingerprint()
+}
+
 // documentFingerprintLocked returns the current document's fingerprint,
 // computing and caching it if a previous write did not supply one. Callers
-// must hold w.mu.
+// must hold w.mu for writing.
 func (w *Workspace) documentFingerprintLocked() (string, error) {
 	if w.docFingerprint != "" {
 		return w.docFingerprint, nil

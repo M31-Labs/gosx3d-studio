@@ -53,8 +53,46 @@ func ValidateViewportSelection(document Document, selected ID, kind string) (Vie
 	return ViewportSelection{Selected: selected, Kind: kind, Source: "scene3d-mount-input"}, nil
 }
 
+// ExactPick traces the canonical CPU ray query against the compiled scene.
 func ExactPick(document Document, request PickRequest) (PickResult, error) {
-	graph, err := compiledPickGraph(document)
+	return exactPick(document, "", request)
+}
+
+// ExactPick traces the canonical query against the workspace's current
+// document and returns the revision it ran at, so a caller can select at that
+// exact revision afterwards. It reuses the workspace's recorded fingerprint
+// instead of re-deriving one, which is what keeps a viewport click inside the
+// selection-feedback budget on a large scene.
+func (w *Workspace) ExactPick(request PickRequest) (PickResult, uint64, error) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	fingerprint, err := w.documentFingerprintForRead()
+	if err != nil {
+		return PickResult{}, 0, err
+	}
+	result, err := exactPick(w.doc, fingerprint, request)
+	return result, w.doc.Revision, err
+}
+
+// ConfirmViewportSelection confirms a browser pick against the workspace's
+// current document and returns the revision it ran at.
+func (w *Workspace) ConfirmViewportSelection(pick ViewportPick) (SelectionConfirmation, uint64, error) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	fingerprint, err := w.documentFingerprintForRead()
+	if err != nil {
+		return SelectionConfirmation{}, 0, err
+	}
+	confirmation, err := confirmViewportSelection(w.doc, fingerprint, pick)
+	return confirmation, w.doc.Revision, err
+}
+
+// exactPick accepts the document's fingerprint when the caller already knows
+// it. The compiled-graph cache is keyed on that fingerprint, and computing it
+// marshals the whole SceneDoc — at 1,000 entities that was the majority of a
+// pick, spent re-deriving an identity the workspace had already recorded.
+func exactPick(document Document, fingerprint string, request PickRequest) (PickResult, error) {
+	graph, err := compiledPickGraph(document, fingerprint)
 	if err != nil {
 		return PickResult{}, err
 	}
@@ -134,13 +172,17 @@ const (
 // point; the canonical result wins any disagreement and the divergence is
 // returned as a diagnostic instead of being silently discarded.
 func ConfirmViewportSelection(document Document, pick ViewportPick) (SelectionConfirmation, error) {
+	return confirmViewportSelection(document, "", pick)
+}
+
+func confirmViewportSelection(document Document, fingerprint string, pick ViewportPick) (SelectionConfirmation, error) {
 	validated, err := ValidateViewportSelection(document, pick.Selected, pick.Kind)
 	if err != nil {
 		return SelectionConfirmation{}, err
 	}
 	confirmation := SelectionConfirmation{Selected: validated.Selected, Kind: validated.Kind, Source: validated.Source, Method: "id-only", Revision: document.Revision}
 	if pick.Ray != nil && vectorLength(pick.Ray.Direction) > 1e-9 {
-		return confirmAlongReportedRay(document, pick, confirmation)
+		return confirmAlongReportedRay(document, fingerprint, pick, confirmation)
 	}
 	if pick.World == nil {
 		return confirmation, nil
@@ -148,7 +190,7 @@ func ConfirmViewportSelection(document Document, pick ViewportPick) (SelectionCo
 	world := *pick.World
 	direction := normalizeOrDefault(Vec3{X: world.X - document.Camera.Position.X, Y: world.Y - document.Camera.Position.Y, Z: world.Z - document.Camera.Position.Z}, Vec3{Y: -1})
 	origin := Vec3{X: world.X - direction.X*viewportProbeBackoff, Y: world.Y - direction.Y*viewportProbeBackoff, Z: world.Z - direction.Z*viewportProbeBackoff}
-	result, err := ExactPick(document, PickRequest{Origin: origin, Direction: direction})
+	result, err := exactPick(document, fingerprint, PickRequest{Origin: origin, Direction: direction})
 	if err != nil {
 		return SelectionConfirmation{}, err
 	}
@@ -201,9 +243,9 @@ func normalizeOrDefault(value Vec3, fallback Vec3) Vec3 {
 // selection: an ID mismatch is corrected in the canonical result's favor, a
 // world-point gap on the same entity stays visible as a diagnostic, and a
 // miss refuses confirmation.
-func confirmAlongReportedRay(document Document, pick ViewportPick, confirmation SelectionConfirmation) (SelectionConfirmation, error) {
+func confirmAlongReportedRay(document Document, fingerprint string, pick ViewportPick, confirmation SelectionConfirmation) (SelectionConfirmation, error) {
 	direction := normalizeOrDefault(pick.Ray.Direction, Vec3{Y: -1})
-	result, err := ExactPick(document, PickRequest{Origin: pick.Ray.Origin, Direction: direction})
+	result, err := exactPick(document, fingerprint, PickRequest{Origin: pick.Ray.Origin, Direction: direction})
 	if err != nil {
 		return SelectionConfirmation{}, err
 	}
@@ -254,10 +296,13 @@ var pickGraphCache struct {
 	valid       bool
 }
 
-func compiledPickGraph(document Document) (scene.Graph, error) {
-	fingerprint, err := document.Fingerprint()
-	if err != nil {
-		return scene.Graph{}, err
+func compiledPickGraph(document Document, fingerprint string) (scene.Graph, error) {
+	if fingerprint == "" {
+		computed, err := document.Fingerprint()
+		if err != nil {
+			return scene.Graph{}, err
+		}
+		fingerprint = computed
 	}
 	pickGraphCache.mu.Lock()
 	if pickGraphCache.valid && pickGraphCache.revision == document.Revision && pickGraphCache.fingerprint == fingerprint {
