@@ -3,17 +3,17 @@
   "documentOperations": {
     "entityCount": 1000,
     "iterationsForGate": 5,
-    "setTransformDirectMs": 90,
-    "undoMs": 95,
-    "compileFullMs": 55,
-    "exactPickMs": 14,
+    "setTransformDirectMs": 15,
+    "undoMs": 20,
+    "compileFullMs": 45,
+    "exactPickMs": 8,
     "workspacePickMs": 2,
-    "fingerprintMs": 8,
+    "fingerprintMs": 7,
     "validateMs": 2,
     "specSelectionFeedbackMs": 16,
     "specInspectorEditMs": 50,
     "specUndoMs": 100,
-    "notes": "Gate values are regression tripwires on a 1,000-entity synthetic scene. The gate skips under -race, where the numbers measure race instrumentation rather than the code. The spec* fields record the product targets from spec section 19. Budgets are calibrated from a measured distribution, not from a single reading. Across twelve runs the current command bus produces set-transform 34.6/42.3/53.4 ms (min/median/max) and undo 41.2/47.9/57.1 ms; the same measurement before the clone and fingerprint reductions gave 59.6/70.2/76.9 and 67.9/73.6/123.4. So that change is worth about 1.6x at the median. An earlier note claimed 2.3x from single readings, which the spread does not support. These budgets sit near 1.7x the observed maximum. That deliberately will NOT catch a regression back to those pre-change numbers: the two distributions nearly touch, so any threshold separating them would flake. The gate catches large regressions, and the distribution above is the record for detecting smaller ones. Re-measure with -count=12 before retightening. Still O(document): a direct commit clones the whole SceneDoc twice, once to apply operations against and once so the caller cannot mutate canonical state. Copy-on-write per entity is what removes both."
+    "notes": "Gate values are regression tripwires on a 1,000-entity synthetic scene. The gate skips under -race, where the numbers measure race instrumentation rather than the code. The spec* fields record the product targets from spec section 19. Budgets are calibrated from measured distributions (-count=12), never from a single reading: a single reading once suggested a 2.3x gain the spread did not support. Median set-transform across three states of the command bus: 70.2 ms originally, 42.3 ms after the redundant clone and fingerprint were removed, and 6.2 ms after Document.Clone stopped round-tripping through JSON. Undo tracked it at 73.6, 47.9, and 9.3 ms. The JSON clone spent two thirds of its time parsing text it had just produced; a reflection deep copy of a 1,000-entity scene costs 1.5 ms against 10.4 ms. Current distributions: set-transform 5.6/6.2/7.7 (min/median/max), undo 5.2/9.3/10.7, compile 14.3/17.3/24.0, exact pick 2.9/3.1/3.8, workspace pick 0.17/0.18/0.20, fingerprint 2.7/2.9/3.4, validate 0.36/0.39/0.61. Budgets sit near twice the observed maximum. Re-measure with -count=12 before retightening. A direct commit still copies the document twice \u2014 once to apply operations against, once so the caller cannot mutate canonical state \u2014 but each copy now costs about 1.5 ms rather than 10, so removing the second is no longer worth changing what Execute returns."
   },
   "profiles": {
     "studio-shell": {

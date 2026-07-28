@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -340,16 +341,14 @@ func IdentityTransform() Transform {
 	return Transform{Rotation: identityQuaternion(), Scale: Vec3{X: 1, Y: 1, Z: 1}}
 }
 
+// Clone returns a document that shares no mutable state with this one.
+//
+// The error is retained for callers, but a deep copy has nothing to fail on:
+// it allocates and assigns. It used to marshal to JSON and parse the result
+// back, which could fail on a non-finite float — validation now rejects those
+// before a document can be stored, and the copy no longer depends on it.
 func (d Document) Clone() (Document, error) {
-	data, err := json.Marshal(d)
-	if err != nil {
-		return Document{}, fmt.Errorf("clone SceneDoc: %w", err)
-	}
-	var clone Document
-	if err := json.Unmarshal(data, &clone); err != nil {
-		return Document{}, fmt.Errorf("clone SceneDoc: %w", err)
-	}
-	return clone, nil
+	return deepCopyValue(reflect.ValueOf(d)).Interface().(Document), nil
 }
 
 func (d Document) Fingerprint() (string, error) {

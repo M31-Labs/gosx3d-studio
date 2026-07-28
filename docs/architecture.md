@@ -383,6 +383,19 @@ after its transaction, so the stack grows by twice the document size per edit;
 visible rather than silent. Storing inverse operations instead of document
 pairs would remove this remaining O(document) cost; it stays open.
 
+Cloning a document is a deep copy, not a JSON round trip. The round trip spent
+two thirds of its time parsing text it had just produced: 10.4 ms against
+1.5 ms for a 1,000-entity scene. The copier is reflection-driven rather than
+hand-written, because a hand-written one would have to be updated for every
+field added to the document and a forgotten field aliases silently — the
+canonical document and a clone would share a slice, and a later edit would
+reach back through history. Two tests hold it: one walks both documents in
+parallel and fails on any shared slice, map, or pointer; the other requires the
+copy to be structurally identical to the JSON round trip it replaced.
+`Transform` is the one special case, because its JSON hooks canonicalized on
+the way past, and callers have always seen a canonical transform out of a
+clone.
+
 The command bus keeps one copy per commit, not three. A transaction clones the
 document once to apply operations against; the outgoing document is retained
 directly, because nothing mutates a document in place — operations run on the
