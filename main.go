@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -38,7 +40,13 @@ func main() {
 	appName := getenv("APP_NAME", "GoSX 3D Studio")
 	port := getenv("PORT", "8080")
 	actionToken := os.Getenv("STUDIO_ACTION_TOKEN")
-	sessions, err := session.New(getenv("SESSION_SECRET", "gosx-app-session-secret"), session.Options{})
+	// desktopHost decides whether native-host-only routes answer at all.
+	desktopHost := desktopMode(runtime.GOOS, os.Getenv("STUDIO_DESKTOP"), os.Getenv("STUDIO_SERVER_ONLY"))
+	sessionSecret, err := resolveSessionSecret(os.Getenv("SESSION_SECRET"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	sessions, err := session.New(sessionSecret, session.Options{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -261,6 +269,15 @@ func main() {
 		return switchProjectRequest(ctx, workspace)
 	})
 	app.API("POST /api/studio/project/open-from-desktop", func(ctx *server.Context) (any, error) {
+		// This route exists so the trusted native picker can hand back a path
+		// the browser could not have chosen on its own. The session CSRF
+		// middleware is what authenticates it; the intent header only names
+		// the caller. Outside the desktop host there is no native picker, so
+		// the route must not answer at all — a server-only deployment that
+		// accepted a "native dialog" claim would be accepting a lie.
+		if !desktopHost {
+			return nil, statusError{http.StatusForbidden, fmt.Errorf("native project dialog is unavailable: this process has no desktop host")}
+		}
 		if ctx.Request.Header.Get("X-GoSX-Desktop-Intent") != "native-dialog" {
 			return nil, statusError{http.StatusForbidden, fmt.Errorf("native desktop project intent is required")}
 		}
@@ -274,15 +291,21 @@ func main() {
 		if err := decoder.Decode(&request); err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		document, err := workspace.Snapshot()
-		if err != nil {
-			return nil, err
-		}
-		confirmation, err := studio.ConfirmViewportSelection(document, request)
+		// Confirming a click reads the document; it does not need a private
+		// copy of the whole scene. Read holds the read lock, so the selection
+		// write below has to happen after it returns.
+		var confirmation studio.SelectionConfirmation
+		var revision uint64
+		err := workspace.Read(func(document *studio.Document) error {
+			revision = document.Revision
+			result, confirmErr := studio.ConfirmViewportSelection(*document, request)
+			confirmation = result
+			return confirmErr
+		})
 		if err != nil {
 			return nil, statusError{http.StatusConflict, err}
 		}
-		if err := workspace.SelectAtRevision(document.Revision, confirmation.Selected); err != nil {
+		if err := workspace.SelectAtRevision(revision, confirmation.Selected); err != nil {
 			return nil, commandError(err)
 		}
 		workspace.RecordViewportConfirmation(confirmation)
@@ -312,16 +335,22 @@ func main() {
 		if err := decoder.Decode(&request); err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		document, err := workspace.Snapshot()
-		if err != nil {
-			return nil, err
-		}
-		result, err := studio.ExactPick(document, request)
+		// An exact pick reads the scene. Read avoids the whole-document deep
+		// clone Snapshot performs; the optional selection write runs after
+		// the read lock is released.
+		var result studio.PickResult
+		var revision uint64
+		err := workspace.Read(func(document *studio.Document) error {
+			revision = document.Revision
+			picked, pickErr := studio.ExactPick(*document, request)
+			result = picked
+			return pickErr
+		})
 		if err != nil {
 			return nil, err
 		}
 		if request.Select && result.Selected != "" {
-			if err := workspace.SelectAtRevision(document.Revision, result.Selected); err != nil {
+			if err := workspace.SelectAtRevision(revision, result.Selected); err != nil {
 				return nil, commandError(err)
 			}
 		}
@@ -583,6 +612,67 @@ func waitForLocalStudio(url string, serverErrors <-chan error, timeout time.Dura
 	return fmt.Errorf("Studio internal server did not become ready within %s", timeout)
 }
 
+// studioAuthority names who may call a Studio route. Authority used to be
+// implicit in whether a handler happened to call authorizeAction, so a new
+// mutating route could pick the wrong one and nothing would notice. This
+// table is the contract; TestEveryStudioRouteDeclaresAuthority reads the
+// registered routes out of this file and fails on any route missing here.
+type studioAuthority string
+
+const (
+	// authorityRead is an unauthenticated read. It must not mutate.
+	authorityRead studioAuthority = "read"
+	// authoritySession is a browser path. The session CSRF middleware covers
+	// it; the GoSX client transport supplies X-CSRF-Token on mutating methods.
+	authoritySession studioAuthority = "session"
+	// authorityToken requires the STUDIO_ACTION_TOKEN bearer credential and
+	// bypasses CSRF, because agents hold no session.
+	authorityToken studioAuthority = "token"
+)
+
+// studioRouteAuthority declares the authority of every registered route.
+var studioRouteAuthority = map[string]studioAuthority{
+	"GET /api/health":                            authorityRead,
+	"GET /api/studio/platform":                   authorityRead,
+	"GET /api/studio/manifest":                   authorityRead,
+	"GET /api/studio/gltf/capabilities":          authorityRead,
+	"GET /api/studio/gltf/corpus":                authorityRead,
+	"GET /api/studio/document":                   authorityRead,
+	"GET /api/studio/scene-ir":                   authorityRead,
+	"GET /api/studio/artifact":                   authorityRead,
+	"GET /api/studio/actions":                    authorityRead,
+	"GET /api/studio/descriptors":                authorityRead,
+	"GET /api/studio/certification":              authorityRead,
+	"GET /api/studio/certification/evidence":     authorityRead,
+	"GET /api/studio/export/scene3d":             authorityRead,
+	"GET /api/studio/export/glb":                 authorityRead,
+	"GET /api/studio/export/go":                  authorityRead,
+	"GET /api/studio/export/scene-ir":            authorityRead,
+	"GET /api/studio/initialize":                 authorityRead,
+	"GET /api/studio/selection":                  authorityRead,
+	"GET /api/studio/geometry/analysis":          authorityRead,
+	"GET /api/studio/curve/analysis":             authorityRead,
+	"GET /api/studio/rig/skin":                   authorityRead,
+	"GET /api/studio/project/status":             authorityRead,
+	"GET /api/studio/assets/audit":               authorityRead,
+	"GET /api/studio/assets/dependencies":        authorityRead,
+	"POST /api/studio/selection":                 authorityToken,
+	"POST /api/studio/pick":                      authorityToken,
+	"POST /api/studio/actions/preview":           authorityToken,
+	"POST /api/studio/transactions/call":         authorityToken,
+	"POST /api/studio/undo":                      authorityToken,
+	"POST /api/studio/redo":                      authorityToken,
+	"POST /api/studio/project/save":              authorityToken,
+	"POST /api/studio/project/open":              authorityToken,
+	"POST /api/studio/assets/import":             authorityToken,
+	"POST /api/studio/assets/decode-geometry":    authorityToken,
+	"POST /api/studio/assets/reimport":           authorityToken,
+	"POST /api/studio/assets/garbage-collect":    authorityToken,
+	"POST /api/studio/viewport-selection":        authoritySession,
+	"POST /api/studio/gizmo-commit":              authoritySession,
+	"POST /api/studio/project/open-from-desktop": authoritySession,
+}
+
 type statusError struct {
 	status int
 	err    error
@@ -592,11 +682,56 @@ func (e statusError) Error() string   { return e.err.Error() }
 func (e statusError) Unwrap() error   { return e.err }
 func (e statusError) StatusCode() int { return e.status }
 
+// sharedSecretPlaceholders are the values .env.example ships. They exist so a
+// fresh checkout runs; they must never authenticate anything, because they are
+// published in this repository.
+var sharedSecretPlaceholders = map[string]bool{
+	"gosx-app-session-secret":                 true,
+	"replace-with-a-local-development-secret": true,
+}
+
+// resolveSessionSecret refuses to sign sessions with a value anyone can read
+// out of the repository. Session cookies and CSRF tokens both derive from this
+// secret, so a published default would let an attacker mint the CSRF token
+// that guards every browser-authority route. Local development without a
+// configured secret gets a per-process random one: sessions do not survive a
+// restart, which is correct, because a development session is not durable
+// state.
+func resolveSessionSecret(configured string) (string, error) {
+	configured = strings.TrimSpace(configured)
+	if configured != "" && !sharedSecretPlaceholders[configured] {
+		return configured, nil
+	}
+	reason := "SESSION_SECRET is not set"
+	if configured != "" {
+		reason = "SESSION_SECRET is still the published placeholder"
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("GOSX_ENV")), "production") {
+		return "", fmt.Errorf("%s; production requires a private session secret", reason)
+	}
+	ephemeral := make([]byte, 32)
+	if _, err := rand.Read(ephemeral); err != nil {
+		return "", fmt.Errorf("generate a development session secret: %w", err)
+	}
+	log.Printf("%s; using a random per-process secret. Sessions will not survive a restart.", reason)
+	return hex.EncodeToString(ephemeral), nil
+}
+
+// bearerMatches compares the Authorization header against the configured
+// action token in constant time. A byte-by-byte string comparison leaks the
+// length of the matching prefix through timing.
+func bearerMatches(header, token string) bool {
+	if token == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(header), []byte("Bearer "+token)) == 1
+}
+
 func authorizeAction(request *http.Request, token string) error {
 	if token == "" {
 		return statusError{http.StatusServiceUnavailable, fmt.Errorf("STUDIO_ACTION_TOKEN is not configured")}
 	}
-	if request.Header.Get("Authorization") != "Bearer "+token {
+	if !bearerMatches(request.Header.Get("Authorization"), token) {
 		return statusError{http.StatusUnauthorized, fmt.Errorf("invalid Studio action credentials")}
 	}
 	return nil
@@ -607,7 +742,7 @@ func studioCSRF(sessions *session.Manager, token string) server.Middleware {
 	return func(next http.Handler) http.Handler {
 		csrf := protected(next)
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			if strings.HasPrefix(request.URL.Path, "/api/studio/") && token != "" && request.Header.Get("Authorization") == "Bearer "+token {
+			if strings.HasPrefix(request.URL.Path, "/api/studio/") && bearerMatches(request.Header.Get("Authorization"), token) {
 				next.ServeHTTP(writer, request)
 				return
 			}
@@ -634,7 +769,10 @@ func historyAction(ctx *server.Context, workspace *studio.Workspace, token strin
 		ExpectedRevision uint64 `json:"expectedRevision"`
 		Actor            string `json:"actor"`
 	}
-	if err := json.NewDecoder(ctx.Request.Body).Decode(&payload); err != nil {
+	// Every other Studio handler bounds its body. This one did not, so an
+	// undo request could stream unbounded bytes into the decoder.
+	decoder := json.NewDecoder(io.LimitReader(ctx.Request.Body, 64<<10))
+	if err := decoder.Decode(&payload); err != nil {
 		return nil, statusError{http.StatusBadRequest, err}
 	}
 	var receipt studio.Receipt

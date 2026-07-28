@@ -299,7 +299,12 @@ partial.
 
 SceneDoc may retain editable render-resource and pass records, but it does not
 own a renderer-only graph. `CompileRenderGraph` validates and deterministically
-lowers those records into `scene.RenderGraphIR` on the canonical GoSX SceneIR.
+lowers those records into `studio.RenderGraphIR`, which `studio.SceneIR` carries
+beside the embedded canonical GoSX SceneIR under the same `renderGraph` key.
+GoSX declared identical types until 2026-07-26 and then removed them as dead:
+no GoSX renderer, Go or client-side, ever read them, and Studio was the only
+writer. Studio owns the plan now. The authored records, the validation, the
+schedule, and the portable JSON are unchanged; only the declaring package moved.
 The portable plan contains stable resources, a topologically ordered pass
 schedule, and exact transient allocation intervals. Resources declare
 `imported`, `persistent`, or `transient` ownership. Missing references,
@@ -350,6 +355,23 @@ valid journal snapshot, reports recovered/dirty state, skips torn records, and
 quarantines corrupt canonical bytes before continuing. Undo/redo use the same
 journal path.
 
+A journal record carries a whole SceneDoc, so its size follows the scene. The
+reader therefore has no fixed line budget: a capped `bufio.Scanner` meant that
+one edit on a scene inside the documented 100k-triangle import budget wrote a
+record nothing could read back, and every later open of that project failed the
+same way. Trimming the journal to its newest records is an optimization, so a
+trim failure reports through `ProjectStatus.compactionWarning` and never
+rejects a command whose record is already durable. The trim streams one record
+at a time and fsyncs the directory after its rename.
+
+Undo history is bounded. Each entry retains the complete document before and
+after its transaction, so the stack grows by twice the document size per edit;
+`ProjectStatus` reports `undoDepth` and `undoLimit` so a dropped step is
+visible rather than silent. Storing inverse operations instead of document
+pairs, and journaling operations with periodic snapshots instead of a snapshot
+per record, are the changes that would remove the underlying O(document) cost.
+Both remain open.
+
 Every Studio form is a GoSX managed form (`data-gosx-form`) and the selection
 and gizmo bridges route through the built-in page-navigation morph, so
 transactions refresh the panels in place without tearing down the Scene3D
@@ -358,6 +380,15 @@ degrades to ordinary posts and reloads.
 
 The GSX viewport spreads the same compiled `scene.Props` consumed by the native
 harness. No DOM board or editor-only renderer graph is scene truth.
+
+The certification card does not run the evidence suite on the render path. The
+suite renders frames and builds workspaces — about 2.3 seconds on the sample
+document — and every edit changes the revision, so running it inline stalled
+the editor once per edit. It now runs in the background keyed by revision and
+fingerprint, and the card reports `certState`: `current` when the evidence
+describes the rendered revision, `recomputing` while a newer run is in flight,
+`pending` before any run finishes. Only `current` renders in certification
+gold, because evidence that describes an older revision is not trusted state.
 
 `studio-certify` emits the deterministic M0/M1/M2-foundation evidence envelope.
 A valid envelope proves its named checks only; it embeds the broader certification
