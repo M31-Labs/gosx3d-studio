@@ -28,8 +28,26 @@ certification, and desktop packaging remain unimplemented.
    state and in certification (`m1-viewport-exact-selection`).
 2. Generate Hierarchy and Inspector UI from live document and descriptors.
 3. Add semantic diffs, inverse IDs, telemetry correlation, and action JSON Schemas.
-4. Integrate editor-facing `scene/cert` dimensions and Selena evidence.
+4. ~~Integrate editor-facing `scene/cert` dimensions and Selena evidence.~~
+   Superseded: GoSX removed `scene/cert` as dead code on 2026-07-26. Studio now
+   records the linked framework module and version and does not republish a
+   framework matrix it cannot re-derive. See
+   [[decisions/0002-dependency-model-pinned-versions-not-replace]] in the
+   `gosx3d-studio` Hyphae space.
 5. Launch, package, and recovery-test the same app through `gosx desktop` on Windows.
+
+## Substrate work still open
+
+Named here so it is not rediscovered. None of it blocks the slices above.
+
+- The journal writes a whole SceneDoc per record, and undo retains a document
+  pair per entry. Operations with periodic snapshots, and inverse operations in
+  undo, remove the remaining O(document) cost.
+- `Document.Fingerprint` re-marshals the whole document. Per-entity content
+  hashes with a Merkle root would make it incremental and fix every caller,
+  including the compiled-graph and certification caches, at once.
+- The certification card reports `recomputing` until the next render. There is
+  no push to refresh it when the background run finishes.
 
 ## Non-negotiable invariants
 

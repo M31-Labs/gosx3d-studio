@@ -372,6 +372,25 @@ pairs, and journaling operations with periodic snapshots instead of a snapshot
 per record, are the changes that would remove the underlying O(document) cost.
 Both remain open.
 
+The command bus keeps one copy per commit, not three. A transaction clones the
+document once to apply operations against; the outgoing document is retained
+directly, because nothing mutates a document in place — operations run on the
+clone and a commit rebinds rather than edits. A proposal returns its working
+document without a further copy, since it never becomes canonical. The
+workspace also carries the fingerprint of its current document, so the
+fingerprint one transaction produces is the one the next starts from, and read
+paths reuse it instead of re-deriving the identity that keys the compiled-graph
+cache. On a 1,000-entity scene that took a direct set-transform from 51.8 ms to
+22.4 ms, undo from 59.5 ms to 27.1 ms, and a viewport pick from 2.8 ms to
+0.15 ms. `perf-budget.json` gates all three.
+
+The HTTP surface is built by `buildStudioApp`, which takes its configuration as
+a value rather than reading the environment inline. That is what lets the tests
+construct the real router and exercise the real routes: authority is declared
+once in `studioRouteAuthority`, `route_authority_test.go` holds that table
+against the source with `go/ast`, and `http_surface_test.go` holds the running
+server against the table.
+
 Every Studio form is a GoSX managed form (`data-gosx-form`) and the selection
 and gizmo bridges route through the built-in page-navigation morph, so
 transactions refresh the panels in place without tearing down the Scene3D
@@ -389,6 +408,23 @@ fingerprint, and the card reports `certState`: `current` when the evidence
 describes the rendered revision, `recomputing` while a newer run is in flight,
 `pending` before any run finishes. Only `current` renders in certification
 gold, because evidence that describes an older revision is not trusted state.
+
+Evidence that could not be taken never reads as evidence that passed. Checks
+compare document fingerprints to prove a proposal and a direct commit produce
+the same document, and a discarded capture error yielded an empty string on
+both sides, which compared equal. Captures are now a type whose equality
+requires both sides to have succeeded, and whose zero-length function field
+makes `==` a compile error, so the unsafe comparison cannot be written. A
+failed capture renders as `unhashable: <reason>`. The suite also runs on a
+background goroutine, where an unrecovered panic would end the process, so a
+panic is recovered and published as a failed evidence state.
+
+A SceneDoc that validates is a SceneDoc that persists. `encoding/json` refuses
+NaN and infinities, so a non-finite value surviving validation produced a
+document the workspace could not clone, fingerprint, journal, or save. Camera,
+environment, and light records reached that state. Every float a document can
+carry is now either rejected by validation or safe to marshal, and a
+reflection walk over both seed documents holds that implication.
 
 `studio-certify` emits the deterministic M0/M1/M2-foundation evidence envelope.
 A valid envelope proves its named checks only; it embeds the broader certification
