@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"m31labs.dev/gosx3d-studio/internal/studio"
 )
@@ -29,6 +30,47 @@ func TestHierarchyAndInspectorReflectCanonicalDocument(t *testing.T) {
 	inspector := inspectorView(document, selected)
 	if inspector["id"] != string(selected) || inspector["material"] != "Coral Pieces" {
 		t.Fatalf("inspector = %#v", inspector)
+	}
+}
+
+// The evidence suite renders frames and builds workspaces. Measured on the
+// sample document it costs about 2.3 seconds, and every edit changes the
+// revision, so running it inline stalled the editor once per edit. The render
+// path must return without waiting for it, and the card must say which
+// document the evidence it shows describes.
+func TestCertificationViewDoesNotBlockTheRenderPath(t *testing.T) {
+	document := studio.SampleDocument()
+
+	liveCertCache.Lock()
+	liveCertCache.view, liveCertCache.running, liveCertCache.fingerprint, liveCertCache.revision = nil, "", "", 0
+	liveCertCache.Unlock()
+
+	start := time.Now()
+	view := liveCertificationView(document)
+	elapsed := time.Since(start)
+
+	// The suite itself takes seconds. A render that waited for it would not
+	// come back inside this budget.
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("render path took %v; the evidence suite is still running inline", elapsed)
+	}
+	if view["certState"] != "pending" {
+		t.Fatalf("first render certState = %v, want pending", view["certState"])
+	}
+
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		view = liveCertificationView(document)
+		if view["certState"] == "current" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("background evidence never became current; last state = %v", view["certState"])
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if view["certRevision"] == "" || view["liveChecksTotal"] == "0" {
+		t.Fatalf("current evidence view = %#v", view)
 	}
 }
 

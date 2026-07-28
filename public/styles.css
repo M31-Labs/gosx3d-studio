@@ -1107,6 +1107,22 @@ time,
   font-size: var(--type-xs);
 }
 
+/* Evidence provenance: gold is trusted certification state, cyan is observed
+   runtime state. Evidence that describes an older revision must not read as
+   trusted, so only "current" gets gold. */
+.certification-state {
+  font-family: var(--font-mono);
+}
+
+.certification-state-current {
+  color: var(--color-certified);
+}
+
+.certification-state-recomputing,
+.certification-state-pending {
+  color: var(--color-runtime);
+}
+
 .manifest-link a {
   font-family: var(--font-mono);
   font-size: var(--type-xs);

@@ -845,6 +845,7 @@ func Page() Node {
 					<strong>{data.certification.status}</strong>
 					<small>{data.certification.available} / {data.certification.total} editor dimensions available</small>
 					<small>{data.certification.liveChecksPass} / {data.certification.liveChecksTotal} live evidence checks pass · release {data.certification.releaseStatus}</small>
+					<small class={"certification-state certification-state-" + data.certification.certState}>evidence {data.certification.certState} · revision {data.certification.certRevision}</small>
 					<ul class="certification-dimensions">
 						<Each of={data.certification.dimensions} as="dimension">
 							<li title={dimension.evidence}>

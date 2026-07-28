@@ -290,23 +290,66 @@ func historyView(workspace *studio.Workspace) []map[string]any {
 	return out
 }
 
-// liveCertificationView runs the deterministic evidence suite for the current
-// document (cached per revision — the suite renders frames and builds
-// workspaces) and merges its live check results into the certification card.
+// liveCertificationView reports the deterministic evidence suite for the
+// current document without running it on the render path. The suite renders
+// frames and builds workspaces; measured on the sample document it costs
+// about 2.3 seconds, and every edit changes the revision, so running it
+// inline stalled the editor once per edit. It now runs in the background and
+// the card reports which document the evidence belongs to.
+//
+// certState is "current" when the evidence matches the rendered revision,
+// "recomputing" when older evidence is shown while the suite runs, and
+// "pending" before any run has finished. The card must never present stale
+// evidence as if it described the document on screen.
 var liveCertCache struct {
 	sync.Mutex
-	revision    uint64
-	fingerprint string
-	view        map[string]any
+	fingerprint string         // document the completed view describes
+	revision    uint64         // revision the completed view describes
+	view        map[string]any // published: never mutated after storing
+	running     string         // fingerprint a background run is computing
 }
 
 func liveCertificationView(document studio.Document) map[string]any {
-	fingerprint, _ := document.Fingerprint()
-	liveCertCache.Lock()
-	defer liveCertCache.Unlock()
-	if liveCertCache.view != nil && liveCertCache.revision == document.Revision && liveCertCache.fingerprint == fingerprint {
-		return liveCertCache.view
+	fingerprint, err := document.Fingerprint()
+	if err != nil {
+		view := certificationView(studio.Certification())
+		view["certState"], view["certRevision"] = "error: "+err.Error(), ""
+		return view
 	}
+
+	liveCertCache.Lock()
+	cached, cachedRevision := liveCertCache.view, liveCertCache.revision
+	current := cached != nil && liveCertCache.fingerprint == fingerprint && cachedRevision == document.Revision
+	if !current && liveCertCache.running != fingerprint {
+		liveCertCache.running = fingerprint
+		// The document is a per-request Snapshot clone that nothing mutates,
+		// so the run may read it directly instead of cloning it again.
+		go runCertification(document, fingerprint)
+	}
+	liveCertCache.Unlock()
+
+	if cached == nil {
+		view := certificationView(studio.Certification())
+		view["certState"], view["certRevision"] = "pending", ""
+		view["liveChecksPass"], view["liveChecksTotal"], view["releaseStatus"] = "0", "0", "measuring"
+		return view
+	}
+	view := make(map[string]any, len(cached)+2)
+	for key, value := range cached {
+		view[key] = value
+	}
+	view["certRevision"] = fmt.Sprintf("%04d", cachedRevision)
+	if current {
+		view["certState"] = "current"
+	} else {
+		view["certState"] = "recomputing"
+	}
+	return view
+}
+
+// runCertification computes one evidence view and publishes it. It clears the
+// running marker last so a failed run cannot wedge the card in "recomputing".
+func runCertification(document studio.Document, fingerprint string) {
 	view := certificationView(studio.Certification())
 	report, err := studio.CertifyCurrent(document)
 	if err != nil {
@@ -321,8 +364,13 @@ func liveCertificationView(document studio.Document) map[string]any {
 		view = certificationView(report.Certification)
 		view["liveChecksPass"], view["liveChecksTotal"], view["releaseStatus"] = fmt.Sprint(pass), fmt.Sprint(len(report.Checks)), report.ReleaseStatus
 	}
+
+	liveCertCache.Lock()
+	defer liveCertCache.Unlock()
 	liveCertCache.revision, liveCertCache.fingerprint, liveCertCache.view = document.Revision, fingerprint, view
-	return view
+	if liveCertCache.running == fingerprint {
+		liveCertCache.running = ""
+	}
 }
 
 // imageAssetsView lists image assets for texture slot selects.
