@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 const AssetGCPlanSchema = "gosx3d.studio.asset-gc-plan/v1"
@@ -20,11 +21,17 @@ type AssetGCRequest struct {
 }
 
 type AssetGCPlan struct {
-	Schema      string `json:"schema"`
-	Revision    uint64 `json:"revision"`
-	Assets      []ID   `json:"assets"`
-	Bytes       int64  `json:"bytes"`
-	Fingerprint string `json:"fingerprint"`
+	Schema   string `json:"schema"`
+	Revision uint64 `json:"revision"`
+	Assets   []ID   `json:"assets"`
+	Bytes    int64  `json:"bytes"`
+	// Orphans are stored payloads no asset record names. They cannot be
+	// reached from the document, so the walk above can never find them: only
+	// reading the store does. Undoing an import leaves one, because undo
+	// restores the document and the document is not what owns the bytes.
+	Orphans     []AssetOrphan `json:"orphans,omitempty"`
+	OrphanBytes int64         `json:"orphanBytes,omitempty"`
+	Fingerprint string        `json:"fingerprint"`
 }
 
 type AssetGCResult struct {
@@ -34,7 +41,10 @@ type AssetGCResult struct {
 	Checkpointed    bool        `json:"checkpointed"`
 	DeletedPayloads int         `json:"deletedPayloads"`
 	DeletedBytes    int64       `json:"deletedBytes"`
-	PayloadFindings []string    `json:"payloadFindings,omitempty"`
+	// ReclaimedOrphans counts payloads removed that no record named.
+	ReclaimedOrphans int      `json:"reclaimedOrphans,omitempty"`
+	ReclaimedBytes   int64    `json:"reclaimedBytes,omitempty"`
+	PayloadFindings  []string `json:"payloadFindings,omitempty"`
 }
 
 func PlanAssetGarbage(document Document) (AssetGCPlan, error) {
@@ -112,14 +122,61 @@ func PlanAssetGarbage(document Document) (AssetGCPlan, error) {
 	for _, id := range ids {
 		plan.Bytes += document.Assets[id].Bytes
 	}
+	fingerprintAssetGCPlan(&plan)
+	return plan, nil
+}
+
+// fingerprintAssetGCPlan stamps the plan with a hash of everything it would
+// reclaim. Direct collection requires the caller to echo it back, so the hash
+// has to cover the orphan list too: otherwise a confirmed plan could delete a
+// set of files the caller never saw.
+func fingerprintAssetGCPlan(plan *AssetGCPlan) {
 	canonical, _ := json.Marshal(struct {
-		Schema   string `json:"schema"`
-		Revision uint64 `json:"revision"`
-		Assets   []ID   `json:"assets"`
-		Bytes    int64  `json:"bytes"`
-	}{plan.Schema, plan.Revision, plan.Assets, plan.Bytes})
+		Schema      string        `json:"schema"`
+		Revision    uint64        `json:"revision"`
+		Assets      []ID          `json:"assets"`
+		Bytes       int64         `json:"bytes"`
+		Orphans     []AssetOrphan `json:"orphans"`
+		OrphanBytes int64         `json:"orphanBytes"`
+	}{plan.Schema, plan.Revision, plan.Assets, plan.Bytes, plan.Orphans, plan.OrphanBytes})
 	sum := sha256.Sum256(canonical)
 	plan.Fingerprint = hex.EncodeToString(sum[:])
+}
+
+// PlanAssetGarbageForProject returns the plan this workspace would act on:
+// the document-derived plan plus the payloads only the filesystem knows about.
+// Human and agent surfaces must both read the plan from here, because direct
+// collection confirms against this fingerprint.
+func (w *Workspace) PlanAssetGarbageForProject() (AssetGCPlan, error) {
+	w.mu.RLock()
+	projectDir := w.projectDir
+	w.mu.RUnlock()
+	document, err := w.Snapshot()
+	if err != nil {
+		return AssetGCPlan{}, err
+	}
+	return planWithOrphans(document, projectDir, document.Assets)
+}
+
+// planWithOrphans is the plan a project actually acts on: the document-derived
+// plan plus the payloads only the filesystem knows about. PlanAssetGarbage
+// itself stays a pure function of the document, because its determinism is
+// what the certification evidence rests on.
+func planWithOrphans(document Document, projectDir string, assets map[ID]AssetRecord) (AssetGCPlan, error) {
+	plan, err := PlanAssetGarbage(document)
+	if err != nil {
+		return AssetGCPlan{}, err
+	}
+	if projectDir == "" {
+		return plan, nil
+	}
+	// An asset this plan is about to delete is still referenced right now, so
+	// its payload must not also be listed as an orphan.
+	plan.Orphans = findOrphanPayloads(projectDir, assets)
+	for _, orphan := range plan.Orphans {
+		plan.OrphanBytes += orphan.Bytes
+	}
+	fingerprintAssetGCPlan(&plan)
 	return plan, nil
 }
 
@@ -165,7 +222,10 @@ func (w *Workspace) CollectAssetGarbage(request AssetGCRequest) (AssetGCResult, 
 	if request.ExpectedRevision != document.Revision {
 		return AssetGCResult{}, fmt.Errorf("%w: have %d, expected %d", ErrRevisionConflict, document.Revision, request.ExpectedRevision)
 	}
-	plan, err := PlanAssetGarbage(document)
+	w.mu.RLock()
+	planProjectDir := w.projectDir
+	w.mu.RUnlock()
+	plan, err := planWithOrphans(document, planProjectDir, document.Assets)
 	if err != nil {
 		return AssetGCResult{}, err
 	}
@@ -187,8 +247,15 @@ func (w *Workspace) CollectAssetGarbage(request AssetGCRequest) (AssetGCResult, 
 	for _, id := range plan.Assets {
 		operations = append(operations, Operation{Kind: OpDeleteAsset, AssetID: id})
 	}
+	// A plan may hold nothing but orphans. There is no document change to
+	// make for those, so there is no transaction and no checkpoint — deleting
+	// a file the document does not reference cannot alter the document.
 	if len(operations) == 0 {
-		return AssetGCResult{Plan: plan, Document: document}, nil
+		result := AssetGCResult{Plan: plan, Document: document}
+		if request.Mode == ModeDirect {
+			reclaimOrphans(planProjectDir, plan, &result)
+		}
+		return result, nil
 	}
 	receipt, next, err := w.Execute(Transaction{ID: "asset-gc:" + plan.Fingerprint[:16], Actor: request.Actor, Mode: request.Mode, ExpectedRevision: document.Revision, Operations: operations})
 	if err != nil {
@@ -214,6 +281,30 @@ func (w *Workspace) CollectAssetGarbage(request AssetGCRequest) (AssetGCResult, 
 			result.PayloadFindings = append(result.PayloadFindings, fmt.Sprintf("%s: %v", id, err))
 		}
 	}
+	reclaimOrphans(projectDir, plan, &result)
 	sort.Strings(result.PayloadFindings)
 	return result, nil
+}
+
+// reclaimOrphans removes the payloads the plan listed as unreferenced. It
+// re-derives each path under the project directory rather than trusting the
+// plan's string, so a plan can only ever name a file inside the store.
+func reclaimOrphans(projectDir string, plan AssetGCPlan, result *AssetGCResult) {
+	if projectDir == "" {
+		return
+	}
+	for _, orphan := range plan.Orphans {
+		clean := filepath.ToSlash(filepath.Clean(orphan.Path))
+		if !strings.HasPrefix(clean, "assets/sha256/") || strings.Contains(clean, "../") {
+			result.PayloadFindings = append(result.PayloadFindings, fmt.Sprintf("%s: refused, outside the asset store", orphan.Path))
+			continue
+		}
+		path := filepath.Join(projectDir, filepath.FromSlash(clean))
+		if err := os.Remove(path); err == nil {
+			result.ReclaimedOrphans++
+			result.ReclaimedBytes += orphan.Bytes
+		} else if !os.IsNotExist(err) {
+			result.PayloadFindings = append(result.PayloadFindings, fmt.Sprintf("%s: %v", orphan.Path, err))
+		}
+	}
 }

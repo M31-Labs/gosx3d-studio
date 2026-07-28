@@ -140,6 +140,7 @@ func Page() Node {
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
 					<strong>Unused assets · {data.assetGC.count}</strong>
 					<small>{data.assetGC.bytes} reclaimable</small>
+					<small>Unreferenced payloads · {data.assetGC.orphans} · {data.assetGC.orphanBytes}</small>
 					<p class="placeholder-copy">{data.assetGC.status}</p>
 					<button type="submit" class="inspector-apply" disabled={!data.assetGC.available}>Checkpoint and collect</button>
 				</form>

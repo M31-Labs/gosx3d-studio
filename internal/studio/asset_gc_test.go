@@ -164,3 +164,71 @@ func TestAuditReportsPayloadsNothingReferences(t *testing.T) {
 		t.Fatal("an orphan made the integrity audit report invalid")
 	}
 }
+
+// Garbage collection plans outward from the document, so a payload nothing
+// references was invisible to it and stayed forever. The plan now carries them
+// and direct collection reclaims them, under the same explicit-confirmation
+// boundary as an unused-asset delete.
+func TestGarbageCollectionReclaimsOrphanedPayloads(t *testing.T) {
+	dir := t.TempDir()
+	workspace, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeDir := filepath.Join(dir, "assets", "sha256")
+	if err := os.MkdirAll(storeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stray := filepath.Join(storeDir, "1111111111111111111111111111111111111111111111111111111111111111.bin")
+	if err := os.WriteFile(stray, []byte("left behind by an undone import"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	document, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	preview, err := workspace.CollectAssetGarbage(AssetGCRequest{Actor: "human://test", Mode: ModePropose, ExpectedRevision: document.Revision})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Plan.Orphans) != 1 {
+		t.Fatalf("plan orphans = %+v, want one", preview.Plan.Orphans)
+	}
+	if preview.Plan.OrphanBytes != int64(len("left behind by an undone import")) {
+		t.Fatalf("plan orphanBytes = %d", preview.Plan.OrphanBytes)
+	}
+	// A proposal must not touch the filesystem.
+	if _, err := os.Stat(stray); err != nil {
+		t.Fatalf("proposal removed the payload: %v", err)
+	}
+	if preview.ReclaimedOrphans != 0 {
+		t.Fatalf("proposal reported %d reclaimed", preview.ReclaimedOrphans)
+	}
+
+	// The confirmation fingerprint must cover the orphans, or a caller could
+	// confirm a plan and have a different set of files deleted.
+	stale := AssetGCPlan{Schema: preview.Plan.Schema, Revision: preview.Plan.Revision, Assets: preview.Plan.Assets, Bytes: preview.Plan.Bytes}
+	fingerprintAssetGCPlan(&stale)
+	if stale.Fingerprint == preview.Plan.Fingerprint {
+		t.Fatal("the plan fingerprint does not cover its orphan list")
+	}
+	if _, err := workspace.CollectAssetGarbage(AssetGCRequest{Actor: "human://test", Mode: ModeDirect, ExpectedRevision: document.Revision, ConfirmPlan: stale.Fingerprint}); err == nil {
+		t.Fatal("direct collection accepted a fingerprint that omitted the orphans")
+	}
+
+	result, err := workspace.CollectAssetGarbage(AssetGCRequest{Actor: "human://test", Mode: ModeDirect, ExpectedRevision: document.Revision, ConfirmPlan: preview.Plan.Fingerprint})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ReclaimedOrphans != 1 || result.ReclaimedBytes != int64(len("left behind by an undone import")) {
+		t.Fatalf("reclaimed %d payloads / %d bytes", result.ReclaimedOrphans, result.ReclaimedBytes)
+	}
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Fatalf("orphaned payload survived collection: %v", err)
+	}
+	if audit := workspace.AuditAssets(); len(audit.Orphans) != 0 {
+		t.Fatalf("audit still reports orphans: %+v", audit.Orphans)
+	}
+}

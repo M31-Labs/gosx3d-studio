@@ -73,12 +73,36 @@ func assetView(document studio.Document, workspace *studio.Workspace) []map[stri
 	return out
 }
 
-func assetGCView(document studio.Document) map[string]any {
-	plan, err := studio.PlanAssetGarbage(document)
-	if err != nil {
-		return map[string]any{"available": false, "count": "0", "bytes": "0 B", "fingerprint": "", "status": err.Error()}
+// assetGCView reads the plan from the workspace, not from the document alone.
+// Direct collection confirms against a fingerprint that covers orphaned
+// payloads too, so a form built from the document-only plan would send a
+// fingerprint the collector rejects.
+func assetGCView(document studio.Document, workspace *studio.Workspace) map[string]any {
+	var (
+		plan studio.AssetGCPlan
+		err  error
+	)
+	if workspace != nil {
+		plan, err = workspace.PlanAssetGarbageForProject()
+	} else {
+		plan, err = studio.PlanAssetGarbage(document)
 	}
-	return map[string]any{"available": len(plan.Assets) > 0, "count": fmt.Sprint(len(plan.Assets)), "bytes": formatBytes(plan.Bytes), "fingerprint": plan.Fingerprint, "status": "Explicit checkpoint: clears undo history and deletes payload bytes."}
+	if err != nil {
+		return map[string]any{"available": false, "count": "0", "bytes": "0 B", "orphans": "0", "orphanBytes": "0 B", "fingerprint": "", "status": err.Error()}
+	}
+	status := "Explicit checkpoint: clears undo history and deletes payload bytes."
+	if len(plan.Orphans) > 0 {
+		status += fmt.Sprintf(" Also reclaims %d stored payload(s) no record references.", len(plan.Orphans))
+	}
+	return map[string]any{
+		"available":   len(plan.Assets) > 0 || len(plan.Orphans) > 0,
+		"count":       fmt.Sprint(len(plan.Assets)),
+		"bytes":       formatBytes(plan.Bytes),
+		"orphans":     fmt.Sprint(len(plan.Orphans)),
+		"orphanBytes": formatBytes(plan.OrphanBytes),
+		"fingerprint": plan.Fingerprint,
+		"status":      status,
+	}
 }
 
 func timelineView(document studio.Document) map[string]any {

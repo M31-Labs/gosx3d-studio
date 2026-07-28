@@ -47,12 +47,16 @@ Named here so it is not rediscovered. None of it blocks the slices above.
 - `Document.Fingerprint` re-marshals the whole document. Per-entity content
   hashes with a Merkle root would make it incremental and fix every caller,
   including the compiled-graph and certification caches, at once.
-- The certification card reports `recomputing` until the next render. There is
-  no push to refresh it when the background run finishes.
-- Undoing an asset import leaves its payload in the store. Undo restores the
-  document, and the document is not what owns the bytes. `AuditAssets` reports
-  these as `orphans`; nothing reclaims them, because deleting a file the
-  document does not know about is not the audit's decision.
+- ~~The certification card reports `recomputing` until the next render.~~
+  Done: `GET /api/studio/certification/state` answers from two fields under a
+  mutex, and `public/studio-certification.js` polls it only while the card is
+  waiting, then lets the page's own morph refresh redraw it.
+- ~~Undoing an asset import leaves its payload in the store with nothing to
+  reclaim it.~~ Done: `AuditAssets` reports them as `orphans`, the garbage
+  collection plan carries them, and direct collection reclaims them under the
+  same explicit-confirmation boundary as an unused-asset delete. The plan
+  fingerprint covers the orphan list, so a confirmed plan cannot delete a set
+  the caller never saw.
 - A direct commit still clones the document twice: once to apply operations
   against, once so the caller cannot mutate canonical state through the value
   it is handed back. Copy-on-write per entity would remove both.

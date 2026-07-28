@@ -690,7 +690,7 @@ func init() {
 				"project":       projectView(boundWorkspace()),
 				"assets":        assetView(document, boundWorkspace()),
 				"assetCount":    fmt.Sprint(len(document.Assets)),
-				"assetGC":       assetGCView(document),
+				"assetGC":       assetGCView(document, boundWorkspace()),
 				"timeline":      timelineView(document),
 			}, nil
 		},
