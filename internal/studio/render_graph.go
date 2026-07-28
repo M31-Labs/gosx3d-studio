@@ -74,7 +74,27 @@ func applySetRenderGraph(document *Document, operation Operation) ([]ID, error) 
 	if _, err := CompileRenderGraph(*operation.RenderGraph); err != nil {
 		return nil, err
 	}
-	document.RenderGraph = operation.RenderGraph
+	// Copy rather than store the caller's pointer. The same Operation stays
+	// reachable from the undo stack's retained Transaction, so keeping the
+	// pointer would leave the canonical document sharing mutable state with
+	// history. Every other apply function copies for this reason; this one
+	// did not, and Clone's guarantee that a document owns everything
+	// reachable from it depends on all of them doing so.
+	graph := RenderGraph{
+		Resources: make(map[ID]RenderResource, len(operation.RenderGraph.Resources)),
+		Passes:    make(map[ID]RenderPass, len(operation.RenderGraph.Passes)),
+	}
+	for id, resource := range operation.RenderGraph.Resources {
+		graph.Resources[id] = resource
+	}
+	for id, pass := range operation.RenderGraph.Passes {
+		copied := pass
+		copied.Reads = append([]ID(nil), pass.Reads...)
+		copied.Writes = append([]ID(nil), pass.Writes...)
+		copied.Depends = append([]ID(nil), pass.Depends...)
+		graph.Passes[id] = copied
+	}
+	document.RenderGraph = &graph
 	return nil, nil
 }
 

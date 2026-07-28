@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"m31labs.dev/gosx3d-studio/internal/studio"
 )
@@ -233,5 +234,69 @@ func TestHealthAndDiscoveryRoutesReturnUsableJSON(t *testing.T) {
 				t.Fatalf("response has no %q field: %v", key, payload)
 			}
 		})
+	}
+}
+
+// The evidence suite costs about a second of CPU per run and this route
+// carries read authority, so it answers without a credential. A repeat request
+// at the same document must be served from cache rather than buying that
+// second again.
+func TestCertificationEvidenceIsCachedByDocument(t *testing.T) {
+	if testing.Short() {
+		t.Skip("evidence caching skipped in short mode")
+	}
+	handler, workspace := newTestStudio(t)
+
+	// The cache lives in internal/studio and an earlier test may have warmed
+	// it, so commit an edit first: that guarantees the next request is a miss
+	// no matter what ran before.
+	commitEdit := func(id, name string) {
+		t.Helper()
+		document, err := workspace.Snapshot()
+		if err != nil {
+			t.Fatal(err)
+		}
+		target, _ := studio.FirstPickTarget(document)
+		response := doRequest(t, handler, http.MethodPost, "/api/studio/transactions/call", map[string]any{
+			"id": id, "actor": "agent://http-test", "mode": "direct",
+			"expectedRevision": document.Revision,
+			"operations":       []map[string]any{{"kind": "rename-entity", "target": string(target), "name": name}},
+		}, true)
+		if response.Code != http.StatusOK {
+			t.Fatalf("edit %s = %d: %s", id, response.Code, response.Body.String())
+		}
+	}
+
+	commitEdit("evidence-cache-warm", "Before")
+	start := time.Now()
+	cold := doRequest(t, handler, http.MethodGet, "/api/studio/certification/evidence", nil, false)
+	coldElapsed := time.Since(start)
+	if cold.Code != http.StatusOK {
+		t.Fatalf("cold request = %d: %s", cold.Code, cold.Body.String())
+	}
+
+	start = time.Now()
+	warm := doRequest(t, handler, http.MethodGet, "/api/studio/certification/evidence", nil, false)
+	warmElapsed := time.Since(start)
+	if warm.Code != http.StatusOK {
+		t.Fatalf("warm request = %d", warm.Code)
+	}
+	if !bytes.Equal(cold.Body.Bytes(), warm.Body.Bytes()) {
+		t.Fatal("cached evidence differs from the run it caches")
+	}
+	// The suite is hundreds of milliseconds; a cache hit is microseconds.
+	if warmElapsed > coldElapsed/10 {
+		t.Fatalf("repeat request took %v against a first request of %v: it re-ran the suite", warmElapsed, coldElapsed)
+	}
+
+	// A committed edit must invalidate it, or the report would describe a
+	// document that no longer exists.
+	commitEdit("evidence-cache-invalidate", "After")
+	fresh := doRequest(t, handler, http.MethodGet, "/api/studio/certification/evidence", nil, false)
+	if fresh.Code != http.StatusOK {
+		t.Fatalf("post-edit request = %d", fresh.Code)
+	}
+	if bytes.Equal(fresh.Body.Bytes(), cold.Body.Bytes()) {
+		t.Fatal("evidence did not change after an edit: the cache is not keyed on the document")
 	}
 }

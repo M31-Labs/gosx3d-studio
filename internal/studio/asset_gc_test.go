@@ -121,3 +121,46 @@ func TestAssetGarbageActionDiscoveryDeclaresCheckpointPolicy(t *testing.T) {
 	}
 	t.Fatal("collect-unused-assets action is not discoverable")
 }
+
+// Garbage collection plans outward from the document, so a payload nothing
+// references is invisible to it and stays forever. Undoing an import is enough
+// to create one: undo restores the document, and the document is not what owns
+// the bytes. The audit walks the store instead, which is the only way to see
+// them.
+func TestAuditReportsPayloadsNothingReferences(t *testing.T) {
+	dir := t.TempDir()
+	workspace, err := OpenWorkspace(dir, SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if audit := workspace.AuditAssets(); len(audit.Orphans) != 0 {
+		t.Fatalf("a fresh project reported orphans: %+v", audit.Orphans)
+	}
+
+	// A file in the store that no record names is exactly what a failed
+	// import or an undone one leaves behind.
+	storeDir := filepath.Join(dir, "assets", "sha256")
+	if err := os.MkdirAll(storeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stray := filepath.Join(storeDir, "0000000000000000000000000000000000000000000000000000000000000000.bin")
+	if err := os.WriteFile(stray, []byte("unreferenced payload"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	audit := workspace.AuditAssets()
+	if len(audit.Orphans) != 1 {
+		t.Fatalf("orphans = %+v, want exactly one", audit.Orphans)
+	}
+	if audit.Orphans[0].Path != "assets/sha256/0000000000000000000000000000000000000000000000000000000000000000.bin" {
+		t.Fatalf("orphan path = %q", audit.Orphans[0].Path)
+	}
+	if audit.Orphans[0].Bytes != int64(len("unreferenced payload")) {
+		t.Fatalf("orphan bytes = %d", audit.Orphans[0].Bytes)
+	}
+	// An unreferenced file is housekeeping, not an integrity failure: every
+	// payload the document does reference is still present and correct.
+	if !audit.Valid {
+		t.Fatal("an orphan made the integrity audit report invalid")
+	}
+}

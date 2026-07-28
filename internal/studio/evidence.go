@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 
 	"m31labs.dev/gosx/scene"
 	"m31labs.dev/gosx/scene/harness"
@@ -156,6 +157,48 @@ func CertifyM0(document Document) (EvidenceReport, error) {
 // CertifyCurrent extends the M0 proof with every M1 behavior that currently has
 // complete browser-free semantic evidence. It intentionally names the slice a
 // foundation rather than claiming the full M1 milestone.
+// certifyCache holds the last evidence report and the document it describes.
+//
+// The suite renders frames, builds workspaces, and runs several simulations:
+// about one second of CPU per call. GET /api/studio/certification/evidence is
+// an unauthenticated read that calls it, so an anonymous caller could spend a
+// second of server CPU per request with no credential and no rate limit. The
+// report is a pure function of the document, so serving a repeat request from
+// the cache removes the amplification without narrowing who may ask.
+var certifyCache struct {
+	mu          sync.Mutex
+	revision    uint64
+	fingerprint string
+	report      EvidenceReport
+	valid       bool
+}
+
+// CertifyCurrentCached returns the evidence report for document, reusing the
+// previous result when the same document is asked for again. Callers that
+// need a guaranteed fresh run call CertifyCurrent.
+func CertifyCurrentCached(document Document) (EvidenceReport, error) {
+	fingerprint, err := document.Fingerprint()
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	certifyCache.mu.Lock()
+	if certifyCache.valid && certifyCache.revision == document.Revision && certifyCache.fingerprint == fingerprint {
+		report := certifyCache.report
+		certifyCache.mu.Unlock()
+		return report, nil
+	}
+	certifyCache.mu.Unlock()
+
+	report, err := CertifyCurrent(document)
+	if err != nil {
+		return EvidenceReport{}, err
+	}
+	certifyCache.mu.Lock()
+	certifyCache.revision, certifyCache.fingerprint, certifyCache.report, certifyCache.valid = document.Revision, fingerprint, report, true
+	certifyCache.mu.Unlock()
+	return report, nil
+}
+
 func CertifyCurrent(document Document) (EvidenceReport, error) {
 	report, err := CertifyM0(document)
 	if err != nil {

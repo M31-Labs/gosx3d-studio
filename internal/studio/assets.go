@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -46,6 +48,23 @@ type AssetAudit struct {
 	Revision uint64            `json:"revision"`
 	Assets   []AssetAuditEntry `json:"assets"`
 	Valid    bool              `json:"valid"`
+	// Orphans names stored payloads that no asset record refers to.
+	//
+	// A direct import writes its payload between two separate transactions,
+	// so a commit by anyone else in between fails the second one after the
+	// bytes are already on disk. Garbage collection plans from the document
+	// outward, so it can only ever see files something references: an
+	// unreferenced file is invisible to it and stays forever. The audit walks
+	// the store instead, which is the only way to find them.
+	//
+	// They are reported, not removed. Deleting a file the document does not
+	// know about is not this report's decision to make.
+	Orphans []AssetOrphan `json:"orphans,omitempty"`
+}
+
+type AssetOrphan struct {
+	Path  string `json:"path"`
+	Bytes int64  `json:"bytes"`
 }
 type AssetAuditEntry struct {
 	ID           ID     `json:"id"`
@@ -508,7 +527,63 @@ func (w *Workspace) AuditAssets() AssetAudit {
 		}
 		report.Assets = append(report.Assets, entry)
 	}
+	// Orphans do not make the audit invalid. Valid answers one question: is
+	// every referenced payload present and still matching its hash. An
+	// unreferenced file is housekeeping, and it arises from supported flows —
+	// undoing an import leaves its payload behind, because undo restores the
+	// document and the document is not what owns the bytes.
+	report.Orphans = findOrphanPayloads(projectDir, assets)
 	return report
+}
+
+// findOrphanPayloads lists stored files that no asset record names. It walks
+// the store rather than the document, because a file nothing references is by
+// definition unreachable from the document.
+func findOrphanPayloads(projectDir string, assets map[ID]AssetRecord) []AssetOrphan {
+	if projectDir == "" {
+		return nil
+	}
+	referenced := make(map[string]bool, len(assets))
+	for _, asset := range assets {
+		referenced[filepath.ToSlash(filepath.Clean(asset.StorePath))] = true
+	}
+	storeRoot := filepath.Join(projectDir, "assets", "sha256")
+	orphans := []AssetOrphan{}
+	err := filepath.WalkDir(storeRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			// A missing store is the normal case for a project with no
+			// assets. Anything else is reported by leaving the walk early.
+			if errors.Is(walkErr, fs.ErrNotExist) {
+				return filepath.SkipAll
+			}
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		relative, relErr := filepath.Rel(projectDir, path)
+		if relErr != nil {
+			return nil
+		}
+		stored := filepath.ToSlash(relative)
+		if referenced[stored] {
+			return nil
+		}
+		size := int64(0)
+		if info, statErr := entry.Info(); statErr == nil {
+			size = info.Size()
+		}
+		orphans = append(orphans, AssetOrphan{Path: stored, Bytes: size})
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+	sort.Slice(orphans, func(a, b int) bool { return orphans[a].Path < orphans[b].Path })
+	if len(orphans) == 0 {
+		return nil
+	}
+	return orphans
 }
 
 // AssetDependencies enumerates what references each registered asset.

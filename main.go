@@ -181,7 +181,11 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		if err != nil {
 			return nil, err
 		}
-		return studio.CertifyCurrent(document)
+		// Cached by document identity. This route carries read authority, so
+		// it answers without a credential, and the suite costs about a second
+		// of CPU per run. Repeat requests at the same revision must not each
+		// buy that second.
+		return studio.CertifyCurrentCached(document)
 	})
 	app.API("GET /api/studio/export/scene3d", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()

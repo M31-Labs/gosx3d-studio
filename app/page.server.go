@@ -421,7 +421,13 @@ func currentSelection(requested string) (studio.Document, studio.ID, error) {
 	if selected == "" {
 		selected, _ = studio.FirstPickTarget(document)
 	}
-	if workspace != nil {
+	// Selecting takes the workspace write lock, so only do it when the
+	// selection actually changes. Rendering a page is a read; taking the
+	// write lock on every render serialized reads behind it for no reason.
+	// The error is deliberately ignored: a selection that no longer resolves
+	// is a stale link, not a render failure, and the page shows the canonical
+	// selection either way.
+	if workspace != nil && selected != "" {
 		_ = workspace.Select(selected)
 	}
 	return document, selected, nil
