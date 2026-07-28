@@ -430,6 +430,29 @@ failed capture renders as `unhashable: <reason>`. The suite also runs on a
 background goroutine, where an unrecovered panic would end the process, so a
 panic is recovered and published as a failed evidence state.
 
+Validation also bounds what a document may cost to use, not only whether it is
+well formed. A record that validates cheaply and then cannot be evaluated is
+worse than one rejected outright, because the cheap commit is journaled and
+every later attempt to open the project dies on it. Three bounds close that:
+
+- A modifier stack is capped at eight entries, and the stack's projected
+  element count at four million. Array and mirror multiply, so three stacked
+  arrays of one thousand turned four vertices into four billion — hundreds of
+  gigabytes — while the commit itself cost milliseconds.
+- NURBS degree is capped at sixteen, because `nurbsBasis` recurses two children
+  per level: degree twenty-two already costs about thirty milliseconds for one
+  sample. Path and radial segment counts, and their product, are bounded
+  because compilation allocates from them and `GET /api/studio/curve/analysis`
+  walks them without a credential.
+- The CSG voxel budget counts cells in float64 before converting. The previous
+  `int64` product wrapped, so a small enough voxel size admitted a grid of
+  about 1e28 cells — evaluated inside the workspace write lock, which is never
+  released again.
+
+These are a contract change: a stored document that exceeds a bound stops
+validating, and therefore stops opening. That is deliberate. Every such
+document was already one compile away from taking the process with it.
+
 A SceneDoc that validates is a SceneDoc that persists. `encoding/json` refuses
 NaN and infinities, so a non-finite value surviving validation produced a
 document the workspace could not clone, fingerprint, journal, or save. Camera,

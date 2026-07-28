@@ -49,6 +49,13 @@ Named here so it is not rediscovered. None of it blocks the slices above.
   including the compiled-graph and certification caches, at once.
 - The certification card reports `recomputing` until the next render. There is
   no push to refresh it when the background run finishes.
+- Undoing an asset import leaves its payload in the store. Undo restores the
+  document, and the document is not what owns the bytes. `AuditAssets` reports
+  these as `orphans`; nothing reclaims them, because deleting a file the
+  document does not know about is not the audit's decision.
+- A direct commit still clones the document twice: once to apply operations
+  against, once so the caller cannot mutate canonical state through the value
+  it is handed back. Copy-on-write per entity would remove both.
 
 ## Non-negotiable invariants
 
