@@ -2,8 +2,46 @@ package studio
 
 import (
 	"bytes"
+	"math"
+	"strings"
 	"testing"
 )
+
+// Certification checks compare fingerprints to prove a proposal and a direct
+// commit produce the same document. Capture used to discard the error, so an
+// unhashable document produced "" on both sides, "" equalled "", and the check
+// passed because it had failed. A failed capture must equal nothing.
+func TestEvidenceFingerprintTreatsAFailedCaptureAsUnequal(t *testing.T) {
+	good := fingerprintOf(SampleDocument())
+	if !good.Equal(fingerprintOf(SampleDocument())) {
+		t.Fatal("two captures of the same document are not equal")
+	}
+
+	// NaN in the camera is rejected by Validate now, but the evidence path
+	// must stay safe for any document that reaches it.
+	broken := SampleDocument()
+	broken.Camera.Position.X = math.NaN()
+	first := fingerprintOf(broken)
+	second := fingerprintOf(broken)
+	if first.err == nil {
+		t.Fatal("expected an unhashable document; the marshaller no longer rejects NaN")
+	}
+	if first.Equal(second) {
+		t.Fatal("two failed captures compared equal, so a broken document would read as a match")
+	}
+	if first.Equal(good) || good.Equal(first) {
+		t.Fatal("a failed capture compared equal to a real fingerprint")
+	}
+
+	// Evidence strings must name the failure rather than print an empty value
+	// that reads like a real fingerprint.
+	if rendered := first.String(); !strings.HasPrefix(rendered, "unhashable: ") {
+		t.Fatalf("failed capture rendered as %q", rendered)
+	}
+	if rendered := good.String(); len(rendered) != 64 {
+		t.Fatalf("captured fingerprint rendered as %q, want 64 hex characters", rendered)
+	}
+}
 
 func TestM0CertificationIsDeterministicAndHonest(t *testing.T) {
 	first, err := CertifyM0(SampleDocument())

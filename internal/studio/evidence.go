@@ -17,6 +17,44 @@ import (
 
 const EvidenceSchema = "gosx3d.studio.evidence/v1"
 
+// evidenceFingerprint is a document fingerprint captured for certification.
+//
+// Checks compare fingerprints to prove that a proposal and a direct commit
+// produce the same document. Capture used to discard the error, so a document
+// that could not be hashed yielded "" on both sides of the comparison, "" was
+// equal to "", and a check passed *because* it had failed. The honesty gate
+// says an unavailable capability stays unavailable; it applies just as much to
+// evidence that could not be taken.
+//
+// The zero-length func array makes this struct non-comparable, so `==` is a
+// compile error and every comparison has to go through Equal, which treats a
+// failed capture as equal to nothing — including another failed capture.
+type evidenceFingerprint struct {
+	_     [0]func()
+	value string
+	err   error
+}
+
+func fingerprintOf(document Document) evidenceFingerprint {
+	value, err := document.Fingerprint()
+	return evidenceFingerprint{value: value, err: err}
+}
+
+// Equal reports whether both fingerprints were captured and describe the same
+// document.
+func (f evidenceFingerprint) Equal(other evidenceFingerprint) bool {
+	return f.err == nil && other.err == nil && f.value == other.value
+}
+
+// String renders the fingerprint for evidence output. A failed capture names
+// itself rather than printing an empty value that reads like a real one.
+func (f evidenceFingerprint) String() string {
+	if f.err != nil {
+		return "unhashable: " + f.err.Error()
+	}
+	return f.value
+}
+
 type EvidenceCheck struct {
 	ID       string `json:"id"`
 	Status   string `json:"status"`
@@ -148,9 +186,9 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 		var roundTrip Document
 		exportOK = json.Unmarshal(docPayload, &roundTrip) == nil
 		if exportOK {
-			source, _ := document.Fingerprint()
-			decoded, _ := roundTrip.Fingerprint()
-			exportOK = source == decoded
+			source := fingerprintOf(document)
+			decoded := fingerprintOf(roundTrip)
+			exportOK = source.Equal(decoded)
 		}
 	}
 	add("m1-export-loss-report", exportOK, fmt.Sprintf("scene3dBytes=%d scene3dLosses=%d sceneIRBytes=%d sceneIRLosses=%d roundTripEqual=%t", docReport.Bytes, len(docReport.Losses), irReport.Bytes, len(irReport.Losses), exportOK))
@@ -158,14 +196,14 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	playOK := false
 	if playWorkspace, playErr := NewWorkspace(ArticulatedProofDocument()); playErr == nil {
 		playDoc, _ := playWorkspace.Snapshot()
-		before, _ := playDoc.Fingerprint()
+		before := fingerprintOf(playDoc)
 		if playWorkspace.EnterPlay("articulated-physics") == nil && playWorkspace.StepPlay(60, nil) == nil {
 			stepped, _ := playWorkspace.PlaySnapshot()
 			moved := stepped.Entities["physics-payload"].Transform.Position.Y < playDoc.Entities["physics-payload"].Transform.Position.Y
 			exitOK := playWorkspace.ExitPlay() == nil
 			afterDoc, _ := playWorkspace.Snapshot()
-			after, _ := afterDoc.Fingerprint()
-			playOK = moved && exitOK && before == after && playWorkspace.PlayState().Tick == 0
+			after := fingerprintOf(afterDoc)
+			playOK = moved && exitOK && before.Equal(after) && playWorkspace.PlayState().Tick == 0
 		}
 	}
 	add("m2-play-mode", playOK, fmt.Sprintf("clone+60 fixed ticks moved the payload, exit discarded runtime state, canonical fingerprint stable=%t", playOK))
@@ -247,11 +285,11 @@ func CertifyCurrent(document Document) (EvidenceReport, error) {
 	if err != nil {
 		return EvidenceReport{}, err
 	}
-	previewFingerprint, _ := previewDocument.Fingerprint()
-	directFingerprint, _ := directDocument.Fingerprint()
+	previewFingerprint := fingerprintOf(previewDocument)
+	directFingerprint := fingerprintOf(directDocument)
 	_, compiledErr := Compile(directDocument)
-	topologyOK := previewFingerprint == directFingerprint && len(previewReceipt.OperatorRecords) == len(operations) && len(directReceipt.OperatorRecords) == len(operations) && compiledErr == nil
-	add("m1-topology-actions", topologyOK, fmt.Sprintf("operators=%d result=%s previewEquivalent=%t sceneIR=%t", len(operations), directFingerprint, previewFingerprint == directFingerprint, compiledErr == nil))
+	topologyOK := previewFingerprint.Equal(directFingerprint) && len(previewReceipt.OperatorRecords) == len(operations) && len(directReceipt.OperatorRecords) == len(operations) && compiledErr == nil
+	add("m1-topology-actions", topologyOK, fmt.Sprintf("operators=%d result=%s previewEquivalent=%t sceneIR=%t", len(operations), directFingerprint, previewFingerprint.Equal(directFingerprint), compiledErr == nil))
 
 	analysis, err := AnalyzeEntityGeometry(meshDocument, "cert-mesh")
 	if err != nil {
@@ -486,8 +524,8 @@ func certifyRenderGraphFoundation(document Document) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
 	ir, err := CompileIR(direct)
 	if err != nil {
 		return "", false, err
@@ -500,8 +538,8 @@ func certifyRenderGraphFoundation(document Document) (string, bool, error) {
 	bad := graph
 	bad.Passes = map[ID]RenderPass{"read": {ID: "read", Kind: "copy", Reads: []ID{"hdr"}}}
 	_, diagnostic := CompileRenderGraph(bad)
-	ok := previewFingerprint == directFingerprint && len(plan.Passes) == 3 && alias && diagnostic != nil
-	return fmt.Sprintf("resources=%d passes=%d ordered=%s>%s>%s transientSlots=1 alias=%t readBeforeWriteRejected=%t previewEquivalent=%t sharedSceneIR=true", len(plan.Resources), len(plan.Passes), plan.Passes[0].ID, plan.Passes[1].ID, plan.Passes[2].ID, alias, diagnostic != nil, previewFingerprint == directFingerprint), ok, nil
+	ok := previewFingerprint.Equal(directFingerprint) && len(plan.Passes) == 3 && alias && diagnostic != nil
+	return fmt.Sprintf("resources=%d passes=%d ordered=%s>%s>%s transientSlots=1 alias=%t readBeforeWriteRejected=%t previewEquivalent=%t sharedSceneIR=true", len(plan.Resources), len(plan.Passes), plan.Passes[0].ID, plan.Passes[1].ID, plan.Passes[2].ID, alias, diagnostic != nil, previewFingerprint.Equal(directFingerprint)), ok, nil
 }
 
 func certifyAnimationRuntimeFoundation() (string, bool, error) {
@@ -532,8 +570,8 @@ func certifyAnimationRuntimeFoundation() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
 	authoredProps, authoredCompileErr := Compile(ArticulatedProofDocument())
 	directProps, directCompileErr := Compile(direct)
 	authoredIR, _ := json.Marshal(authoredProps.SceneIR())
@@ -550,8 +588,8 @@ func certifyAnimationRuntimeFoundation() (string, bool, error) {
 	}
 	receiptOK := len(previewReceipt.RetargetChanges) == 1 && len(directReceipt.RetargetChanges) == 1 && len(previewReceipt.MachineChanges) == 3 && len(directReceipt.MachineChanges) == 3
 	sceneIRChanged := authoredCompileErr == nil && directCompileErr == nil && !bytes.Equal(authoredIR, directIR)
-	ok := len(track.Keys) == 2 && targetY == 2 && traceOK && transitioned.AnimationMachines["locomotion"].Current == "reach" && previewFingerprint == directFingerprint && direct.AnimationMachines["locomotion"].Current == "reach" && direct.AnimationMachines["locomotion"].StateTime == 0.5 && receiptOK && sceneIRChanged
-	return fmt.Sprintf("map=arm-to-tall tracks=%d restScale=2 targetY=%.3f arbiterRule=%s transition=%s state=%s stateTime=%.3f previewEquivalent=%t semanticReceipts=%t sceneIRChanged=%t", len(retargeted.Tracks), targetY, rule, transition.Transition, direct.AnimationMachines["locomotion"].Current, direct.AnimationMachines["locomotion"].StateTime, previewFingerprint == directFingerprint, receiptOK, sceneIRChanged), ok, nil
+	ok := len(track.Keys) == 2 && targetY == 2 && traceOK && transitioned.AnimationMachines["locomotion"].Current == "reach" && previewFingerprint.Equal(directFingerprint) && direct.AnimationMachines["locomotion"].Current == "reach" && direct.AnimationMachines["locomotion"].StateTime == 0.5 && receiptOK && sceneIRChanged
+	return fmt.Sprintf("map=arm-to-tall tracks=%d restScale=2 targetY=%.3f arbiterRule=%s transition=%s state=%s stateTime=%.3f previewEquivalent=%t semanticReceipts=%t sceneIRChanged=%t", len(retargeted.Tracks), targetY, rule, transition.Transition, direct.AnimationMachines["locomotion"].Current, direct.AnimationMachines["locomotion"].StateTime, previewFingerprint.Equal(directFingerprint), receiptOK, sceneIRChanged), ok, nil
 }
 
 func certifySimulationFoundation() (string, bool, error) {
@@ -580,17 +618,17 @@ func certifySimulationFoundation() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
-	simulatedFingerprint, _ := simulated.Fingerprint()
-	replayFingerprint, _ := replayDocument.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
+	simulatedFingerprint := fingerprintOf(simulated)
+	replayFingerprint := fingerprintOf(replayDocument)
 	authoredProps, authoredCompileErr := Compile(document)
 	simulatedProps, simulatedCompileErr := Compile(simulated)
 	authoredIR, _ := json.Marshal(authoredProps.SceneIR())
 	simulatedIR, _ := json.Marshal(simulatedProps.SceneIR())
 	sceneIRChanged := authoredCompileErr == nil && simulatedCompileErr == nil && !bytes.Equal(authoredIR, simulatedIR)
-	ok := recording.Final.Hash == replayed.Final.Hash && simulatedFingerprint == replayFingerprint && len(recording.Events) > 0 && previewFingerprint == directFingerprint && len(previewReceipt.SimulationChanges) == 1 && len(directReceipt.SimulationChanges) == 1 && directReceipt.SimulationChanges[0].BeforeHash != directReceipt.SimulationChanges[0].AfterHash && sceneIRChanged
-	return fmt.Sprintf("profile=articulated-physics tickRate=60 ticks=120 inputs=%d contacts=%d initial=%s final=%s replayExact=%t sceneIRChanged=%t agentActor=%s previewEquivalent=%t semanticSimulationReceipt=%t", len(inputs), len(recording.Events), shortHash(recording.Initial.Hash), shortHash(recording.Final.Hash), recording.Final.Hash == replayed.Final.Hash && simulatedFingerprint == replayFingerprint, sceneIRChanged, directReceipt.Actor, previewFingerprint == directFingerprint, len(directReceipt.SimulationChanges) == 1), ok, nil
+	ok := recording.Final.Hash == replayed.Final.Hash && simulatedFingerprint.Equal(replayFingerprint) && len(recording.Events) > 0 && previewFingerprint.Equal(directFingerprint) && len(previewReceipt.SimulationChanges) == 1 && len(directReceipt.SimulationChanges) == 1 && directReceipt.SimulationChanges[0].BeforeHash != directReceipt.SimulationChanges[0].AfterHash && sceneIRChanged
+	return fmt.Sprintf("profile=articulated-physics tickRate=60 ticks=120 inputs=%d contacts=%d initial=%s final=%s replayExact=%t sceneIRChanged=%t agentActor=%s previewEquivalent=%t semanticSimulationReceipt=%t", len(inputs), len(recording.Events), shortHash(recording.Initial.Hash), shortHash(recording.Final.Hash), recording.Final.Hash == replayed.Final.Hash && simulatedFingerprint.Equal(replayFingerprint), sceneIRChanged, directReceipt.Actor, previewFingerprint.Equal(directFingerprint), len(directReceipt.SimulationChanges) == 1), ok, nil
 }
 
 func shortHash(value string) string {
@@ -613,8 +651,8 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	firstFingerprint, _ := evaluated.Fingerprint()
-	secondFingerprint, _ := repeated.Fingerprint()
+	firstFingerprint := fingerprintOf(evaluated)
+	secondFingerprint := fingerprintOf(repeated)
 	_, compileErr := Compile(evaluated)
 	deformed, deformation, deformationErr := DeformSkinnedGeometry(evaluated, "skinned")
 	authoredIR, authoredCompileErr := Compile(document)
@@ -637,13 +675,13 @@ func certifyRigAnimationFoundation() (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
 	ikResult, _, ikErr := SolveTwoBoneIK(document, "arm", "reach-ik")
 	semanticReceipt := len(directReceipt.RigChanges) == 3 && len(directReceipt.AnimationChanges) == 1
 	skinOK := deformationErr == nil && authoredCompileErr == nil && deformedCompileErr == nil && len(deformed.Vertices) == 3 && deformation.MovedVertices > 0 && !bytes.Equal(authoredIRJSON, deformedIRJSON)
-	ok := firstFingerprint == secondFingerprint && reflect.DeepEqual(first, second) && compileErr == nil && previewFingerprint == directFingerprint && semanticReceipt && len(previewReceipt.RigChanges) == 3 && ikErr == nil && ikResult.Error < 1e-8 && skinOK
-	return fmt.Sprintf("armatures=1 bones=3 normalizedWeights=3 skin=LBS movedVertices=%d maxDelta=%.9f sceneIRChanged=%t ik=two-bone-cpu ikError=%.9f clips=1 sample=0.5 deterministic=%t agentActor=%s previewEquivalent=%t semanticRigReceipt=%t sceneIR=%t", deformation.MovedVertices, deformation.MaximumDelta, !bytes.Equal(authoredIRJSON, deformedIRJSON), ikResult.Error, firstFingerprint == secondFingerprint, directReceipt.Actor, previewFingerprint == directFingerprint, semanticReceipt, compileErr == nil), ok, nil
+	ok := firstFingerprint.Equal(secondFingerprint) && reflect.DeepEqual(first, second) && compileErr == nil && previewFingerprint.Equal(directFingerprint) && semanticReceipt && len(previewReceipt.RigChanges) == 3 && ikErr == nil && ikResult.Error < 1e-8 && skinOK
+	return fmt.Sprintf("armatures=1 bones=3 normalizedWeights=3 skin=LBS movedVertices=%d maxDelta=%.9f sceneIRChanged=%t ik=two-bone-cpu ikError=%.9f clips=1 sample=0.5 deterministic=%t agentActor=%s previewEquivalent=%t semanticRigReceipt=%t sceneIR=%t", deformation.MovedVertices, deformation.MaximumDelta, !bytes.Equal(authoredIRJSON, deformedIRJSON), ikResult.Error, firstFingerprint.Equal(secondFingerprint), directReceipt.Actor, previewFingerprint.Equal(directFingerprint), semanticReceipt, compileErr == nil), ok, nil
 }
 
 func certifyAssetPipeline(document Document) (ID, string, bool, error) {
@@ -705,10 +743,10 @@ func certifyAssetPipeline(document Document) (ID, string, bool, error) {
 	if err != nil {
 		return "", "", false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
-	reimportPreviewFingerprint, _ := reimportPreview.Fingerprint()
-	reimportFingerprint, _ := reimported.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
+	reimportPreviewFingerprint := fingerprintOf(reimportPreview)
+	reimportFingerprint := fingerprintOf(reimported)
 	_, restored, undoErr := workspace.Undo(reimported.Revision, "certifier://studio")
 	var replayed Document
 	var redoErr error
@@ -721,8 +759,8 @@ func certifyAssetPipeline(document Document) (ID, string, bool, error) {
 		modelsRetargeted = modelsRetargeted && compiled.Src == replacement.URI
 	}
 	dependencyOK := len(dependencies.Assets) == 1 && dependencies.Assets[0].DirectCount == 2 && len(dependencies.Assets[0].Instances) == 1
-	ok := previewAsset.ID == asset.ID && previewFingerprint == directFingerprint && len(previewReceipt.AssetChanges) == 1 && len(directReceipt.AssetChanges) == 1 &&
-		previewReplacement.ID == replacement.ID && reimportPreviewFingerprint == reimportFingerprint && len(reimportPreviewReceipt.AssetChanges) == 2 && len(reimportReceipt.AssetChanges) == 2 &&
+	ok := previewAsset.ID == asset.ID && previewFingerprint.Equal(directFingerprint) && len(previewReceipt.AssetChanges) == 1 && len(directReceipt.AssetChanges) == 1 &&
+		previewReplacement.ID == replacement.ID && reimportPreviewFingerprint.Equal(reimportFingerprint) && len(reimportPreviewReceipt.AssetChanges) == 2 && len(reimportReceipt.AssetChanges) == 2 &&
 		dependencyOK && reimported.Entities[model.ID].Model.Asset == replacement.ID && reimported.Prefabs["cert-asset-prefab"].Entities[model.ID].Model.Asset == replacement.ID &&
 		undoErr == nil && redoErr == nil && restored.Entities[model.ID].Model.Asset == asset.ID && replayed.Entities[model.ID].Model.Asset == replacement.ID &&
 		audit.Valid && len(audit.Assets) == 1 && modelsRetargeted
@@ -772,10 +810,10 @@ func certifyPrefab(document Document) (int, int, bool, error) {
 	if err != nil {
 		return 0, 0, false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	capturedFingerprint, _ := captured.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	capturedFingerprint := fingerprintOf(captured)
 	definition := updated.Prefabs["cert-prefab"]
-	ok := previewFingerprint == capturedFingerprint && len(previewReceipt.PrefabChanges) == 1 && len(directReceipt.PrefabChanges) == 1 && mapped && location.RecordID == "cert-prefab/cert-mesh" && stats.RecompiledEntities > 0
+	ok := previewFingerprint.Equal(capturedFingerprint) && len(previewReceipt.PrefabChanges) == 1 && len(directReceipt.PrefabChanges) == 1 && mapped && location.RecordID == "cert-prefab/cert-mesh" && stats.RecompiledEntities > 0
 	return len(definition.Entities), len(artifact.SourceMap) - len(overridden.Entities), ok, nil
 }
 
@@ -795,16 +833,16 @@ func certifyMaterialAuthoring(document Document) (ID, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	validFingerprint, _ := direct.Fingerprint()
+	validFingerprint := fingerprintOf(direct)
 	invalid := document.Materials["player-1-material"]
 	invalid.Selena = &SelenaShader{Material: invalid.Selena.Material, Source: "invalid Selena source"}
 	_, _, invalidErr := workspace.Execute(Transaction{ID: "certify:material-invalid", Actor: "certifier://studio", Mode: ModeDirect, ExpectedRevision: direct.Revision, Operations: []Operation{{Kind: OpSetMaterial, MaterialRecord: &invalid}}})
 	afterInvalid, _ := workspace.Snapshot()
-	afterFingerprint, _ := afterInvalid.Fingerprint()
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
+	afterFingerprint := fingerprintOf(afterInvalid)
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
 	_, compileErr := Compile(direct)
-	ok := previewFingerprint == directFingerprint && len(previewReceipt.MaterialChanges) == 1 && len(directReceipt.MaterialChanges) == 1 && invalidErr != nil && afterFingerprint == validFingerprint && compileErr == nil
+	ok := previewFingerprint.Equal(directFingerprint) && len(previewReceipt.MaterialChanges) == 1 && len(directReceipt.MaterialChanges) == 1 && invalidErr != nil && afterFingerprint.Equal(validFingerprint) && compileErr == nil
 	return material.ID, ok, nil
 }
 
@@ -840,10 +878,10 @@ func certifyCSG(meshDocument Document) (GeometryAnalysis, bool, error) {
 	if err != nil {
 		return GeometryAnalysis{}, false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
 	_, compileErr := Compile(direct)
-	ok := previewFingerprint == directFingerprint && analysis.Valid && analysis.Closed && analysis.Manifold && analysis.Volume != nil && near(*analysis.Volume, 1.5) && len(previewReceipt.OperatorRecords) == 1 && previewReceipt.OperatorRecords[0].Boolean == "union" && previewReceipt.OperatorRecords[0].Result[0] == operation.NewID && len(directReceipt.OperatorRecords) == 1 && compileErr == nil
+	ok := previewFingerprint.Equal(directFingerprint) && analysis.Valid && analysis.Closed && analysis.Manifold && analysis.Volume != nil && near(*analysis.Volume, 1.5) && len(previewReceipt.OperatorRecords) == 1 && previewReceipt.OperatorRecords[0].Boolean == "union" && previewReceipt.OperatorRecords[0].Result[0] == operation.NewID && len(directReceipt.OperatorRecords) == 1 && compileErr == nil
 	return analysis, ok, nil
 }
 
@@ -894,12 +932,12 @@ func certifyModifiers(meshDocument Document) (int, int, bool, error) {
 	if err != nil {
 		return 0, 0, false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
-	reorderPreviewFingerprint, _ := reorderPreview.Fingerprint()
-	reorderedFingerprint, _ := reordered.Fingerprint()
-	applyPreviewFingerprint, _ := applyPreview.Fingerprint()
-	appliedFingerprint, _ := applied.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
+	reorderPreviewFingerprint := fingerprintOf(reorderPreview)
+	reorderedFingerprint := fingerprintOf(reordered)
+	applyPreviewFingerprint := fingerprintOf(applyPreview)
+	appliedFingerprint := fingerprintOf(applied)
 	_, compileErr := Compile(applied)
 	analysisDocument, _ := applied.Clone()
 	entity := analysisDocument.Entities["cert-mesh"]
@@ -908,7 +946,7 @@ func certifyModifiers(meshDocument Document) (int, int, bool, error) {
 	analysisDocument.Entities[entity.ID] = entity
 	analysis, analysisErr := AnalyzeEntityGeometry(analysisDocument, entity.ID)
 	_, restored, undoErr := workspace.Undo(applied.Revision, "certifier://studio")
-	ok := previewFingerprint == directFingerprint && reorderPreviewFingerprint == reorderedFingerprint && applyPreviewFingerprint == appliedFingerprint &&
+	ok := previewFingerprint.Equal(directFingerprint) && reorderPreviewFingerprint.Equal(reorderedFingerprint) && applyPreviewFingerprint.Equal(appliedFingerprint) &&
 		len(previewReceipt.OperatorRecords) == 4 && len(directReceipt.OperatorRecords) == 4 &&
 		len(reorderPreviewReceipt.OperatorRecords) == 1 && reorderReceipt.OperatorRecords[0].ModifierIndex == 0 &&
 		len(applyPreviewReceipt.OperatorRecords) == 1 && applyReceipt.OperatorRecords[0].UndoPolicy == "geometry-checkpoint" &&
@@ -940,14 +978,14 @@ func certifyCurve(meshDocument Document) (CurveAnalysis, bool, error) {
 	if err != nil {
 		return CurveAnalysis{}, false, err
 	}
-	previewFingerprint, _ := preview.Fingerprint()
-	directFingerprint, _ := direct.Fingerprint()
+	previewFingerprint := fingerprintOf(preview)
+	directFingerprint := fingerprintOf(direct)
 	analysis, err := AnalyzeEntityCurve(direct, "cert-mesh")
 	if err != nil {
 		return CurveAnalysis{}, false, err
 	}
 	_, compileErr := Compile(direct)
-	ok := previewFingerprint == directFingerprint && len(previewReceipt.OperatorRecords) == 1 && len(directReceipt.OperatorRecords) == 1 && workspace.SelectionState().Mode == SelectionCurveControlPoint && analysis.Valid && analysis.ApproximateLength > 2 && compileErr == nil
+	ok := previewFingerprint.Equal(directFingerprint) && len(previewReceipt.OperatorRecords) == 1 && len(directReceipt.OperatorRecords) == 1 && workspace.SelectionState().Mode == SelectionCurveControlPoint && analysis.Valid && analysis.ApproximateLength > 2 && compileErr == nil
 	return analysis, ok, nil
 }
 
