@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 
 	"m31labs.dev/gosx/scene"
 	"m31labs.dev/gosx/scene/harness"
@@ -131,7 +132,11 @@ func CertifyM0(document Document) (EvidenceReport, error) {
 		return EvidenceReport{}, err
 	}
 	report.Harness = session.Report()
-	telemetry := report.Harness.Events[0].Frame
+	// A harness that produced no events is a failed check, not a crash.
+	var telemetry *harness.FrameTelemetry
+	if len(report.Harness.Events) > 0 {
+		telemetry = report.Harness.Events[0].Frame
+	}
 	frameValid := frame != nil && telemetry != nil && telemetry.Coverage > 0.001 && telemetry.PNGHash != ""
 	frameEvidence := "missing"
 	if telemetry != nil {
@@ -539,7 +544,14 @@ func certifyRenderGraphFoundation(document Document) (string, bool, error) {
 	bad.Passes = map[ID]RenderPass{"read": {ID: "read", Kind: "copy", Reads: []ID{"hdr"}}}
 	_, diagnostic := CompileRenderGraph(bad)
 	ok := previewFingerprint.Equal(directFingerprint) && len(plan.Passes) == 3 && alias && diagnostic != nil
-	return fmt.Sprintf("resources=%d passes=%d ordered=%s>%s>%s transientSlots=1 alias=%t readBeforeWriteRejected=%t previewEquivalent=%t sharedSceneIR=true", len(plan.Resources), len(plan.Passes), plan.Passes[0].ID, plan.Passes[1].ID, plan.Passes[2].ID, alias, diagnostic != nil, previewFingerprint.Equal(directFingerprint)), ok, nil
+	// The evidence string used to index the first three passes unconditionally
+	// while `ok` merely tested that there were three. A graph that lowered
+	// fewer panicked the harness instead of reporting a failed check.
+	order := make([]string, 0, len(plan.Passes))
+	for _, pass := range plan.Passes {
+		order = append(order, string(pass.ID))
+	}
+	return fmt.Sprintf("resources=%d passes=%d ordered=%s transientSlots=1 alias=%t readBeforeWriteRejected=%t previewEquivalent=%t sharedSceneIR=true", len(plan.Resources), len(plan.Passes), strings.Join(order, ">"), alias, diagnostic != nil, previewFingerprint.Equal(directFingerprint)), ok, nil
 }
 
 func certifyAnimationRuntimeFoundation() (string, bool, error) {
@@ -881,7 +893,7 @@ func certifyCSG(meshDocument Document) (GeometryAnalysis, bool, error) {
 	previewFingerprint := fingerprintOf(preview)
 	directFingerprint := fingerprintOf(direct)
 	_, compileErr := Compile(direct)
-	ok := previewFingerprint.Equal(directFingerprint) && analysis.Valid && analysis.Closed && analysis.Manifold && analysis.Volume != nil && near(*analysis.Volume, 1.5) && len(previewReceipt.OperatorRecords) == 1 && previewReceipt.OperatorRecords[0].Boolean == "union" && previewReceipt.OperatorRecords[0].Result[0] == operation.NewID && len(directReceipt.OperatorRecords) == 1 && compileErr == nil
+	ok := previewFingerprint.Equal(directFingerprint) && analysis.Valid && analysis.Closed && analysis.Manifold && analysis.Volume != nil && near(*analysis.Volume, 1.5) && len(previewReceipt.OperatorRecords) == 1 && previewReceipt.OperatorRecords[0].Boolean == "union" && len(previewReceipt.OperatorRecords[0].Result) > 0 && previewReceipt.OperatorRecords[0].Result[0] == operation.NewID && len(directReceipt.OperatorRecords) == 1 && compileErr == nil
 	return analysis, ok, nil
 }
 
@@ -948,8 +960,10 @@ func certifyModifiers(meshDocument Document) (int, int, bool, error) {
 	_, restored, undoErr := workspace.Undo(applied.Revision, "certifier://studio")
 	ok := previewFingerprint.Equal(directFingerprint) && reorderPreviewFingerprint.Equal(reorderedFingerprint) && applyPreviewFingerprint.Equal(appliedFingerprint) &&
 		len(previewReceipt.OperatorRecords) == 4 && len(directReceipt.OperatorRecords) == 4 &&
-		len(reorderPreviewReceipt.OperatorRecords) == 1 && reorderReceipt.OperatorRecords[0].ModifierIndex == 0 &&
-		len(applyPreviewReceipt.OperatorRecords) == 1 && applyReceipt.OperatorRecords[0].UndoPolicy == "geometry-checkpoint" &&
+		// Each guard must test the receipt it then indexes. These tested the
+		// preview receipt and indexed the direct one.
+		len(reorderPreviewReceipt.OperatorRecords) == 1 && len(reorderReceipt.OperatorRecords) == 1 && reorderReceipt.OperatorRecords[0].ModifierIndex == 0 &&
+		len(applyPreviewReceipt.OperatorRecords) == 1 && len(applyReceipt.OperatorRecords) == 1 && applyReceipt.OperatorRecords[0].UndoPolicy == "geometry-checkpoint" &&
 		len(applied.Entities["cert-mesh"].Mesh.Modifiers) == 1 && len(evaluated.Vertices) == 156 && len(evaluated.Faces) == 144 &&
 		analysisErr == nil && analysis.Closed && analysis.Manifold && compileErr == nil && undoErr == nil && len(restored.Entities["cert-mesh"].Mesh.Modifiers) == 4
 	return len(evaluated.Vertices), len(evaluated.Faces), ok, nil

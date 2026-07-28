@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -250,7 +251,7 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 			assetName = asset.SourceName
 		}
 	} else if entity.Light != nil {
-		geometry = strings.Title(entity.Light.Kind) + " light"
+		geometry = capitalizeASCII(entity.Light.Kind) + " light"
 	}
 	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Euler.X), "ry": number(entity.Transform.Euler.Y), "rz": number(entity.Transform.Euler.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName, "materialColor": materialColor, "metalness": metalness, "clearcoat": clearcoat, "emissive": emissive, "selenaSource": selenaSource}
 }
@@ -301,6 +302,25 @@ func historyView(workspace *studio.Workspace) []map[string]any {
 // "recomputing" when older evidence is shown while the suite runs, and
 // "pending" before any run has finished. The card must never present stale
 // evidence as if it described the document on screen.
+// capitalizeASCII upper-cases the first letter of a light kind for display.
+// Light kinds are a closed ASCII set ("ambient", "directional", "point"), so
+// this needs none of what strings.Title was deprecated for, and none of the
+// x/text/cases dependency that replaces it.
+func capitalizeASCII(value string) string {
+	if value == "" {
+		return value
+	}
+	first := value[0]
+	if first >= 'a' && first <= 'z' {
+		return string(first-32) + value[1:]
+	}
+	return value
+}
+
+// certifyCurrent is indirected so a test can prove the recover in
+// runCertification actually contains a panic from the suite.
+var certifyCurrent = studio.CertifyCurrent
+
 var liveCertCache struct {
 	sync.Mutex
 	fingerprint string         // document the completed view describes
@@ -349,9 +369,32 @@ func liveCertificationView(document studio.Document) map[string]any {
 
 // runCertification computes one evidence view and publishes it. It clears the
 // running marker last so a failed run cannot wedge the card in "recomputing".
+//
+// The suite runs on its own goroutine, and an unrecovered panic on any
+// goroutine takes the whole process with it. The suite is exactly the code
+// most likely to panic: it drives edge cases, indexes results, and asserts on
+// shapes it did not produce. The editor must not die because a check could not
+// be taken, so a panic becomes a reported failure like any other.
 func runCertification(document studio.Document, fingerprint string) {
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			return
+		}
+		log.Printf("certification evidence panicked: %v", recovered)
+		view := certificationView(studio.Certification())
+		view["liveChecksPass"], view["liveChecksTotal"] = "0", "0"
+		view["releaseStatus"] = fmt.Sprintf("error: evidence suite panicked: %v", recovered)
+		liveCertCache.Lock()
+		defer liveCertCache.Unlock()
+		liveCertCache.revision, liveCertCache.fingerprint, liveCertCache.view = document.Revision, fingerprint, view
+		if liveCertCache.running == fingerprint {
+			liveCertCache.running = ""
+		}
+	}()
+
 	view := certificationView(studio.Certification())
-	report, err := studio.CertifyCurrent(document)
+	report, err := certifyCurrent(document)
 	if err != nil {
 		view["liveChecksPass"], view["liveChecksTotal"], view["releaseStatus"] = "0", "0", "error: "+err.Error()
 	} else {

@@ -74,6 +74,58 @@ func TestCertificationViewDoesNotBlockTheRenderPath(t *testing.T) {
 	}
 }
 
+// The evidence suite runs on its own goroutine, and an unrecovered panic on
+// any goroutine takes the whole process with it. The suite drives edge cases
+// and indexes results it did not produce, so it is exactly the code most
+// likely to panic. Losing the editor because a check could not be taken is a
+// worse outcome than reporting that the check failed.
+func TestCertificationPanicIsReportedRatherThanFatal(t *testing.T) {
+	original := certifyCurrent
+	t.Cleanup(func() {
+		certifyCurrent = original
+		liveCertCache.Lock()
+		liveCertCache.view, liveCertCache.running, liveCertCache.fingerprint, liveCertCache.revision = nil, "", "", 0
+		liveCertCache.Unlock()
+	})
+	certifyCurrent = func(studio.Document) (studio.EvidenceReport, error) {
+		var records []int
+		_ = records[3] // index out of range, exactly like the real defects fixed alongside this
+		return studio.EvidenceReport{}, nil
+	}
+
+	liveCertCache.Lock()
+	liveCertCache.view, liveCertCache.running, liveCertCache.fingerprint, liveCertCache.revision = nil, "", "", 0
+	liveCertCache.Unlock()
+
+	document := studio.SampleDocument()
+	fingerprint, err := document.Fingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Without the recover this call ends the test binary rather than
+	// returning, so reaching the next line is the assertion.
+	runCertification(document, fingerprint)
+
+	liveCertCache.Lock()
+	view, running := liveCertCache.view, liveCertCache.running
+	liveCertCache.Unlock()
+	if view == nil {
+		t.Fatal("a panicking run published no view")
+	}
+	if running != "" {
+		t.Fatalf("a panicking run left the card wedged as recomputing (running = %q)", running)
+	}
+	status, _ := view["releaseStatus"].(string)
+	if !strings.Contains(status, "panicked") {
+		t.Fatalf("releaseStatus = %q, want it to name the panic", status)
+	}
+	// The card must report the panic rather than a passing evidence count.
+	if view["liveChecksPass"] != "0" || view["liveChecksTotal"] != "0" {
+		t.Fatalf("panicking run reported checks %v/%v", view["liveChecksPass"], view["liveChecksTotal"])
+	}
+}
+
 func TestTimelineViewReflectsCanonicalRigClipAndSimulation(t *testing.T) {
 	view := timelineView(studio.ArticulatedProofDocument())
 	if view["armatureId"] != "arm" || view["clipId"] != "idle" || view["trackId"] != "idle-lower" || view["simulationId"] != "articulated-physics" || view["tickRate"] != "60" || view["retargetMapId"] != "arm-to-tall" || view["machineId"] != "locomotion" || view["machineParameter"] != "speed" {
