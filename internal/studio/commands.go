@@ -251,8 +251,13 @@ type historyEntry struct {
 	transaction   Transaction
 }
 type workspaceJournal interface {
-	Commit(Transaction, Receipt, Document) error
-	Save(Document) error
+	// Commit records transaction and receipt. document is written in full
+	// only when forceSnapshot is true or the journal's own interval is due;
+	// otherwise the record carries transaction.Operations alone. Pass true
+	// when transaction.Operations is not a valid forward diff from the
+	// document the journal last committed — see the moveHistory call site.
+	Commit(transaction Transaction, receipt Receipt, document Document, forceSnapshot bool) error
+	Save(document Document) error
 }
 
 type Workspace struct {
@@ -537,7 +542,11 @@ func (w *Workspace) Execute(transaction Transaction) (Receipt, Document, error) 
 		return Receipt{}, Document{}, err
 	}
 	if w.journal != nil {
-		if err := w.journal.Commit(transaction, receipt, working); err != nil {
+		// working is a clone of the document this same journal last
+		// committed, with only transaction.Operations applied: a genuine
+		// forward diff. The journal may record just that and replay it
+		// later, so this does not force a snapshot.
+		if err := w.journal.Commit(transaction, receipt, working, false); err != nil {
 			return Receipt{}, Document{}, err
 		}
 	}
@@ -873,7 +882,14 @@ func (w *Workspace) moveHistory(expectedRevision uint64, actor string, undo bool
 		return Receipt{}, Document{}, err
 	}
 	if w.journal != nil {
-		if err := w.journal.Commit(transaction, receipt, target); err != nil {
+		// transaction.Operations is entry.transaction.Operations either way:
+		// the original forward edit, never its inverse. Redo replays that
+		// onto the state it originally started from and would be
+		// replay-safe, but undo needs its result undone, and this package
+		// computes no inverse operations. Forcing a snapshot here for both
+		// keeps one commit path instead of one that is only sometimes safe
+		// to record as a diff.
+		if err := w.journal.Commit(transaction, receipt, target, true); err != nil {
 			return Receipt{}, Document{}, err
 		}
 	}

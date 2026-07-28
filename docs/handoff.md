@@ -40,9 +40,10 @@ certification, and desktop packaging remain unimplemented.
 
 Named here so it is not rediscovered. None of it blocks the slices above.
 
-- The journal writes a whole SceneDoc per record, and undo retains a document
-  pair per entry. Operations with periodic snapshots, and inverse operations in
-  undo, remove the remaining O(document) cost.
+- Undo retains a document pair per entry, so the undo stack still costs
+  O(document) per edit. Storing inverse operations instead would remove it.
+  The journal itself now writes operations with a full SceneDoc only every
+  32nd record, not a whole SceneDoc per record.
 - `Document.Fingerprint` re-marshals the whole document. Per-entity content
   hashes with a Merkle root would make it incremental and fix every caller,
   including the compiled-graph and certification caches, at once.

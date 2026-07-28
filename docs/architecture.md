@@ -355,22 +355,33 @@ valid journal snapshot, reports recovered/dirty state, skips torn records, and
 quarantines corrupt canonical bytes before continuing. Undo/redo use the same
 journal path.
 
-A journal record carries a whole SceneDoc, so its size follows the scene. The
-reader therefore has no fixed line budget: a capped `bufio.Scanner` meant that
-one edit on a scene inside the documented 100k-triangle import budget wrote a
-record nothing could read back, and every later open of that project failed the
-same way. Trimming the journal to its newest records is an optimization, so a
-trim failure reports through `ProjectStatus.compactionWarning` and never
-rejects a command whose record is already durable. The trim streams one record
-at a time and fsyncs the directory after its rename.
+A journal record carries operations, not a whole SceneDoc. A direct commit's
+Transaction already describes the change, so the record replays it onto the
+document the record before it produced. Every 32nd record
+(`journalSnapshotInterval`) carries a full Document instead, so a crash-time
+recovery never replays more than 31 operations past its anchor. Undo and redo
+force a snapshot on their own record: their stored Operations are the
+original forward edit, not its inverse, so redo alone would be a valid diff
+and undo would not — both take the simpler, uniformly correct path instead. A
+record written before this format still carries a Document on every line.
+Recovery treats any record with one as a snapshot, so an old journal reopens
+unchanged.
+
+The reader still has no fixed line budget. A capped `bufio.Scanner` meant that
+one snapshot of a scene inside the documented 100k-triangle import budget
+wrote a record nothing could read back, and every later open of that project
+failed the same way. Trimming the journal to its newest records is an
+optimization, so a trim failure reports through `ProjectStatus.compactionWarning`
+and never rejects a command whose record is already durable. A trim never cuts
+past the newest snapshot a kept record still needs to replay onto, even when
+that keeps more than the nominal bound. It streams one record at a time and
+fsyncs the directory after its rename.
 
 Undo history is bounded. Each entry retains the complete document before and
 after its transaction, so the stack grows by twice the document size per edit;
 `ProjectStatus` reports `undoDepth` and `undoLimit` so a dropped step is
 visible rather than silent. Storing inverse operations instead of document
-pairs, and journaling operations with periodic snapshots instead of a snapshot
-per record, are the changes that would remove the underlying O(document) cost.
-Both remain open.
+pairs would remove this remaining O(document) cost; it stays open.
 
 The command bus keeps one copy per commit, not three. A transaction clones the
 document once to apply operations against; the outgoing document is retained
