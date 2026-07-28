@@ -65,44 +65,54 @@ func TestParentAndChildLinksMustAgree(t *testing.T) {
 // Validation runs on the result of every transaction, so its cost is paid on
 // every edit. Scanning a parent's child list per entity made it quadratic: a
 // flat scene puts every entity under one parent, and 8,000 entities cost
-// 36.7 ms and grew as the square. This holds the shape, not a wall-clock
-// number, so it stays meaningful on any machine.
-func TestValidateScalesLinearlyWithEntityCount(t *testing.T) {
+// 36.7 ms and grew as the square.
+//
+// This gates an absolute time at one size rather than a growth ratio between
+// two. A ratio looks like the more principled test and is not: Validate
+// allocates maps proportional to the entity count, so the larger measurement
+// carries allocation and collection noise the smaller one does not. Measured
+// across twelve runs, the 2,000-to-16,000 ratio ranged from 7 to 31 — wide
+// enough to overlap both the linear prediction near 8 and the quadratic one
+// near 64, which makes it unable to tell them apart.
+//
+// The absolute number separates them cleanly. Linear at 16,000 entities
+// measures 11 to 23 ms here; quadratic would be about 150 ms, extrapolating
+// from the 36.7 ms this cost at 8,000 before the fix. The budget sits between
+// them with room on both sides.
+func TestValidateStaysLinearAtSceneScale(t *testing.T) {
 	if testing.Short() {
 		t.Skip("validation scaling skipped in short mode")
 	}
-	measure := func(entities int) time.Duration {
-		document := SampleDocument()
-		root := document.Entities["scene-root"]
-		for i := 0; i < entities; i++ {
-			id := ID(fmt.Sprintf("scale-%05d", i))
-			entity := meshEntity(id, "Scale", Vec3{}, Geometry{Kind: "box", Width: 1, Height: 1, Depth: 1}, "board-material", true)
-			entity.Parent = root.ID
-			root.Children = append(root.Children, id)
-			document.Entities[id] = entity
-		}
-		document.Entities[root.ID] = root
-		best := time.Duration(0)
-		for i := 0; i < 5; i++ {
-			start := time.Now()
-			if err := document.Validate(); err != nil {
-				t.Fatal(err)
-			}
-			if elapsed := time.Since(start); best == 0 || elapsed < best {
-				best = elapsed
-			}
-		}
-		return best
-	}
+	const entities = 16000
+	// Measured 23 to 36 ms across fifteen back-to-back runs here. Eighty
+	// leaves better than 2x headroom for a loaded machine while staying well
+	// under the roughly 150 ms a quadratic check would cost.
+	const budget = 80 * time.Millisecond
 
-	small := measure(2000)
-	large := measure(8000)
-	// Four times the entities. Linear predicts about 4x, quadratic about 16x.
-	// Ten is clear of measurement noise in both directions.
-	ratio := float64(large) / float64(small)
-	t.Logf("Validate: 2000 entities %v, 8000 entities %v (x%.1f for 4x entities)", small, large, ratio)
-	if ratio > 10 {
-		t.Fatalf("Validate grew %.1fx for 4x the entities; linear is about 4x and quadratic about 16x", ratio)
+	document := SampleDocument()
+	root := document.Entities["scene-root"]
+	for i := 0; i < entities; i++ {
+		id := ID(fmt.Sprintf("scale-%05d", i))
+		entity := meshEntity(id, "Scale", Vec3{}, Geometry{Kind: "box", Width: 1, Height: 1, Depth: 1}, "board-material", true)
+		entity.Parent = root.ID
+		root.Children = append(root.Children, id)
+		document.Entities[id] = entity
+	}
+	document.Entities[root.ID] = root
+
+	best := time.Duration(0)
+	for i := 0; i < 7; i++ {
+		start := time.Now()
+		if err := document.Validate(); err != nil {
+			t.Fatal(err)
+		}
+		if elapsed := time.Since(start); best == 0 || elapsed < best {
+			best = elapsed
+		}
+	}
+	t.Logf("Validate at %d entities: %v (budget %v; quadratic would be about 150ms)", entities, best, budget)
+	if best > budget {
+		t.Fatalf("Validate took %v at %d entities, budget is %v: the parent/child check is scanning again", best, entities, budget)
 	}
 }
 
