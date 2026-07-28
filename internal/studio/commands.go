@@ -874,7 +874,13 @@ func (w *Workspace) moveHistory(expectedRevision uint64, actor string, undo bool
 		w.undo = append(w.undo, entry)
 	}
 	w.recordReceiptLocked(receipt)
-	preview, _ := target.Clone()
+	// The caller gets its own copy: target is now canonical state. A discarded
+	// error here returned an empty document as the result of an undo that had
+	// already succeeded.
+	preview, err := target.Clone()
+	if err != nil {
+		return Receipt{}, Document{}, err
+	}
 	return receipt, preview, nil
 }
 

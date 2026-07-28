@@ -459,19 +459,38 @@ func (w *Workspace) AssetContentPath(id ID) (string, AssetRecord, error) {
 	return path, asset, nil
 }
 
+// AuditAssets re-hashes every stored payload and reports whether it still
+// matches the record that names it.
+//
+// The audit reads the asset records under the read lock and does its file I/O
+// outside it, so re-hashing a large project does not block editing. It used to
+// deep-clone the whole SceneDoc and discard the clone error, which meant a
+// failed clone produced an empty document and an audit that reported
+// `valid: true` over zero assets — an integrity check that passed because it
+// could not read anything.
 func (w *Workspace) AuditAssets() AssetAudit {
+	var (
+		revision   uint64
+		projectDir string
+		assets     map[ID]AssetRecord
+	)
 	w.mu.RLock()
-	document, _ := w.doc.Clone()
-	projectDir := w.projectDir
+	revision = w.doc.Revision
+	projectDir = w.projectDir
+	assets = make(map[ID]AssetRecord, len(w.doc.Assets))
+	for id, asset := range w.doc.Assets {
+		assets[id] = asset
+	}
 	w.mu.RUnlock()
-	report := AssetAudit{Schema: "gosx3d.studio.asset-audit/v1", Revision: document.Revision, Valid: true, Assets: []AssetAuditEntry{}}
-	ids := make([]string, 0, len(document.Assets))
-	for id := range document.Assets {
+
+	report := AssetAudit{Schema: "gosx3d.studio.asset-audit/v1", Revision: revision, Valid: true, Assets: []AssetAuditEntry{}}
+	ids := make([]string, 0, len(assets))
+	for id := range assets {
 		ids = append(ids, string(id))
 	}
 	sort.Strings(ids)
 	for _, value := range ids {
-		asset := document.Assets[ID(value)]
+		asset := assets[ID(value)]
 		entry := AssetAuditEntry{ID: asset.ID, ExpectedHash: asset.ContentHash, Path: asset.StorePath, Status: "missing"}
 		data, err := os.ReadFile(filepath.Join(projectDir, filepath.FromSlash(asset.StorePath)))
 		if err == nil {
@@ -492,10 +511,17 @@ func (w *Workspace) AuditAssets() AssetAudit {
 	return report
 }
 
+// AssetDependencies enumerates what references each registered asset.
+//
+// Reference-safe deletion consults this report, so an empty answer means "safe
+// to remove." It used to deep-clone the document and discard the clone error,
+// which turned a failed read into a report claiming nothing referenced
+// anything. The walk is read-only, so it runs against the live document under
+// the read lock and cannot fail.
 func (w *Workspace) AssetDependencies() AssetDependencyReport {
 	w.mu.RLock()
-	document, _ := w.doc.Clone()
-	w.mu.RUnlock()
+	defer w.mu.RUnlock()
+	document := &w.doc
 	report := AssetDependencyReport{Schema: "gosx3d.studio.asset-dependencies/v1", Revision: document.Revision, Assets: []AssetDependencyEntry{}}
 	assetIDs := make([]string, 0, len(document.Assets))
 	for id := range document.Assets {
