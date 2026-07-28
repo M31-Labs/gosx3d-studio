@@ -329,6 +329,40 @@ var liveCertCache struct {
 	running     string         // fingerprint a background run is computing
 }
 
+// CertificationEvidenceState reports which document the published evidence
+// describes, so a client can tell when a background run has finished without
+// re-rendering the page or re-running the suite.
+//
+// The card renders `recomputing` after every edit and had no way back to
+// `current` until something else caused a render. Answering that question has
+// to be cheap: this reads two fields under a mutex and computes nothing.
+type CertificationEvidenceState struct {
+	Schema string `json:"schema"`
+	// State is current, recomputing, or pending, matching the card.
+	State string `json:"state"`
+	// Revision is the document the published evidence describes, or zero
+	// when no run has finished.
+	Revision uint64 `json:"revision"`
+	// DocumentRevision is where the workspace is now. A client polls until
+	// the two agree.
+	DocumentRevision uint64 `json:"documentRevision"`
+}
+
+func CertificationEvidenceStateFor(documentRevision uint64) CertificationEvidenceState {
+	liveCertCache.Lock()
+	defer liveCertCache.Unlock()
+	state := CertificationEvidenceState{Schema: "gosx3d.studio.certification-state/v1", Revision: liveCertCache.revision, DocumentRevision: documentRevision}
+	switch {
+	case liveCertCache.view == nil:
+		state.State = "pending"
+	case liveCertCache.revision == documentRevision:
+		state.State = "current"
+	default:
+		state.State = "recomputing"
+	}
+	return state
+}
+
 func liveCertificationView(document studio.Document) map[string]any {
 	fingerprint, err := document.Fingerprint()
 	if err != nil {

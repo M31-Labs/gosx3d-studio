@@ -132,3 +132,56 @@ func TestTimelineViewReflectsCanonicalRigClipAndSimulation(t *testing.T) {
 		t.Fatalf("timeline view = %#v", view)
 	}
 }
+
+// The card reads "recomputing" after every edit and had no way back to
+// "current" until something else caused a render. The state a client polls has
+// to answer honestly at each stage, and must never claim "current" for a
+// document the published evidence does not describe.
+func TestCertificationEvidenceStateTracksTheDocument(t *testing.T) {
+	original := certifyCurrent
+	t.Cleanup(func() {
+		certifyCurrent = original
+		liveCertCache.Lock()
+		liveCertCache.view, liveCertCache.running, liveCertCache.fingerprint, liveCertCache.revision = nil, "", "", 0
+		liveCertCache.Unlock()
+	})
+
+	liveCertCache.Lock()
+	liveCertCache.view, liveCertCache.running, liveCertCache.fingerprint, liveCertCache.revision = nil, "", "", 0
+	liveCertCache.Unlock()
+
+	document := studio.SampleDocument()
+	if state := CertificationEvidenceStateFor(document.Revision); state.State != "pending" {
+		t.Fatalf("state before any run = %q, want pending", state.State)
+	}
+
+	fingerprint, err := document.Fingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCertification(document, fingerprint)
+
+	state := CertificationEvidenceStateFor(document.Revision)
+	if state.State != "current" {
+		t.Fatalf("state after a completed run = %q, want current", state.State)
+	}
+	if state.Revision != document.Revision || state.DocumentRevision != document.Revision {
+		t.Fatalf("state revisions = %d/%d, want both %d", state.Revision, state.DocumentRevision, document.Revision)
+	}
+	if state.Schema == "" {
+		t.Fatal("state carries no schema")
+	}
+
+	// A newer document must read as recomputing, and must report the older
+	// revision its evidence actually describes rather than the current one.
+	ahead := CertificationEvidenceStateFor(document.Revision + 1)
+	if ahead.State != "recomputing" {
+		t.Fatalf("state for a newer document = %q, want recomputing", ahead.State)
+	}
+	if ahead.Revision != document.Revision {
+		t.Fatalf("evidence revision = %d, want the %d it describes", ahead.Revision, document.Revision)
+	}
+	if ahead.DocumentRevision != document.Revision+1 {
+		t.Fatalf("document revision = %d, want %d", ahead.DocumentRevision, document.Revision+1)
+	}
+}

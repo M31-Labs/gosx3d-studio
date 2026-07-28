@@ -175,6 +175,19 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		return studio.ComponentCatalog(), nil
 	})
 	app.API("GET /api/studio/certification", func(ctx *server.Context) (any, error) { ctx.NoStore(); return studio.Certification(), nil })
+	app.API("GET /api/studio/certification/state", func(ctx *server.Context) (any, error) {
+		// Deliberately cheap: the card polls this while a background run is
+		// in flight, so it must not compute evidence or clone the document.
+		ctx.NoStore()
+		var revision uint64
+		if err := workspace.Read(func(document *studio.Document) error {
+			revision = document.Revision
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return studioapp.CertificationEvidenceStateFor(revision), nil
+	})
 	app.API("GET /api/studio/certification/evidence", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
 		document, err := workspace.Snapshot()
@@ -668,6 +681,7 @@ var studioRouteAuthority = map[string]studioAuthority{
 	"GET /api/studio/descriptors":                authorityRead,
 	"GET /api/studio/certification":              authorityRead,
 	"GET /api/studio/certification/evidence":     authorityRead,
+	"GET /api/studio/certification/state":        authorityRead,
 	"GET /api/studio/export/scene3d":             authorityRead,
 	"GET /api/studio/export/glb":                 authorityRead,
 	"GET /api/studio/export/go":                  authorityRead,

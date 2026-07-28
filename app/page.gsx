@@ -864,6 +864,7 @@ func Page() Node {
 		</section>
 		<script src="/studio-selection.js" defer></script>
 		<script src="/studio-project.js" defer></script>
+		<script src="/studio-certification.js" defer></script>
 		<script src="/studio-gizmo.js" defer></script>
 		<script src="/studio-camera.js" defer></script>
 		<footer class="status-bar">
