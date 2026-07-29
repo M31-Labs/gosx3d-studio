@@ -145,7 +145,11 @@ func CertifyM0(document Document) (EvidenceReport, error) {
 	}
 	add("headless-frame", frameValid, frameEvidence)
 	exact := trace.Closest != nil && trace.Closest.ID == string(target)
-	add("exact-pick", exact, fmt.Sprintf("selected=%s visited=%d tested=%d", target, trace.NodesVisited, trace.PrimitivesTested))
+	actual := ""
+	if trace.Closest != nil {
+		actual = trace.Closest.ID
+	}
+	add("exact-pick", exact, fmt.Sprintf("selected=%s actual=%s visited=%d tested=%d", target, actual, trace.NodesVisited, trace.PrimitivesTested))
 	selenaValid := len(report.Harness.Materials) > 0
 	for _, material := range report.Harness.Materials {
 		selenaValid = selenaValid && material.Valid && material.WGSLFragmentHash != "" && material.GLSLFragmentHash != ""

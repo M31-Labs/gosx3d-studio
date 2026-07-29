@@ -102,11 +102,36 @@ func initialCamps(holes []boardHole) [6][]Vec3 {
 }
 
 func FirstPickTarget(document Document) (ID, Vec3) {
-	for _, id := range document.Entities["scene-root"].Children {
-		entity := document.Entities[id]
+	visited := map[ID]bool{}
+	var visit func(ID) (ID, Vec3, bool)
+	visit = func(id ID) (ID, Vec3, bool) {
+		if visited[id] {
+			return "", Vec3{}, false
+		}
+		entity, ok := document.Entities[id]
+		if !ok {
+			return "", Vec3{}, false
+		}
+		visited[id] = true
 		if entity.Mesh != nil && entity.Mesh.Pickable && id != "board" {
-			return id, entity.Transform.Position
+			return id, entity.Transform.Position, true
+		}
+		for _, child := range entity.Children {
+			if target, position, ok := visit(child); ok {
+				return target, position, true
+			}
+		}
+		return "", Vec3{}, false
+	}
+	for _, root := range document.RootIDs {
+		if target, position, ok := visit(root); ok {
+			return target, position
 		}
 	}
-	return "board", document.Entities["board"].Transform.Position
+	for _, root := range document.RootIDs {
+		if entity, ok := document.Entities[root]; ok {
+			return root, entity.Transform.Position
+		}
+	}
+	return "", Vec3{}
 }
