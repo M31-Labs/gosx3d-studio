@@ -75,6 +75,9 @@ func ExportSceneIR(document Document) ([]byte, ExportReport, error) {
 	if document.RenderGraph != nil {
 		renderGraphs = 1
 	}
+	if document.World != nil {
+		addLoss("world", "world gameplay and water contracts require a runtime binding", len(document.World.WaterZones)+len(document.World.Markers))
+	}
 	addLoss("renderGraphs", "retained render-graph records lower separately via CompileRenderGraph", renderGraphs)
 	addLoss("editorMetadata", "document metadata keys are editor-only", len(document.Metadata))
 	modifierCount := 0

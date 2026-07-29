@@ -31,9 +31,13 @@ type Document struct {
 	RetargetMaps      map[ID]RetargetMap           `json:"retargetMaps,omitempty"`
 	AnimationMachines map[ID]AnimationStateMachine `json:"animationMachines,omitempty"`
 	RenderGraph       *RenderGraph                 `json:"renderGraph,omitempty"`
-	Camera            Camera                       `json:"camera"`
-	Environment       Environment                  `json:"environment"`
-	Metadata          map[string]string            `json:"metadata,omitempty"`
+	// World carries authored gameplay and simulation semantics that must not be
+	// smuggled into editor metadata. The typed renderer currently does not
+	// consume this contract; production exports name that limitation explicitly.
+	World       *WorldContract    `json:"world,omitempty"`
+	Camera      Camera            `json:"camera"`
+	Environment Environment       `json:"environment"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
 }
 
 type Entity struct {
@@ -294,15 +298,15 @@ type LightComponent struct {
 }
 
 type Material struct {
-	ID           ID            `json:"id"`
-	Name         string        `json:"name"`
-	Color        string        `json:"color"`
-	Roughness    float64       `json:"roughness"`
-	Metalness    float64       `json:"metalness"`
-	Clearcoat    float64       `json:"clearcoat,omitempty"`
-	Transmission float64       `json:"transmission,omitempty"`
-	Emissive     float64       `json:"emissive,omitempty"`
-	Selena       *SelenaShader `json:"selena,omitempty"`
+	ID           ID                     `json:"id"`
+	Name         string                 `json:"name"`
+	Color        string                 `json:"color"`
+	Roughness    float64                `json:"roughness"`
+	Metalness    float64                `json:"metalness"`
+	Clearcoat    float64                `json:"clearcoat,omitempty"`
+	Transmission float64                `json:"transmission,omitempty"`
+	Emissive     float64                `json:"emissive,omitempty"`
+	Selena       *SelenaShader          `json:"selena,omitempty"`
 	Textures     map[string]TextureSlot `json:"textures,omitempty"`
 }
 
@@ -391,6 +395,9 @@ func (d Document) Validate() error {
 		return err
 	}
 	if err := validateEnvironment(d.Environment); err != nil {
+		return err
+	}
+	if err := validateWorldContract(d.World, d.Entities); err != nil {
 		return err
 	}
 	for key, material := range d.Materials {
