@@ -357,7 +357,9 @@ func TestWindowsProductionPackagingProvisionsPinnedToolchain(t *testing.T) {
 		"Get-FileHash -Path $archive -Algorithm SHA256",
 		`"WASMOPT=$($wasmOpt.FullName)"`,
 		"$env:GITHUB_PATH",
-		`..\gosx-cli.exe build --prod --offline .`,
+		"Warm TinyGo WASI cache serially",
+		"tinygo build -target wasm -no-debug -panic=trap",
+		`..\gosx-cli.exe build --prod --offline --msix .`,
 	} {
 		if !strings.Contains(contents, required) {
 			t.Fatalf("Windows production packaging is missing toolchain contract %q", required)
