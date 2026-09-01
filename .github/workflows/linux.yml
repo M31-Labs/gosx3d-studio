@@ -17,8 +17,8 @@ jobs:
   evidence:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -47,7 +47,7 @@ jobs:
       - name: Package the production Scene3D application
         run: ./scripts/render-build.sh
       - name: Upload evidence artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-evidence
           path: |
@@ -67,18 +67,18 @@ jobs:
       run:
         working-directory: gosx3d-studio
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: gosx3d-studio
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: odvcencio/gosx
           path: gosx
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: odvcencio/arbiter
           path: arbiter
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: gosx3d-studio/go.mod
           cache-dependency-path: gosx3d-studio/go.sum

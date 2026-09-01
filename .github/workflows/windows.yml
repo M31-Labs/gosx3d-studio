@@ -22,10 +22,10 @@ jobs:
         shell: pwsh
         working-directory: gosx3d-studio
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: gosx3d-studio
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: gosx3d-studio/go.mod
           cache-dependency-path: gosx3d-studio/go.sum
@@ -73,7 +73,7 @@ jobs:
           if (-not $makeappx) { Write-Host "MakeAppx not found; staging only"; exit 0 }
           & $makeappx.FullName pack /d dist\msix\package /p dist\gosx3d-studio-unsigned.msix /o
       - name: Upload evidence artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-evidence
           path: |
