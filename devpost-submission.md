@@ -5,7 +5,14 @@ GoSX 3D Studio
 ## One-line Summary
 
 An agent-native 3D scene workbench where browser agents inspect and stage
-revision-safe scene edits while humans keep visible, explicit commit authority.
+revision-safe edits while approval stays in a visible Studio UI action outside
+the four-tool WebMCP surface.
+
+## Links
+
+- **Live app:** [GoSX 3D Studio](https://gosx3d.m31labs.dev)
+- **Source:** [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio)
+- **License:** MIT
 
 ## Problem
 
@@ -45,9 +52,9 @@ When a person approves, the browser submits only an opaque proposal ID. The
 server commits the exact operations it previously previewed through the same
 revision-safe transaction engine used by the rest of the Studio. If the scene
 changed in the meantime, the expected-revision check rejects the stale work.
-Before staging, an embedded Arbiter policy evaluates every operation and
-returns visible Allow/Deny evidence; invalid or inconsistent policy output
-fails closed.
+Before staging, an embedded Arbiter policy evaluates every operation.
+Successful proposals carry visible Allow evidence; a Deny, invalid decision, or
+inconsistent policy result prevents staging.
 
 GoSX 3D Studio is an **existing project**. Before August 25, 2026, it already
 had the SceneDoc model, 3D workbench, shared human/agent transaction engine,
@@ -78,7 +85,7 @@ preview evidence, exact picking, and gizmo commits.
 - **Creativity & Ambition:** The agent is not a chatbot bolted beside a canvas.
   The webpage becomes the shared protocol surface. Human and agent point at the
   same stable object, reason from the same revision, and create an auditable
-  handoff from machine-authored preview to human-owned commit.
+  handoff from machine-authored preview to the visible Studio Apply action.
 
 ## How We Used AI
 
@@ -89,27 +96,30 @@ prepare a small typed proposal with a plain-language rationale. The Studio
 keeps deterministic responsibilities—schema validation, revision checks,
 fingerprints, authority, and canonical state—outside the model.
 
-In the prepared demo flow, the agent reads the scene revision, finds the
-visible mesh named `board`, focuses stable ID `board`, and stages a `Board` to
-`Hero Board` rename. The human rejects the first preview, restages it, then
-visibly accepts the second. The agent never receives commit authority.
+In the prepared demo flow, the agent reads the scene revision, finds the mesh
+named `Board`, focuses stable ID `board`, and stages two changes: rename it
+`Launch Board` and assign the `Cobalt Pieces` material. The same browser
+session recovers the exact proposal after a full reload, then the person uses
+the visible Apply action. No registered WebMCP tool can commit a proposal.
 
-Native browser QA used Chrome for Testing 152.0.7977.64 with
-`enable-webmcp-testing@1`. The browser exposed a native `ModelContext` on
-`Document`; its native WebMCP inspection surface discovered exactly the four
-declared tools. The test then exercised inspect, find, visible focus,
-non-mutating preview, discard, restage, explicit human Apply, stale-proposal
-rejection, governed group-scale preview, light-scale denial, and a clean shared
-reset. The accepted rename advanced the canonical revision exactly once and
-kept the agent/human attribution split. Chrome 143 mock coverage remains as a
-separate adapter regression; ChatGPT's in-app browser has not yet been tested.
+Native browser QA used Google Chrome 152.0.7977.64 with
+`WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome's native
+`document.modelContext` discovered and invoked exactly the four declared tools.
+The complete inspect, find, focus, two-operation preview, reload recovery, and
+visible Apply flow produced no runtime exceptions, console errors, failed
+requests, or HTTP error responses. Before approval, the canonical name,
+material, and revision were unchanged. Apply advanced the revision exactly once
+and kept agent-preview/UI-approval attribution distinct. The test suite also
+covers discard, stale-proposal rejection, policy behavior, and clean shared
+reset. ChatGPT's in-app browser has not yet been tested.
 
 ## How We Used Codex
 
-The human supplied the product direction: GoSX 3D Studio was already designed
-for human-agent collaboration and multiplayer-style convergence on shared scene
-truth, and WebMCP should give browser agents a standards-based way to continue
-that model. Codex helped turn that direction into a bounded implementation by:
+The human supplied the product direction: GoSX 3D Studio already let people and
+agents converge on revisioned scene truth. For this Challenge, that became a
+single-instance shared canonical workspace with revision-conflict safety, and
+WebMCP gives browser agents a standards-based way to participate. Codex helped
+turn that direction into a bounded implementation by:
 
 - inspecting the existing repository and identifying `Workspace.Execute` as
   the correct convergence point instead of creating a parallel state model;
@@ -132,12 +142,13 @@ Codex did not submit or update the project on Devpost in this drafting pass.
 - Stable-ID object search with component, visibility, and result-limit filters.
 - Agent-requested focus that aligns the Scene Hierarchy and Inspector without
   mutating the scene.
-- Preview support for `rename-entity`, `set-transform`, `assign-material`, and
-  `duplicate-entity`; destructive and broad operations are excluded.
-- Explicit human review with title, rationale, semantic diff, affected IDs,
-  proposed revision, and deterministic fingerprint.
-- Executable Arbiter policy with visible Allow/Deny evidence for every staged
-  operation; policy failure or inconsistency denies staging.
+- Preview support for `rename-entity`, `set-transform`, and `assign-material`;
+  destructive, structural, and broad operations are excluded.
+- A visible review UI, outside the registered WebMCP tool surface, with title,
+  rationale, semantic diff, affected IDs, proposed revision, and deterministic
+  fingerprint.
+- Executable Arbiter policy with visible Allow evidence for every successfully
+  staged operation; policy denial, failure, or inconsistency prevents staging.
 - Opaque 128-bit proposal IDs: approval commits the exact server-stored
   transaction, not a browser-rewritten payload.
 - Expected-revision conflict rejection, one-use proposals, 15-minute expiry,
@@ -146,8 +157,8 @@ Codex did not submit or update the project on Devpost in this drafting pass.
   automation token to browser JavaScript.
 - Visible attribution: preview receipts use `agent://webmcp`; accepted changes
   use `human://webmcp-review`.
-- Human-only shared-demo reset with revision monotonicity, staged-proposal
-  invalidation, and no agent-callable reset tool.
+- Visible shared-demo reset with revision monotonicity and staged-proposal
+  invalidation; it is not exposed as a registered WebMCP tool.
 
 ## Architecture
 
@@ -169,7 +180,8 @@ webmcp.go proposal service
         v
 non-applied receipt + opaque proposal ID ----> visible Studio review card
                                                     |
-                                                    | human click only
+                                                    | Apply UI action
+                                                    | (not a WebMCP tool)
                                                     v
                                           session/CSRF commit POST
                                                     |
@@ -189,11 +201,12 @@ The submission-period slice adds:
 
 - `public/studio-webmcp.js` for the four WebMCP registrations, input
   normalization, same-origin API calls, and structured results;
-- `webmcp.go` plus routes in `main.go` for bounded, session-owned staging and
-  exact human commit;
+- `webmcp.go` plus routes in `main.go` for bounded, session-owned staging and an
+  exact commit from the visible review UI;
 - `webmcp_policy.go` and `internal/studio/rules/webmcp-operations.arb` for the
   executable, trace-producing operation boundary;
-- `demo.go` for a human-only reset into a fresh ephemeral project generation;
+- `demo.go` for a visible reset action, outside the WebMCP tool surface, into a
+  fresh ephemeral project generation;
 - `public/studio-webmcp-ui.js`, `app/page.gsx`, and `public/styles.css` for tool
   readiness, shared focus, proposal review, and activity attribution; and
 - the WebMCP, policy, demo, and browser-contract tests for server, authority,
@@ -207,31 +220,29 @@ for it.
 
 ### Hosted judge flow
 
-These instructions become final after the public HTTPS URL is deployed and
-checked externally. The same flow has passed locally through native Chrome 152
-WebMCP.
+The same flow has passed locally through native Chrome 152 WebMCP. Reset first
+because the public deployment is one shared ephemeral workspace.
 
-1. Open `[TODO: PUBLIC HTTPS DEMO URL]` in ChatGPT's in-app browser or Chrome
+1. Open the [live GoSX 3D Studio](https://gosx3d.m31labs.dev) in ChatGPT's in-app browser or Chrome
    149+ with `chrome://flags/#enable-webmcp-testing` enabled.
 2. Click **Reset shared scene**, confirm the warning, then confirm **Agent
    Collaboration** reports **Agent tools ready** and **4 tools**.
-3. Ask the agent: “Inspect the current scene with `scene_get_state`, then use
-   `scene_find_objects` to find visible mesh objects matching `board`. Do not
-   propose changes yet.” Record the returned revision `R` and stable ID
-   `board`.
-4. Ask it to call `scene_focus_object` for `board`. Confirm **Scene Hierarchy**
-   and **Inspector** visibly converge on the same object while revision remains
-   `R`.
-5. Ask it to call `scene_preview_actions` at revision `R` with one
-   `rename-entity` operation from `Board` to `Hero Board`, including a short
-   title and rationale.
-6. Confirm **Latest staged proposal** shows a non-applied
+3. Click **Copy demo prompt** and give the copied text to the browser agent:
+   “Inspect the current scene, find and focus the object named Board, then
+   stage—without committing—a proposal that renames it Launch Board and
+   assigns the Cobalt Pieces material. Explain the revision boundary.” Record
+   the baseline revision `R`.
+4. Confirm the **Inspect → Find → Focus → Stage** rail completes and **Scene
+   Hierarchy** plus **Inspector** visibly converge on stable ID `board`.
+5. Confirm **Latest staged proposal** shows a non-applied
    `agent://webmcp` receipt, Arbiter Allow evidence, semantic diff, affected
    object, proposed revision, and result fingerprint while the canonical
    revision remains `R`.
-7. Click **Discard** and confirm the scene still reads `R`. Restage the same
-   preview, then click **Apply staged changes** yourself.
-8. Confirm the hierarchy reads `Hero Board`, canonical revision is `R+1`, and
+6. Reload the same browser tab. Confirm the proposal and Apply/Discard controls
+   return while the canonical scene still reads `R`.
+7. Click **Apply staged changes** yourself.
+8. Confirm the hierarchy reads `Launch Board`, the Inspector reads `Cobalt
+   Pieces`, canonical revision is `R+1`, and
    **Agent Activity** separately shows `agent://webmcp` and
    `human://webmcp-review`.
 
@@ -268,18 +279,16 @@ attributes. Demo tests cover reset revision monotonicity, stale and concurrent
 requests, path ownership, cross-browser behavior, proposal invalidation, and
 non-demo denial. The final source tree passed the complete verification sequence
 listed above. The packaged production/TLS artifact also passed native four-tool
-discovery, inspect/search/focus, a governed non-mutating preview, human Discard,
-secure session/CSRF transport, and a clean real-WebGL browser smoke.
+discovery, inspect/search/focus, a governed non-mutating preview, visible-UI
+Discard, secure session/CSRF transport, and a clean real-WebGL browser smoke.
 
 ## Public Demo Link
 
-`[TODO: PUBLIC HTTPS DEMO URL]`
-
-No public demo URL has been confirmed yet.
+[GoSX 3D Studio live demo](https://gosx3d.m31labs.dev)
 
 ## Public Repository Link
 
-<https://github.com/M31-Labs/gosx3d-studio>
+[M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio)
 
 The public default branch contains the complete source, run and verification
 instructions, WebMCP implementation, and a repository-root MIT License.
@@ -288,10 +297,10 @@ instructions, WebMCP implementation, and a repository-root MIT License.
 
 `[TODO: PUBLIC YOUTUBE URL, UNDER 3 MINUTES, WITH AUDIO]`
 
-The recording plan is in `docs/demo-video-script.md`. It targets a 2:43
-one-take demo: problem, four-tool discovery, inspect/find/focus, non-mutating
-preview, human discard, restage, explicit human apply, one canonical revision
-advance, and distinct agent/human activity attribution.
+The recording plan is in `docs/demo-video-script.md`. It targets a 2:38
+one-take demo: problem, four-tool discovery, inspect/find/focus, two-operation
+non-mutating preview, same-session reload recovery, visible-UI Apply, one
+canonical revision advance, and distinct proposal/approval attribution.
 
 ## Screenshot Shot List
 
@@ -307,14 +316,15 @@ advance, and distinct agent/human activity attribution.
    viewport. Caption: “A WebMCP focus request gives the person and agent the
    same visible referent without mutating the scene.”
 4. **Reviewable proposal** — **Latest staged proposal** with rationale,
-   `Board → Hero Board` semantic change, `agent://webmcp`, affected ID,
-   Arbiter Allow evidence, revision preview, fingerprint, **Discard**, and
-   **Apply staged changes**.
-   Caption: “The agent proposes; the human keeps commit authority.”
-5. **Auditable handoff** — `Hero Board`, revision `R+1`, and **Agent Activity**
-   showing both `agent://webmcp` propose and `human://webmcp-review` direct
-   entries. Caption: “One reviewed proposal becomes one attributed canonical
-   change.”
+   `Board → Launch Board` and `board-material → player-4-material` semantic
+   changes, `agent://webmcp`, affected ID, Arbiter Allow evidence, revision
+   boundary, fingerprint, **Discard**, and **Apply staged changes**.
+   Caption: “The agent proposes; Apply stays in the visible Studio UI, outside
+   the WebMCP tool surface.”
+5. **Auditable handoff** — `Launch Board`, `Cobalt Pieces`, revision `R+1`, and
+   **Agent Activity** showing both `agent://webmcp` propose and
+   `human://webmcp-review` direct entries. Caption: “One reviewed proposal
+   becomes one attributed canonical change.”
 
 Do not capture credentials, localhost-only evidence for the public gallery, a
 mock `modelContext` console, or any reset UI until those surfaces are final.
@@ -324,22 +334,25 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
 - [x] Existing-project baseline and Challenge-period additions are documented
       separately.
 - [x] Four WebMCP registrations, typed schemas, proposal UI, server proposal
-      path, explicit human commit boundary, and focused tests exist locally.
+      path, visible Apply boundary outside WebMCP, and focused tests exist
+      locally.
 - [x] README and Challenge implementation notes contain the required
       `document.modelContext.registerTool(...)` shape.
 - [x] The Devpost account is registered for The WebMCP Challenge.
 - [x] Add a complete MIT `LICENSE` at the repository root.
-- [x] Implement and exercise the visible human-only shared-demo reset, including
-      revision monotonicity and staged-proposal invalidation.
-- [x] Complete native WebMCP QA in Chrome for Testing 152.0.7977.64 with the
-      WebMCP testing experiment enabled; exact four-tool discovery and the
-      inspect/find/focus/preview/discard/apply/conflict/deny/reset flow passed.
+- [x] Implement and exercise the visible shared-demo reset outside the WebMCP
+      tool surface, including revision monotonicity and staged-proposal
+      invalidation.
+- [x] Complete native WebMCP QA in Google Chrome 152.0.7977.64 with the WebMCP
+      testing experiment enabled; exact four-tool discovery and the complete
+      inspect/find/focus/two-operation-preview/reload/apply flow passed with no
+      browser or HTTP errors.
 - [x] Run the full clean verification sequence, including GoSX and Arbiter
       checks, module verification, vet, tests, race tests, deterministic smoke
       and certification evidence, production build, and packaged-server browser
       smoke.
-- [ ] Deploy one HTTPS instance, test it from an external compatible browser,
-      and fill the public demo URL.
+- [x] Deploy one HTTPS instance at `gosx3d.m31labs.dev` and fill the public demo
+      URL.
 - [x] Publish the final source repository, verify anonymous access and license
       detection, and fill the repository URL.
 - [ ] Capture screenshots, record the under-three-minute video with audio,
@@ -355,27 +368,26 @@ material above.
 
 ## Known Limitations
 
-- Native WebMCP behavior is verified in Chrome for Testing 152.0.7977.64. It
-  has not yet been verified in ChatGPT's in-app browser or from the eventual
-  public deployment.
+- Native WebMCP behavior is verified in Google Chrome 152.0.7977.64. ChatGPT's
+  in-app browser remains a separate manual submission check.
 - Canonical scene and pending proposal state are process-local. The Render
   configuration intentionally uses one instance; a restart loses that state.
-- This is a focused human-agent collaboration demo, not full realtime
-  multi-user presence, CRDT synchronization, accounts, or durable cloud
-  workspaces.
+- The hosted demo is a single-instance shared canonical workspace with
+  revision-conflict safety. It does not implement live presence, CRDT
+  synchronization, accounts, or durable cloud workspaces.
 - The canonical workspace is shared by the running demo process even though
   pending proposal IDs are session-owned. It is not a private per-user studio.
-- WebMCP intentionally exposes only four reversible operation kinds. Delete,
+- WebMCP intentionally exposes only three reversible operation kinds:
+  `rename-entity`, `set-transform`, and `assign-material`. Delete,
   reparent, project switching, asset cleanup, arbitrary field writes, undo, and
   redo remain outside the browser-agent surface.
-- There is no agent-callable commit tool. This is a deliberate authority
-  boundary, but it means every staged edit requires a visible person to accept
-  it.
+- There is no commit tool in the four-tool WebMCP surface. Every staged edit
+  requires the visible Studio Apply action.
 - The default demonstration uses the bundled Chinese Checkers scene; the
   broader editor contains capabilities whose certification status remains
   explicitly partial or planned.
-- The source release uses the MIT License; deployment and the remaining public
-  submission evidence are still outstanding.
+- The source release uses the MIT License. The public YouTube video and final
+  Devpost form review remain outstanding.
 
 ## TODO Official Form Fields
 
@@ -388,15 +400,15 @@ Challenge. Values in brackets require the submitter's confirmation.
 | **Country of residence of yourself and team members if applicable** (required) | `[TODO: select every applicable country exactly as listed in the form]` |
 | **If submitting on behalf of an organization, what is the organization name?** (optional) | `[TODO if applicable; otherwise leave blank]` |
 | **App Status** (required) | `Existing` |
-| **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; an explicit human review and exact-commit UI; a human-only shared-demo reset; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; a GoSX v0.54.0 upgrade with affine group-scale integration; Challenge documentation; and deployment configuration. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
-| **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | `[TODO: PUBLIC HTTPS DEMO URL]` |
-| **If applicable, testing instructions for application** (private to Devpost and judges) | `[PROVISIONAL—replace the URL after deployment] No credentials are planned. Open the live URL in a compatible browser, click Reset shared scene and confirm the warning, confirm Agent Collaboration reports four tools, then follow the Hosted judge flow in this draft.` |
-| **URL to your PUBLIC Code Repo** (required) | `https://github.com/M31-Labs/gosx3d-studio` |
-| **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome for Testing 152.0.7977.64 with enable-webmcp-testing@1. Chrome exposed its native Document.modelContext / ModelContext implementation, discovered all four webpage tools, and completed the inspect, search, focus, preview, discard, human-apply, conflict-rejection, policy-denial, and reset workflow. We also ran adapter regression coverage in Chrome 143 with an injected modelContext mock; we have not yet tested ChatGPT's in-app browser.` |
+| **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; a visible review and exact-commit UI outside the WebMCP tool surface; a visible shared-demo reset that is not a WebMCP tool; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; a GoSX v0.54.0 upgrade with affine group-scale integration; Challenge documentation; and deployment configuration. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
+| **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev) |
+| **If applicable, testing instructions for application** (private to Devpost and judges) | `No credentials are required. Open the live URL in a compatible browser, click Reset shared scene and confirm the warning, confirm Agent Collaboration reports four tools, then use Copy demo prompt and follow the Hosted judge flow in this draft.` |
+| **URL to your PUBLIC Code Repo** (required) | [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) |
+| **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome 152.0.7977.64 with WebMCPTesting and DevToolsWebMCPSupport enabled. Chrome exposed its native document.modelContext implementation, discovered all four webpage tools, and completed inspect, search, focus, a two-operation preview, same-session reload recovery, and visible-UI Apply with exactly one canonical revision advance. Separate automated coverage exercises discard, conflict rejection, client validation, policy behavior, and reset. We have not yet tested ChatGPT's in-app browser.` |
 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification support, documentation, and submission preparation. [TODO: add any other AI tools actually used; do not list planned tools.]` |
 | **Describe the level of learning you/your team derived from the project** (required) | `[TODO: choose None, Moderate, or Significant]` |
 | **Did you gain AI value that you can use in your career?** (required) | `[TODO: choose Yes or No]` |
 
-Remaining required deliverables outside those custom questions are a working
-live URL and a public YouTube demo under three minutes with audio. The public
-MIT-licensed source repository and truthful project description are ready.
+The remaining required deliverable outside those custom questions is a public
+YouTube demo under three minutes with audio. The working live URL, public
+MIT-licensed source repository, and truthful project description are ready.

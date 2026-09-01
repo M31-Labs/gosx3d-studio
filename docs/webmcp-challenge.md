@@ -5,8 +5,9 @@ forms and agent actions both entered the same revision-safe transaction engine,
 used stable SceneDoc IDs, and produced attributed receipts. The WebMCP Challenge
 work gives browser agents a standards-based seat in that existing collaboration:
 they can inspect the scene, help a person find and focus objects, and stage an
-exact edit preview inside the open editor. The person remains the authority who
-decides whether that preview becomes canonical scene state.
+exact edit preview inside the open editor. A visible Studio Apply action, which
+is not exposed as a WebMCP tool, is what turns that preview into canonical scene
+state.
 
 This is a better fit for WebMCP than pixel-level UI automation or a private
 agent integration. A compatible browser can discover typed, domain-specific
@@ -46,13 +47,14 @@ experience:
 - `webmcp.go` adds a deliberately narrow, session-authorized proposal service
   over `Workspace.Execute`; it never creates a second scene model.
 - `internal/studio/rules/webmcp-operations.arb` makes the reversible operation
-  allowlist executable policy. Every staged operation produces an Arbiter
-  Allow/Deny decision and trace before it reaches the command engine.
+  allowlist executable policy. Successfully staged operations carry an Arbiter
+  Allow decision and trace; a Deny prevents staging.
 - `app/page.gsx`, `public/studio-webmcp-ui.js`, and `public/styles.css` expose
-  tool readiness, agent-requested focus, and an explicit human proposal-review
-  surface in the existing editor.
-- `demo.go` provides the shared hosted demo with an explicit human-only reset
-  into a fresh temporary generation at a monotonically newer revision.
+  tool readiness, agent-requested focus, and a visible proposal-review surface
+  outside the registered WebMCP tools in the existing editor.
+- `demo.go` provides the shared hosted demo with a visible reset action, outside
+  the WebMCP tool surface, into a fresh temporary generation at a monotonically
+  newer revision.
 - The WebMCP, policy, demo, and browser-contract tests verify the allowlist,
   policy traces, non-mutating preview, exact stored commit, expiry, reset,
   revision behavior, and HTTP authority boundary.
@@ -72,7 +74,8 @@ Workspace.Execute(mode=propose) ----> preview receipt + opaque proposal ID
                                             |
                                             | visible review in Studio
                                             v
-                                      explicit human Apply
+                                      visible Apply action
+                                      (not a WebMCP tool)
                                             |
                                             v
 Workspace.Execute(mode=direct) -----> canonical SceneDoc next revision
@@ -88,14 +91,13 @@ for a person to understand.
 | `scene_get_state` | Read the scene identity and revision, object/component counts, roots, materials, camera, environment, and current selection. | None |
 | `scene_find_objects` | Search stable IDs and names, with optional component, visibility, and result-limit filters. | None |
 | `scene_focus_object` | Ask the visible Studio UI to focus a known object so the human and agent can discuss the same thing. | None |
-| `scene_preview_actions` | Validate and stage 1–12 reversible edits at an exact scene revision, with a human-facing title and rationale. | None until the human applies the proposal |
+| `scene_preview_actions` | Validate and stage 1–12 reversible edits at an exact scene revision, with a human-facing title and rationale. | None until the visible Studio Apply action is used |
 
-The preview tool accepts only four operation kinds:
+The preview tool accepts only three operation kinds:
 
 - `rename-entity`
 - `set-transform`
 - `assign-material`
-- `duplicate-entity`
 
 Destructive and broad operations such as delete, reparent, project switching,
 asset garbage collection, arbitrary field writes, undo, and redo are not in the
@@ -151,12 +153,17 @@ with the integer returned by `scene_get_state`:
 {
   "expectedRevision": 1,
   "title": "Clarify the board in the hierarchy",
-  "rationale": "A more descriptive name makes the shared focal object easier to find.",
+  "rationale": "Make the focal surface unmistakable while keeping both edits reviewable.",
   "operations": [
     {
       "kind": "rename-entity",
       "target": "board",
-      "name": "Hero Board"
+      "name": "Launch Board"
+    },
+    {
+      "kind": "assign-material",
+      "target": "board",
+      "material": "player-4-material"
     }
   ]
 }
@@ -173,11 +180,11 @@ previously previewed.
 The browser integration is designed as a proposal boundary, not as a new direct
 mutation authority.
 
-- **Human commit stays out of WebMCP.** There is no agent-callable commit tool.
+- **Commit stays out of WebMCP.** There is no agent-callable commit tool.
   Only the visible Studio review UI calls the commit endpoint.
 - **Preview is genuinely non-mutating.** The agent transaction uses
   `ModePropose`; the canonical workspace remains at the same revision until a
-  human action uses `ModeDirect`.
+  visible UI Apply action uses `ModeDirect`.
 - **The reviewed payload cannot be swapped in the browser.** The server stores
   the exact validated transaction and gives the page an opaque 128-bit proposal
   ID. Apply submits the ID, not a rewritten operation list.
@@ -194,25 +201,25 @@ mutation authority.
   JSON limit, empty or oversized edit batches, unsupported operation kinds,
   and oversized title/rationale fields.
 - **The operation boundary is executable and fail-closed.** An embedded Arbiter
-  strategy selects Allow only for the four reversible operation kinds. A
+  strategy selects Allow only for the three reversible operation kinds. A
   missing, malformed, inconsistent, or denying policy decision stops staging;
-  its decision evidence is returned with the proposal and shown in the review
-  surface.
+  successful proposals return visible Allow evidence in the review surface.
 - **Pending authority is short-lived and bounded.** Proposals expire after 15
   minutes, the in-memory store retains at most 64, and a successful proposal ID
   is removed so it cannot be committed twice.
 - **Attribution remains visible.** Preview receipts use `agent://webmcp`; the
-  explicit approval uses `human://webmcp-review`. Both flow through the same
+  visible approval path uses `human://webmcp-review`. Both flow through the same
   receipt and fingerprint machinery as the rest of the Studio.
 
-The current Challenge deployment is a focused, shared demonstration, not a
-claim of full realtime multi-user infrastructure. Proposal storage is
-process-local and session-owned; canonical scene state is shared by one server
-instance. A visible, human-only reset restores the sample in a fresh temporary
-generation, advances the revision to prevent stale-work ABA, and invalidates
-every staged proposal. The WebMCP operation allowlist is intentionally smaller
-than the Studio's internal command catalog. Those constraints make the
-demonstrated authority boundary concrete and testable.
+The current Challenge deployment is a single-instance shared canonical
+workspace with revision-conflict safety. Proposal storage is process-local and
+session-owned; it does not claim live presence, CRDT synchronization, or durable
+concurrent-user infrastructure. A visible reset action outside the WebMCP tool
+surface restores the sample in a fresh temporary generation, advances the
+revision to prevent stale-work ABA, and invalidates every staged proposal. The
+WebMCP operation allowlist is intentionally smaller than the Studio's internal
+command catalog. Those constraints make the demonstrated authority boundary
+concrete and testable.
 
 ## Why this improves the experience
 
@@ -248,14 +255,16 @@ If `.env` already exists, keep it rather than overwriting it. Then:
 
 1. Use Google Chrome 149 or newer.
 2. Enable `chrome://flags/#enable-webmcp-testing` and restart Chrome.
-3. Open `http://localhost:8080` in a WebMCP-capable agent/browser session. Use
+3. Open the [local Studio](http://localhost:8080) in a WebMCP-capable agent/browser session. Use
    **Reset shared scene** if another demo run has changed the sample.
 4. Confirm the Agent Collaboration panel reports four available tools.
 5. Ask the agent to inspect the scene, find `board`, focus it, and stage the
-   rename example above using the returned revision.
+   rename-plus-material example above using the returned revision.
 6. Confirm the proposal card appears and the scene revision has not changed.
-7. Choose **Discard** and confirm nothing changes; repeat the preview, choose
-   **Apply staged changes**, and confirm the revision advances once.
+7. Reload the same tab and confirm the proposal returns for the same browser
+   session while the canonical revision remains unchanged.
+8. Choose **Apply staged changes** and confirm the name and material both
+   change while the revision advances exactly once.
 
 For the hosted build, the same flow can be tested through ChatGPT's in-app
 browser or Chrome with WebMCP testing enabled. The hosted URL must be HTTPS and
@@ -263,14 +272,17 @@ reachable without local network access.
 
 ### Verified compatible client
 
-The complete local flow passed in Chrome for Testing 152.0.7977.64 with
-`enable-webmcp-testing@1`. Chrome exposed its native `Document.modelContext`
-getter and `ModelContext.registerTool`, discovered exactly the four Studio
-tools, and completed inspect, find, focus, preview/discard, preview/human-apply,
-stale-proposal rejection, group-scale preview, light-scale denial, and shared
-reset. The human-approved rename advanced the canonical scene once. This is
-native Chrome WebMCP evidence; it is not a claim that ChatGPT's in-app browser
-or the eventual public deployment has already been tested.
+The complete local release-candidate flow passed in Google Chrome
+152.0.7977.64 with `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome exposed
+its native `Document.modelContext` getter and `ModelContext.registerTool`,
+discovered exactly the four Studio tools, and completed inspect, find, focus, a
+two-operation non-mutating preview, full same-session reload recovery, and
+visible-UI Apply. Canonical name, material, and revision stayed unchanged before
+approval; Apply advanced the revision exactly once; and runtime exception,
+console-error, failed-request, and HTTP-error lists were empty. Broader tests
+cover discard, stale rejection, group-scale preview, client-side light-scale
+validation, and shared reset. This is native Chrome WebMCP evidence; it is not
+a claim that ChatGPT's in-app browser has already been tested.
 
 Browser-free verification remains part of the repository's evidence floor:
 
@@ -317,4 +329,4 @@ make the consequential decision in context.
 The collaboration is not a chatbot bolted beside a canvas. The website itself
 becomes the shared protocol surface: agent and human point at the same stable
 objects, reason from the same revision, and turn a machine-authored preview into
-a human-owned commit with an auditable handoff.
+a visible-UI commit, outside the WebMCP tool surface, with an auditable handoff.

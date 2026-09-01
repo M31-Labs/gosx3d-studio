@@ -1,15 +1,16 @@
 # GoSX 3D Studio
 
-Standalone GoSX application foundation for the animation, game,
-simulation, and Scene3D asset workbench.
+An agent-native 3D scene workbench where people and browser agents inspect,
+focus, and prepare changes together—without giving the agent a hidden commit
+path.
 
-The current build mounts a Studio-owned Chinese Checkers SceneDoc through typed
-Scene3D, supports exact viewport selection and revision-safe human/agent
-commands with undo, redo, checkpoint-safe modeling, explicit atomic saves, and
-crash-journal recovery, and proves rendering and exact picking in the
-browser-free harness. The Diagnostics surface reports certification honestly;
-unfinished dimensions and desktop packaging remain explicit rather than being
-presented as complete.
+**Live judge demo:** [gosx3d.m31labs.dev](https://gosx3d.m31labs.dev)
+
+The hosted sample is one shared, ephemeral workspace. It mounts a real
+Studio-owned Chinese Checkers SceneDoc through typed Scene3D, supports exact
+viewport selection and revision-safe human/agent commands, and exposes its
+collaboration surface through four browser-native WebMCP tools. A visible reset
+restores the sample at a newer canonical revision.
 
 ## WebMCP collaboration
 
@@ -17,8 +18,9 @@ The Studio now exposes its existing human/agent scene contract directly to a
 compatible browser. An agent can inspect canonical scene state, search stable
 object IDs, focus the visible hierarchy, and stage a bounded edit preview. The
 preview appears in the Studio with its rationale, revision, affected objects,
-semantic changes, deterministic fingerprint, and Arbiter Allow/Deny evidence.
-It does not change the scene until a person explicitly applies it.
+semantic changes, deterministic fingerprint, and Arbiter Allow evidence. It
+does not change the scene until a person uses the visible **Apply staged
+changes** action, which is not exposed as a WebMCP tool.
 
 Four tools are registered in `public/studio-webmcp.js`:
 
@@ -26,6 +28,9 @@ Four tools are registered in `public/studio-webmcp.js`:
 - `scene_find_objects`
 - `scene_focus_object`
 - `scene_preview_actions`
+
+`scene_preview_actions` accepts exactly three operation kinds:
+`rename-entity`, `set-transform`, and `assign-material`.
 
 The implementation uses the standard imperative shape required by the WebMCP
 Challenge:
@@ -39,7 +44,7 @@ document.modelContext.registerTool({
 });
 ```
 
-Agent proposals and human commits converge on the same revision-safe
+Agent proposals and visible UI approvals converge on the same revision-safe
 `Workspace.Execute` path that predates the browser adapter. The server retains
 the exact previewed transaction behind an opaque proposal ID, so the approval
 step cannot silently substitute different operations. An embedded Arbiter
@@ -56,7 +61,7 @@ cp .env.example .env
 go run .
 ```
 
-Open <http://localhost:8080>. For hot reload:
+Open the [local Studio](http://localhost:8080). For hot reload:
 
 ```bash
 gosx dev .
@@ -66,13 +71,14 @@ To exercise the WebMCP tools, use ChatGPT's in-app browser or Chrome 149+ with
 `chrome://flags/#enable-webmcp-testing` enabled. The Agent Collaboration panel
 reports whether the browser registered all four tools.
 
-The full local workflow is verified against Chrome for Testing 152.0.7977.64
-with its native WebMCP testing experiment enabled. ChatGPT's in-app browser and
-the eventual public deployment remain separate pre-submission checks. See
+The full local workflow is verified against Google Chrome 152.0.7977.64 with
+its native WebMCP testing experiment enabled. ChatGPT's in-app browser remains
+a separate pre-submission check. See
 [Native WebMCP verification](docs/native-webmcp-qa.md) for the exact evidence
 boundary and exercised workflow.
 
-For a disposable shared judge/demo workspace with a visible, human-only reset:
+For a disposable shared judge/demo workspace with a visible reset action that
+is not exposed as a WebMCP tool:
 
 ```bash
 STUDIO_DEMO_MODE=1 go run .
@@ -92,7 +98,19 @@ gosx desktop --native-bridge --app-id m31labs.gosx3d-studio dev .
 Set `STUDIO_SERVER_ONLY=1` only for a Windows server probe or deployment that
 must not create a native window.
 
-## Deploy on Render
+## Deploy on Kubernetes
+
+The release image and hardened single-replica k3s manifest used by the hosted
+demo are documented in [deploy/README.md](deploy/README.md). The image runs as
+non-root with a read-only root filesystem, health probes, bounded resources,
+runtime secrets outside Git, an immutable Harbor digest, and TLS through the
+existing M31 Labs ingress.
+
+Keep the service at one instance: the demo intentionally shares process-local
+canonical state, and revision conflicts protect visitors from silently
+overwriting stale proposals.
+
+## Render fallback
 
 The root `render.yaml` defines a single-instance native Go web service with an
 HTTPS endpoint and `/api/health` readiness check. It runs the pinned GoSX
@@ -108,9 +126,10 @@ downloads the official Linux release and verifies its published SHA-256 digest:
 The Blueprint generates private `SESSION_SECRET` and `STUDIO_ACTION_TOKEN`
 values, sets `GOSX_ENV=production` and `STUDIO_DEMO_MODE=1`, and uses Render's
 paid `0.5c-512mb` plan to avoid free-tier spin-down during judging. Keep the
-service at one instance while the Studio uses process-local collaborative
-state. The root route is explicitly dynamic and `no-store`; it is never
-prerendered with a session-bound CSRF token.
+service at one instance: the hosted demo is a single-instance shared canonical
+workspace with revision-conflict safety, and its state is process-local. The
+root route is explicitly dynamic and `no-store`; it is never prerendered with a
+session-bound CSRF token.
 
 ## Dependencies
 
@@ -141,9 +160,10 @@ return to the pinned versions.
 - `GET /api/studio/manifest` for the agent-readable scaffold and capability
   contract.
 - `GET /api/studio/document` for the current canonical SceneDoc snapshot.
-- Session- and CSRF-protected `POST /api/studio/webmcp/proposals` for bounded,
-  non-mutating WebMCP previews and `POST /api/studio/webmcp/commits` for the
-  separate visible human-approval step.
+- Session- and CSRF-protected WebMCP proposal routes for staging, restoring, and
+  revoking bounded non-mutating previews. The visible-UI commit route,
+  `POST /api/studio/webmcp/commits`, remains outside the registered WebMCP tool
+  surface.
 - `GET /api/studio/demo/status` and session/CSRF-protected
   `POST /api/studio/demo/reset` for an opt-in shared, ephemeral judge demo.
 - `GET /api/studio/scene-ir` for the shared compiled SceneIR snapshot.
@@ -160,8 +180,8 @@ return to the pinned versions.
   records, sub-object selection, seven deterministic mesh operators, undo and
   redo — all converging on the same revision-safe transactions agents use.
 - A live Agent Collaboration panel (WebMCP readiness, semantic proposal diff,
-  explicit human approval, session attribution counts) and a command-history
-  console fed by real receipts.
+  visible UI approval, shared-workspace attribution counts) and a
+  command-history console fed by real receipts.
 - The certification card renders the live deterministic evidence run, cached
   per document revision.
 - `GET /api/studio/project/status` plus authenticated

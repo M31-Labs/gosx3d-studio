@@ -7,7 +7,7 @@ outcome WebMCPOperationDecision {
 
 strategy DecideWebMCPOperation returns WebMCPOperationDecision {
     when {
-        operation.kind in ["rename-entity", "set-transform", "assign-material", "duplicate-entity"]
+        operation.kind in ["rename-entity", "set-transform", "assign-material"]
     } then Allow {
         allowed: true,
         reason: "operation kind is in the reversible WebMCP allowlist",

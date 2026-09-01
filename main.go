@@ -151,6 +151,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 
 	router := route.NewRouter()
 	router.SetLayout(func(ctx *route.RouteContext, body gosx.Node) gosx.Node {
+		ctx.SetLanguage("en")
 		ctx.SetMetadata(server.Metadata{
 			Links: []server.LinkTag{
 				{Rel: "stylesheet", Href: "/styles.css"},
@@ -494,6 +495,10 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		}
 		return proposal, nil
 	})
+	app.API("GET /api/studio/webmcp/proposals/current", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		return map[string]any{"proposal": webMCPProposals.Current(sessions.Token(ctx.Request))}, nil
+	})
 	app.API("POST /api/studio/webmcp/commits", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
 		request, err := decodeWebMCPCommit(ctx.Request.Body)
@@ -510,6 +515,21 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 			default:
 				return nil, commandError(err)
 			}
+		}
+		return result, nil
+	})
+	app.API("POST /api/studio/webmcp/discards", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		request, err := decodeWebMCPCommit(ctx.Request.Body)
+		if err != nil {
+			return nil, statusError{http.StatusBadRequest, err}
+		}
+		result, err := webMCPProposals.Discard(request.ProposalID, sessions.Token(ctx.Request))
+		if err != nil {
+			if errors.Is(err, errWebMCPProposalNotFound) {
+				return nil, statusError{http.StatusNotFound, err}
+			}
+			return nil, err
 		}
 		return result, nil
 	})
@@ -824,7 +844,9 @@ var studioRouteAuthority = map[string]studioAuthority{
 	"POST /api/studio/pick":                      authorityToken,
 	"POST /api/studio/actions/preview":           authorityToken,
 	"POST /api/studio/webmcp/proposals":          authoritySession,
+	"GET /api/studio/webmcp/proposals/current":   authoritySession,
 	"POST /api/studio/webmcp/commits":            authoritySession,
+	"POST /api/studio/webmcp/discards":           authoritySession,
 	"POST /api/studio/demo/reset":                authoritySession,
 	"POST /api/studio/transactions/call":         authorityToken,
 	"POST /api/studio/undo":                      authorityToken,

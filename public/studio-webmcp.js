@@ -469,22 +469,6 @@
     if (entity.locked === true) fail("INVALID_INPUT", path + " targets locked scene object " + JSON.stringify(entity.id) + ".");
   }
 
-  function cloneVirtualSubtree(entities, sourceId, newId, parentId, path) {
-    var source = requireEntity(entities, sourceId, path);
-    if (entities[newId]) fail("INVALID_INPUT", path + ".newId collides with scene object " + JSON.stringify(newId) + ".");
-    var copy = clone(source);
-    copy.id = newId;
-    copy.name = String(source.name || source.id) + " Copy";
-    copy.parent = parentId || "";
-    copy.children = [];
-    entities[newId] = copy;
-    (source.children || []).forEach(function (childId) {
-      var nextId = newId + "--" + childId;
-      copy.children.push(nextId);
-      cloneVirtualSubtree(entities, childId, nextId, newId, path);
-    });
-  }
-
   function normalizeOperations(operations, documentValue) {
     if (!Array.isArray(operations) || !operations.length || operations.length > MAX_OPERATIONS) {
       fail("INVALID_INPUT", "input.operations must contain 1 to " + MAX_OPERATIONS + " actions.");
@@ -521,16 +505,6 @@
         entities[target] = entity;
         return { kind: kind, target: target, material: material };
       }
-      if (kind === "duplicate-entity") {
-        onlyKeys(operation, ["kind", "target", "newId", "parent"], path);
-        target = readID(operation, "target", path);
-        entity = requireEntity(entities, target, path);
-        var newId = readID(operation, "newId", path);
-        var parent = Object.prototype.hasOwnProperty.call(operation, "parent") ? readID(operation, "parent", path) : String(entity.parent || "");
-        if (parent) requireEntity(entities, parent, path + ".parent");
-        cloneVirtualSubtree(entities, target, newId, parent, path);
-        return { kind: kind, target: target, newId: newId, parent: parent };
-      }
       if (kind === "set-transform") {
         onlyKeys(operation, ["kind", "target", "transform"], path);
         target = readID(operation, "target", path);
@@ -557,7 +531,7 @@
         entities[target] = entity;
         return { kind: kind, target: target, transform: transform };
       }
-      fail("INVALID_INPUT", path + ".kind must be rename-entity, set-transform, assign-material, or duplicate-entity.");
+      fail("INVALID_INPUT", path + ".kind must be rename-entity, set-transform, or assign-material.");
     });
   }
 
@@ -666,10 +640,6 @@
     {
       type: "object", additionalProperties: false, required: ["kind", "target", "material"],
       properties: { kind: { const: "assign-material" }, target: ID_SCHEMA, material: ID_SCHEMA }
-    },
-    {
-      type: "object", additionalProperties: false, required: ["kind", "target", "newId"],
-      properties: { kind: { const: "duplicate-entity" }, target: ID_SCHEMA, newId: ID_SCHEMA, parent: ID_SCHEMA }
     }
   ];
 
@@ -778,11 +748,29 @@
     registrationState = "disposed";
   }
 
+  function retryRegistration() {
+    if (registrationState === "ready" || registrationState === "registering" || registrationState === "disposed") return;
+    if (!document.modelContext || typeof document.modelContext.registerTool !== "function") return;
+    if (registrationController.signal.aborted) registrationController = new AbortController();
+    registrationAttempts = 0;
+    registrationState = "idle";
+    register();
+  }
+
   window.__gosxStudioWebMCPAdapter = {
     events: Object.assign({}, EVENTS),
     register: register,
     dispose: dispose
   };
-  window.addEventListener("pagehide", dispose, { once: true });
+  window.addEventListener("pagehide", function (event) {
+    if (!event.persisted) dispose();
+  });
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) retryRegistration();
+  });
+  window.addEventListener("focus", retryRegistration);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") retryRegistration();
+  });
   register();
 })();

@@ -47,6 +47,8 @@ type webMCPProposal struct {
 	Rationale   string
 	Transaction studio.Transaction
 	Receipt     studio.Receipt
+	Governance  []webMCPOperationDecision
+	Preview     map[string]any
 	ExpiresAt   time.Time
 }
 
@@ -172,13 +174,6 @@ func validateWebMCPOperation(operation studio.Operation) error {
 		if operation.Material == "" {
 			return fmt.Errorf("material is required for %s", operation.Kind)
 		}
-	case studio.OpDuplicateEntity:
-		if err := requireTarget(); err != nil {
-			return err
-		}
-		if operation.NewID == "" {
-			return fmt.Errorf("newId is required for %s", operation.Kind)
-		}
 	default:
 		return fmt.Errorf("policy allowed kind %q without a request validator", operation.Kind)
 	}
@@ -217,13 +212,23 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 		ExpectedRevision: request.ExpectedRevision,
 		Operations:       request.Operations,
 	}
+	// Serialize preview execution and insertion with Clear. The public demo
+	// reset replaces canonical state and then clears staged proposals; holding
+	// this lock prevents an in-flight Stage from inserting a pre-reset proposal
+	// after that invalidation has completed.
+	store.mu.Lock()
+	defer store.mu.Unlock()
 	receipt, preview, err := store.workspace.Execute(transaction)
 	if err != nil {
 		return nil, err
 	}
 	expiresAt := store.now().Add(webMCPProposalTTL)
-	proposal := webMCPProposal{ID: proposalID, Owner: owner, Title: request.Title, Rationale: request.Rationale, Transaction: transaction, Receipt: receipt, ExpiresAt: expiresAt}
-	store.mu.Lock()
+	previewSummary := webMCPDocumentSummary(preview)
+	proposal := webMCPProposal{
+		ID: proposalID, Owner: owner, Title: request.Title, Rationale: request.Rationale,
+		Transaction: transaction, Receipt: receipt, Governance: governance,
+		Preview: previewSummary, ExpiresAt: expiresAt,
+	}
 	store.pruneLocked(store.now())
 	for len(store.order) >= maxWebMCPProposals {
 		delete(store.proposals, store.order[0])
@@ -231,16 +236,59 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 	}
 	store.proposals[proposalID] = proposal
 	store.order = append(store.order, proposalID)
-	store.mu.Unlock()
+	return webMCPProposalView(proposal), nil
+}
+
+// Current returns the newest unexpired proposal owned by this exact browser
+// session. Keeping the opaque proposal ID server-backed lets a human reload or
+// restore the tab without losing the review boundary, while a different
+// session learns nothing about proposals it does not own.
+func (store *webMCPProposalStore) Current(owner string) map[string]any {
+	if owner == "" {
+		return nil
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	store.pruneLocked(store.now())
+	for index := len(store.order) - 1; index >= 0; index-- {
+		proposal, ok := store.proposals[store.order[index]]
+		if ok && webMCPProposalOwnerMatches(proposal.Owner, owner) {
+			return webMCPProposalView(proposal)
+		}
+	}
+	return nil
+}
+
+// Discard revokes a staged proposal without touching the canonical scene.
+// This is deliberately session-owned just like Commit: clearing browser DOM
+// alone would leave an opaque proposal live on the server until expiry.
+func (store *webMCPProposalStore) Discard(proposalID, owner string) (map[string]any, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	store.pruneLocked(store.now())
+	proposal, ok := store.proposals[proposalID]
+	if !ok || !webMCPProposalOwnerMatches(proposal.Owner, owner) {
+		return nil, errWebMCPProposalNotFound
+	}
+	delete(store.proposals, proposalID)
+	store.removeOrderLocked(proposalID)
 	return map[string]any{
-		"proposalId": proposalID,
-		"title":      request.Title,
-		"rationale":  request.Rationale,
-		"expiresAt":  expiresAt.UTC().Format(time.RFC3339),
-		"receipt":    receipt,
-		"governance": governance,
-		"preview":    webMCPDocumentSummary(preview),
+		"proposalId":            proposalID,
+		"discarded":             true,
+		"canonicalSceneChanged": false,
 	}, nil
+}
+
+func webMCPProposalView(proposal webMCPProposal) map[string]any {
+	return map[string]any{
+		"proposalId": proposal.ID,
+		"title":      proposal.Title,
+		"rationale":  proposal.Rationale,
+		"expiresAt":  proposal.ExpiresAt.UTC().Format(time.RFC3339),
+		"receipt":    proposal.Receipt,
+		"governance": proposal.Governance,
+		"preview":    proposal.Preview,
+	}
 }
 
 func (store *webMCPProposalStore) Commit(proposalID, owner string) (map[string]any, error) {
@@ -265,6 +313,12 @@ func (store *webMCPProposalStore) Commit(proposalID, owner string) (map[string]a
 	transaction.Mode = studio.ModeDirect
 	receipt, document, err := store.workspace.Execute(transaction)
 	if err != nil {
+		if errors.Is(err, studio.ErrRevisionConflict) {
+			store.mu.Lock()
+			delete(store.proposals, proposalID)
+			store.removeOrderLocked(proposalID)
+			store.mu.Unlock()
+		}
 		return nil, err
 	}
 	store.mu.Lock()

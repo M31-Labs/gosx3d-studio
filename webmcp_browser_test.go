@@ -2,9 +2,12 @@ package main
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+var registeredWebMCPToolPattern = regexp.MustCompile(`document\.modelContext\.registerTool\(\s*\{\s*name\s*:\s*"([^"]+)"`)
 
 func readWebMCPFixture(t *testing.T, path string) string {
 	t.Helper()
@@ -15,19 +18,122 @@ func readWebMCPFixture(t *testing.T, path string) string {
 	return string(value)
 }
 
+func javascriptFunctionSource(t *testing.T, source, name string) string {
+	t.Helper()
+	marker := "function " + name + "("
+	start := strings.Index(source, marker)
+	if start < 0 {
+		t.Fatalf("JavaScript function %s was not found", name)
+	}
+	openingOffset := strings.IndexByte(source[start:], '{')
+	if openingOffset < 0 {
+		t.Fatalf("JavaScript function %s has no body", name)
+	}
+	opening := start + openingOffset
+	depth := 0
+	var quote byte
+	escaped := false
+	lineComment := false
+	blockComment := false
+	for index := opening; index < len(source); index++ {
+		character := source[index]
+		var next byte
+		if index+1 < len(source) {
+			next = source[index+1]
+		}
+		if lineComment {
+			if character == '\n' {
+				lineComment = false
+			}
+			continue
+		}
+		if blockComment {
+			if character == '*' && next == '/' {
+				blockComment = false
+				index++
+			}
+			continue
+		}
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if character == '\\' {
+				escaped = true
+				continue
+			}
+			if character == quote {
+				quote = 0
+			}
+			continue
+		}
+		if character == '/' && next == '/' {
+			lineComment = true
+			index++
+			continue
+		}
+		if character == '/' && next == '*' {
+			blockComment = true
+			index++
+			continue
+		}
+		if character == '\'' || character == '"' || character == '`' {
+			quote = character
+			continue
+		}
+		switch character {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return source[start : index+1]
+			}
+		}
+	}
+	t.Fatalf("JavaScript function %s has an unterminated body", name)
+	return ""
+}
+
+func requireSourceFragments(t *testing.T, source, contract string, fragments ...string) {
+	t.Helper()
+	for _, fragment := range fragments {
+		if !strings.Contains(source, fragment) {
+			t.Errorf("%s is missing %q", contract, fragment)
+		}
+	}
+}
+
 func TestWebMCPAdapterRegistersThePublicToolContract(t *testing.T) {
 	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
-	if count := strings.Count(adapter, "document.modelContext.registerTool({"); count != 4 {
-		t.Fatalf("registerTool count = %d, want 4", count)
+	matches := registeredWebMCPToolPattern.FindAllStringSubmatch(adapter, -1)
+	if len(matches) != 4 {
+		t.Fatalf("registered tool count = %d, want 4", len(matches))
 	}
-	for _, tool := range []string{
-		`name: "scene_get_state"`,
-		`name: "scene_find_objects"`,
-		`name: "scene_focus_object"`,
-		`name: "scene_preview_actions"`,
-	} {
-		if !strings.Contains(adapter, tool) {
-			t.Errorf("adapter does not register %s", tool)
+	want := map[string]bool{
+		"scene_get_state":       true,
+		"scene_find_objects":    true,
+		"scene_focus_object":    true,
+		"scene_preview_actions": true,
+	}
+	seen := make(map[string]bool, len(matches))
+	for _, match := range matches {
+		name := match[1]
+		if seen[name] {
+			t.Errorf("adapter registers tool %q more than once", name)
+		}
+		seen[name] = true
+		if !want[name] {
+			t.Errorf("adapter registers unexpected tool %q", name)
+		}
+		if strings.Contains(strings.ToLower(name), "commit") {
+			t.Errorf("agent adapter registers commit-like tool %q", name)
+		}
+	}
+	for name := range want {
+		if !seen[name] {
+			t.Errorf("adapter does not register tool %q", name)
 		}
 	}
 	if !strings.Contains(adapter, `"/api/studio/webmcp/proposals"`) {
@@ -41,6 +147,62 @@ func TestWebMCPAdapterRegistersThePublicToolContract(t *testing.T) {
 	}
 	if strings.Contains(adapter, "cannot scale a group") || !strings.Contains(adapter, "entity.light &&") {
 		t.Fatal("adapter must expose GoSX v0.54 group scale while rejecting meaningless light scale")
+	}
+}
+
+func TestWebMCPReviewHydratesTheCurrentSessionProposal(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	hydration := javascriptFunctionSource(t, review, "discoverPendingProposal")
+	requireSourceFragments(t, hydration, "pending-proposal hydration",
+		`"/api/studio/webmcp/proposals/current"`,
+		`method: "GET"`,
+		`cache: "no-store"`,
+		`credentials: "same-origin"`,
+		`generation !== proposalHydration`,
+		`payload && payload.proposal`,
+		`pendingProposal = proposal`,
+		`renderProposal()`,
+	)
+	if !strings.Contains(review, "discoverPendingProposal();") {
+		t.Fatal("review UI defines pending-proposal hydration but never invokes it")
+	}
+}
+
+func TestWebMCPReviewRevokesDiscardedProposalsOnTheServer(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	discard := javascriptFunctionSource(t, review, "discardProposal")
+	requireSourceFragments(t, discard, "proposal discard",
+		`"/api/studio/webmcp/discards"`,
+		`method: "POST"`,
+		`JSON.stringify({ proposalId: proposalId })`,
+		`proposalHydration++`,
+		`clearProposal(`,
+	)
+	if !strings.Contains(review, "discardProposal(discard)") {
+		t.Fatal("discard control does not invoke the server-backed discard flow")
+	}
+}
+
+func TestWebMCPReviewPropagatesHTTPStatusAndClearsTerminalCommitFailures(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	responseError := javascriptFunctionSource(t, review, "responseError")
+	requireSourceFragments(t, responseError, "HTTP error propagation",
+		`error.status`,
+		`response.status`,
+	)
+
+	commit := javascriptFunctionSource(t, review, "commitProposal")
+	for _, status := range []string{"404", "409", "410"} {
+		if !strings.Contains(commit, "error.status === "+status) {
+			t.Errorf("terminal commit handling does not recognize HTTP %s", status)
+		}
+	}
+	terminalFailures := strings.Index(commit, "error.status === 404")
+	if terminalFailures < 0 || !strings.Contains(commit[terminalFailures:], "clearProposal(") {
+		t.Error("terminal commit failures do not clear the stale proposal from review")
+	}
+	if !strings.Contains(commit, "Revision conflict") || !strings.Contains(commit, "restage") {
+		t.Error("revision-conflict handling does not direct the user to inspect and restage")
 	}
 }
 

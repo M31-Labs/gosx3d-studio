@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gosx3d-studio
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gosx3d-studio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gosx3d-studio
+        app.kubernetes.io/part-of: m31labs
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: ns1007492
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: studio
+          # REQUIRED: render this template with GOSX3D_IMAGE set to an immutable
+          # Harbor digest, never a mutable tag. See deploy/README.md.
+          image: ${GOSX3D_IMAGE}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          env:
+            - name: APP_NAME
+              value: GoSX 3D Studio
+            - name: GOSX_ENV
+              value: production
+            - name: STUDIO_SERVER_ONLY
+              value: "1"
+            - name: STUDIO_DEMO_MODE
+              value: "1"
+          envFrom:
+            - secretRef:
+                # This Secret is deliberately not included in source control.
+                # It must contain SESSION_SECRET and STUDIO_ACTION_TOKEN.
+                name: gosx3d-studio-runtime
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: temporary-workspace
+              mountPath: /tmp
+      volumes:
+        - name: temporary-workspace
+          emptyDir:
+            sizeLimit: 1Gi
+      terminationGracePeriodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gosx3d-studio
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: gosx3d-studio
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gosx3d-studio
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+  annotations:
+    cert-manager.io/cluster-issuer: cloudflare-issuer
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - gosx3d.m31labs.dev
+      secretName: gosx3d-studio-tls
+  rules:
+    - host: gosx3d.m31labs.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gosx3d-studio
+                port:
+                  name: http
+

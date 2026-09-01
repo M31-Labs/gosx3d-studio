@@ -33,6 +33,29 @@ func TestHierarchyAndInspectorReflectCanonicalDocument(t *testing.T) {
 	}
 }
 
+func TestAgentViewNeverProjectsSharedReceiptsAsSessionOwnedProposals(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, _ := workspace.Snapshot()
+	_, _, err = workspace.Execute(studio.Transaction{
+		ID: "agent-preview", Actor: "agent://other-session", Mode: studio.ModePropose,
+		ExpectedRevision: document.Revision,
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Other Session Board"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := agentView(workspace, false)
+	if view["proposalPresent"] != false || view["proposalSummary"] != "No staged WebMCP proposal is awaiting review." {
+		t.Fatalf("shared receipt leaked into session-owned proposal UI: %#v", view)
+	}
+	if view["agentCount"] != "1" {
+		t.Fatalf("shared agent activity count = %#v, want 1", view["agentCount"])
+	}
+}
+
 // The evidence suite renders frames and builds workspaces. Measured on the
 // sample document it costs about 2.3 seconds, and every edit changes the
 // revision, so running it inline stalled the editor once per edit. The render

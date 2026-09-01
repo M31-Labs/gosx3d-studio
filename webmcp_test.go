@@ -20,7 +20,6 @@ func TestValidateWebMCPOperationsKeepsTheBrowserSurfaceNarrow(t *testing.T) {
 		{Kind: studio.OpRenameEntity, Target: "board", Name: "Hero plinth"},
 		{Kind: studio.OpSetTransform, Target: "board", Transform: &transform},
 		{Kind: studio.OpAssignMaterial, Target: "board", Material: "board-material"},
-		{Kind: studio.OpDuplicateEntity, Target: "board", NewID: "board-copy"},
 	}
 	if err := validateWebMCPOperations(valid); err != nil {
 		t.Fatalf("valid operations: %v", err)
@@ -31,6 +30,7 @@ func TestValidateWebMCPOperationsKeepsTheBrowserSurfaceNarrow(t *testing.T) {
 		"missing target": {{Kind: studio.OpRenameEntity, Name: "No target"}},
 		"missing name":   {{Kind: studio.OpRenameEntity, Target: "board"}},
 		"missing value":  {{Kind: studio.OpSetTransform, Target: "board"}},
+		"duplicate":      {{Kind: studio.OpDuplicateEntity, Target: "board", NewID: "board-copy"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := validateWebMCPOperations(operations); err == nil {
@@ -171,6 +171,42 @@ func TestWebMCPProposalExpiresAndCannotCommit(t *testing.T) {
 	}
 }
 
+func TestWebMCPStaleCommitIsRejectedAndRemoved(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	before, _ := workspace.Snapshot()
+	result, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: before.Revision,
+		Title:            "Soon stale",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Stale Board"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposalID := result["proposalId"].(string)
+	_, canonical, err := workspace.Execute(studio.Transaction{
+		ID: "concurrent-human", Actor: "human://other", Mode: studio.ModeDirect,
+		ExpectedRevision: before.Revision,
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Canonical Board"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Commit(proposalID, "session-a"); !errors.Is(err, studio.ErrRevisionConflict) {
+		t.Fatalf("stale commit error = %v, want revision conflict", err)
+	}
+	if current := store.Current("session-a"); current != nil {
+		t.Fatalf("stale proposal remained current: %#v", current)
+	}
+	after, _ := workspace.Snapshot()
+	if after.Revision != canonical.Revision || after.Entities["board"].Name != "Canonical Board" {
+		t.Fatalf("stale commit changed canonical scene: revision=%d name=%q", after.Revision, after.Entities["board"].Name)
+	}
+}
+
 func TestWebMCPProposalOwnerAndClearAreNonLeaking(t *testing.T) {
 	workspace, err := studio.NewWorkspace(studio.SampleDocument())
 	if err != nil {
@@ -203,6 +239,46 @@ func TestWebMCPProposalOwnerAndClearAreNonLeaking(t *testing.T) {
 	store.Clear()
 	if _, err := store.Commit(proposalID, "session-a"); !errors.Is(err, errWebMCPProposalNotFound) {
 		t.Fatalf("commit after clear error = %v, want not found", err)
+	}
+}
+
+func TestWebMCPProposalCanBeRestoredAndRevokedByItsOwner(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	document, _ := workspace.Snapshot()
+	result, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: document.Revision,
+		Title:            "Restorable review",
+		Rationale:        "Keep the exact reviewed edit across a reload.",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Launch Board"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposalID := result["proposalId"].(string)
+	current := store.Current("session-a")
+	if current == nil || current["proposalId"] != proposalID || current["title"] != "Restorable review" {
+		t.Fatalf("current proposal = %#v", current)
+	}
+	if leaked := store.Current("session-b"); leaked != nil {
+		t.Fatalf("cross-session current proposal leaked: %#v", leaked)
+	}
+	discarded, err := store.Discard(proposalID, "session-a")
+	if err != nil || discarded["canonicalSceneChanged"] != false {
+		t.Fatalf("discard = %#v, %v", discarded, err)
+	}
+	if current := store.Current("session-a"); current != nil {
+		t.Fatalf("discarded proposal remained current: %#v", current)
+	}
+	if _, err := store.Commit(proposalID, "session-a"); !errors.Is(err, errWebMCPProposalNotFound) {
+		t.Fatalf("commit after discard error = %v, want not found", err)
+	}
+	unchanged, _ := workspace.Snapshot()
+	if unchanged.Revision != document.Revision || unchanged.Entities["board"].Name != document.Entities["board"].Name {
+		t.Fatal("discard changed canonical scene")
 	}
 }
 
@@ -247,6 +323,19 @@ func (browser *webMCPTestBrowser) postJSON(t *testing.T, path string, body any) 
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-CSRF-Token", browser.csrf)
+	for _, cookie := range browser.cookies {
+		request.AddCookie(cookie)
+	}
+	response := httptest.NewRecorder()
+	browser.handler.ServeHTTP(response, request)
+	browser.captureCookies(response.Result().Cookies())
+	return response
+}
+
+func (browser *webMCPTestBrowser) getJSON(t *testing.T, path string) *httptest.ResponseRecorder {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodGet, path, nil)
+	request.Header.Set("Accept", "application/json")
 	for _, cookie := range browser.cookies {
 		request.AddCookie(cookie)
 	}
@@ -326,6 +415,14 @@ func TestWebMCPHTTPProposalRequiresBrowserAuthorityAndHumanCommit(t *testing.T) 
 	if afterStage.Revision != document.Revision {
 		t.Fatal("HTTP proposal mutated canonical state")
 	}
+	current := browserA.getJSON(t, "/api/studio/webmcp/proposals/current")
+	if current.Code != http.StatusOK || !strings.Contains(current.Body.String(), proposal.ProposalID) {
+		t.Fatalf("same-session current proposal = %d: %s", current.Code, current.Body.String())
+	}
+	crossSessionCurrent := browserB.getJSON(t, "/api/studio/webmcp/proposals/current")
+	if crossSessionCurrent.Code != http.StatusOK || strings.Contains(crossSessionCurrent.Body.String(), proposal.ProposalID) {
+		t.Fatalf("cross-session current proposal = %d: %s", crossSessionCurrent.Code, crossSessionCurrent.Body.String())
+	}
 	crossSession := browserB.postJSON(t, "/api/studio/webmcp/commits", map[string]any{"proposalId": proposal.ProposalID})
 	if crossSession.Code != http.StatusNotFound {
 		t.Fatalf("cross-session commit status = %d, want 404: %s", crossSession.Code, crossSession.Body.String())
@@ -344,6 +441,74 @@ func TestWebMCPHTTPProposalRequiresBrowserAuthorityAndHumanCommit(t *testing.T) 
 	afterCommit, _ := workspace.Snapshot()
 	if afterCommit.Revision != document.Revision+1 || afterCommit.Entities["board"].Name != "Hero plinth" {
 		t.Fatalf("commit revision=%d name=%q", afterCommit.Revision, afterCommit.Entities["board"].Name)
+	}
+
+	discardPayload := map[string]any{
+		"expectedRevision": afterCommit.Revision,
+		"title":            "Discard this review",
+		"operations":       []map[string]any{{"kind": "rename-entity", "target": "board", "name": "Never applied"}},
+	}
+	discardStage := browserA.postJSON(t, "/api/studio/webmcp/proposals", discardPayload)
+	if discardStage.Code != http.StatusOK {
+		t.Fatalf("discard stage status = %d: %s", discardStage.Code, discardStage.Body.String())
+	}
+	var discardProposal struct {
+		ProposalID string `json:"proposalId"`
+	}
+	if err := json.Unmarshal(discardStage.Body.Bytes(), &discardProposal); err != nil {
+		t.Fatal(err)
+	}
+	discarded := browserA.postJSON(t, "/api/studio/webmcp/discards", map[string]any{"proposalId": discardProposal.ProposalID})
+	if discarded.Code != http.StatusOK || !strings.Contains(discarded.Body.String(), `"canonicalSceneChanged":false`) {
+		t.Fatalf("discard status = %d: %s", discarded.Code, discarded.Body.String())
+	}
+	commitDiscarded := browserA.postJSON(t, "/api/studio/webmcp/commits", map[string]any{"proposalId": discardProposal.ProposalID})
+	if commitDiscarded.Code != http.StatusNotFound {
+		t.Fatalf("commit discarded status = %d, want 404: %s", commitDiscarded.Code, commitDiscarded.Body.String())
+	}
+	afterDiscard, _ := workspace.Snapshot()
+	if afterDiscard.Revision != afterCommit.Revision || afterDiscard.Entities["board"].Name != "Hero plinth" {
+		t.Fatal("HTTP discard mutated canonical scene")
+	}
+}
+
+func TestWebMCPHTTPStaleCommitReturnsConflictAndRemovesProposal(t *testing.T) {
+	handler, workspace := newTestStudio(t)
+	browser := newWebMCPTestBrowser(t, handler)
+	before, _ := workspace.Snapshot()
+	staged := browser.postJSON(t, "/api/studio/webmcp/proposals", map[string]any{
+		"expectedRevision": before.Revision,
+		"title":            "Stale HTTP review",
+		"operations":       []map[string]any{{"kind": "rename-entity", "target": "board", "name": "Stale Board"}},
+	})
+	if staged.Code != http.StatusOK {
+		t.Fatalf("stage status = %d: %s", staged.Code, staged.Body.String())
+	}
+	var proposal struct {
+		ProposalID string `json:"proposalId"`
+	}
+	if err := json.Unmarshal(staged.Body.Bytes(), &proposal); err != nil {
+		t.Fatal(err)
+	}
+	_, canonical, err := workspace.Execute(studio.Transaction{
+		ID: "concurrent-http-human", Actor: "human://other", Mode: studio.ModeDirect,
+		ExpectedRevision: before.Revision,
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Canonical Board"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit := browser.postJSON(t, "/api/studio/webmcp/commits", map[string]any{"proposalId": proposal.ProposalID})
+	if commit.Code != http.StatusConflict {
+		t.Fatalf("stale commit status = %d, want 409: %s", commit.Code, commit.Body.String())
+	}
+	current := browser.getJSON(t, "/api/studio/webmcp/proposals/current")
+	if current.Code != http.StatusOK || strings.Contains(current.Body.String(), proposal.ProposalID) {
+		t.Fatalf("stale proposal remained current: %d: %s", current.Code, current.Body.String())
+	}
+	after, _ := workspace.Snapshot()
+	if after.Revision != canonical.Revision || after.Entities["board"].Name != "Canonical Board" {
+		t.Fatal("stale HTTP commit changed canonical scene")
 	}
 }
 

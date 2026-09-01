@@ -42,6 +42,15 @@ func boundWorkspace() *studio.Workspace {
 	return workspaceBinding.workspace
 }
 
+func publicDemoModeEnabled(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func executeHumanTransform(workspace *studio.Workspace, values map[string]string) (studio.Receipt, error) {
 	if workspace == nil {
 		return studio.Receipt{}, fmt.Errorf("Studio workspace is not bound")
@@ -669,6 +678,7 @@ func init() {
 			}
 			return map[string]any{
 				"appName":        appName,
+				"demoMode":       fmt.Sprint(publicDemoModeEnabled(os.Getenv("STUDIO_DEMO_MODE"))),
 				"projectName":    document.Name,
 				"source":         page.Source,
 				"scene":          sceneProps,

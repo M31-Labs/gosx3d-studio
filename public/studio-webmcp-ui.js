@@ -5,6 +5,23 @@
   window.__gosxStudioWebMCPUI = true;
 
   var pendingProposal = null;
+  var proposalHydration = 0;
+  var focusedEntityId = "";
+  var toolStates = {
+    scene_get_state: "idle",
+    scene_find_objects: "idle",
+    scene_focus_object: "idle",
+    scene_preview_actions: "idle"
+  };
+  var toolStateStorageKey = "gosx3d:webmcp-flow:v1";
+  try {
+    var storedToolStates = JSON.parse(window.sessionStorage.getItem(toolStateStorageKey) || "null");
+    Object.keys(toolStates).forEach(function (tool) {
+      if (storedToolStates && ["idle", "running", "complete", "error"].indexOf(storedToolStates[tool]) >= 0) {
+        toolStates[tool] = storedToolStates[tool];
+      }
+    });
+  } catch (_) {}
   var latestStatus = {
     state: "detecting",
     label: "Detecting browser support",
@@ -51,7 +68,9 @@
     var message = payload && (payload.error || payload.message);
     if (message && typeof message === "object") message = message.message;
     if (!message) message = "Request failed with status " + (response ? response.status : "unknown");
-    return new Error(String(message));
+    var error = new Error(String(message));
+    error.status = response ? Number(response.status || 0) : 0;
+    return error;
   }
 
   function statusLabel(state) {
@@ -74,8 +93,38 @@
     setText("[data-webmcp-tool-count]", latestStatus.toolCount + (latestStatus.toolCount === 1 ? " tool" : " tools"));
   }
 
+  function renderToolFlow() {
+    Object.keys(toolStates).forEach(function (tool) {
+      var item = one('[data-webmcp-flow-tool="' + tool + '"]');
+      if (item) item.setAttribute("data-state", toolStates[tool]);
+    });
+  }
+
+  function persistToolFlow() {
+    try { window.sessionStorage.setItem(toolStateStorageKey, JSON.stringify(toolStates)); } catch (_) {}
+  }
+
+  function clearToolFlow() {
+    Object.keys(toolStates).forEach(function (tool) { toolStates[tool] = "idle"; });
+    persistToolFlow();
+    renderToolFlow();
+  }
+
+  function updateToolFlow(detail) {
+    detail = detail || {};
+    var tool = String(detail.tool || "");
+    if (!Object.prototype.hasOwnProperty.call(toolStates, tool)) return;
+    var message = String(detail.message || "");
+    if (detail.state === "error") toolStates[tool] = "error";
+    else if (message.indexOf("Running ") === 0) toolStates[tool] = "running";
+    else toolStates[tool] = "complete";
+    persistToolFlow();
+    renderToolFlow();
+  }
+
   function updateStatus(detail) {
     detail = detail || {};
+    updateToolFlow(detail);
     latestStatus = {
       state: String(detail.state || latestStatus.state || "detecting"),
       label: String(detail.label || statusLabel(detail.state || latestStatus.state)),
@@ -109,8 +158,12 @@
     if (kind === "rename-entity" && (before.name || after.name)) {
       return kind + " · " + target + " · " + String(before.name || "unnamed") + " → " + String(after.name || "unnamed");
     }
-    if (kind === "assign-material" && (before.material || after.material)) {
-      return kind + " · " + target + " · " + String(before.material || "none") + " → " + String(after.material || "none");
+    if (kind === "assign-material") {
+      var beforeMaterial = before.material || before.mesh && before.mesh.material;
+      var afterMaterial = after.material || after.mesh && after.mesh.material;
+      if (beforeMaterial || afterMaterial) {
+        return kind + " · " + target + " · " + String(beforeMaterial || "none") + " → " + String(afterMaterial || "none");
+      }
     }
     if (kind === "set-transform" && after.transform) {
       var beforeTransform = before.transform || {};
@@ -143,6 +196,8 @@
     var receipt = pendingProposal.receipt || {};
     var affected = Array.isArray(receipt.affected) ? receipt.affected : [];
     var rationale = one("[data-webmcp-proposal-rationale]");
+    var agentPanel = one(".agent-panel");
+    if (agentPanel) agentPanel.classList.add("has-pending-proposal");
     setText("[data-webmcp-proposal-summary]", pendingProposal.title || "Agent-authored scene proposal");
     if (rationale) {
       rationale.textContent = pendingProposal.rationale || "The agent staged a reversible preview for human review.";
@@ -157,11 +212,11 @@
       var reasons = governance.map(function (decision) { return decision && decision.reason; }).filter(Boolean);
       policy.setAttribute("title", reasons.length ? reasons.join(" · ") : "Every operation is evaluated by the server policy before preview.");
     }
-    setText(
-      "[data-webmcp-proposal-revision]",
-      String(receipt.beforeRevision == null ? "?" : receipt.beforeRevision) + " → " +
-        String(receipt.afterRevision == null ? "?" : receipt.afterRevision) + " preview"
-    );
+    var canonicalRevision = receipt.beforeRevision == null ? "?" : String(receipt.beforeRevision);
+    var approvalRevision = pendingProposal.preview && pendingProposal.preview.revision != null
+      ? String(pendingProposal.preview.revision)
+      : (Number.isFinite(Number(receipt.beforeRevision)) ? String(Number(receipt.beforeRevision) + 1) : "?");
+    setText("[data-webmcp-proposal-revision]", "canonical " + canonicalRevision + " unchanged · approval " + approvalRevision);
     setText(
       "[data-webmcp-proposal-affected]",
       affected.length ? affected.join(", ") : String(receipt.operations || 0) + " operations"
@@ -177,12 +232,15 @@
     if (actions) actions.hidden = false;
     updateStatus({
       state: "proposal",
-      message: "An agent staged a preview. Inspect it, then explicitly apply or discard it."
+      tool: "scene_preview_actions",
+      message: "Canonical revision " + canonicalRevision + " is unchanged. Review the exact staged operations, then apply or discard."
     });
   }
 
   function clearProposal(message) {
     pendingProposal = null;
+    var agentPanel = one(".agent-panel");
+    if (agentPanel) agentPanel.classList.remove("has-pending-proposal");
     var rationale = one("[data-webmcp-proposal-rationale]");
     if (rationale) rationale.hidden = true;
     var actions = one("[data-webmcp-review-actions]");
@@ -196,8 +254,36 @@
     setText("[data-webmcp-proposal-fingerprint]", "not staged");
   }
 
-  function focusEntity(detail) {
-    var id = detail && detail.id ? String(detail.id) : "";
+  function discoverPendingProposal() {
+    var generation = ++proposalHydration;
+    request("/api/studio/webmcp/proposals/current", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      credentials: "same-origin"
+    }).then(function (response) {
+      return responsePayload(response).then(function (payload) {
+        if (!response || !response.ok) throw responseError(response, payload);
+        return payload;
+      });
+    }).then(function (payload) {
+      if (generation !== proposalHydration) return;
+      var proposal = payload && payload.proposal;
+      if (!proposal || !proposal.proposalId) {
+        if (pendingProposal) clearProposal("No staged WebMCP proposal is awaiting review in this browser session.");
+        return;
+      }
+      pendingProposal = proposal;
+      toolStates.scene_preview_actions = "complete";
+      renderToolFlow();
+      renderProposal();
+    }).catch(function (error) {
+      if (generation !== proposalHydration) return;
+      updateStatus({ state: "error", message: error && error.message ? error.message : "The staged proposal could not be restored." });
+    });
+  }
+
+  function highlightFocusedEntity(id) {
     if (!id) return;
     var previous = document.querySelectorAll(".hierarchy-tree li.webmcp-focused");
     Array.prototype.forEach.call(previous, function (item) { item.classList.remove("webmcp-focused"); });
@@ -213,6 +299,13 @@
     if (item) item.classList.add("webmcp-focused");
     if (typeof match.scrollIntoView === "function") match.scrollIntoView({ block: "nearest" });
     match.focus({ preventScroll: true });
+  }
+
+  function focusEntity(detail) {
+    var id = detail && detail.id ? String(detail.id) : "";
+    if (!id) return;
+    focusedEntityId = id;
+    highlightFocusedEntity(id);
 
     var current = new URL(window.location.href).searchParams.get("selection");
     if (current === id) return;
@@ -304,6 +397,8 @@
         return payload;
       });
     }).then(function (payload) {
+      proposalHydration++;
+      clearToolFlow();
       clearProposal("The shared demo was restored; no staged proposal is awaiting review.");
       updateStatus({
         state: "ready",
@@ -331,7 +426,8 @@
         return payload;
       });
     }).then(function (payload) {
-      pendingProposal = null;
+      proposalHydration++;
+      clearProposal("The reviewed proposal was applied to the canonical scene.");
       updateStatus({
         state: "applied",
         message: "Applied by human review at scene revision " +
@@ -339,6 +435,21 @@
       });
       return refreshPage();
     }).catch(function (error) {
+      if (error && (error.status === 404 || error.status === 409 || error.status === 410)) {
+        proposalHydration++;
+        clearProposal(
+          error.status === 409
+            ? "The scene changed before approval. Ask the agent to inspect the current revision and stage a fresh proposal."
+            : "This staged proposal is no longer available. Ask the agent to stage it again."
+        );
+        updateStatus({
+          state: "error",
+          message: error.status === 409
+            ? "Revision conflict: canonical state was preserved. Inspect the current scene and restage."
+            : (error && error.message ? error.message : "The proposal is no longer available.")
+        });
+        return;
+      }
       button.disabled = false;
       updateStatus({ state: "error", message: error && error.message ? error.message : "The proposal could not be applied." });
       if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
@@ -349,12 +460,82 @@
     });
   }
 
+  function discardProposal(button) {
+    if (!pendingProposal || !pendingProposal.proposalId) return;
+    var proposalId = pendingProposal.proposalId;
+    button.disabled = true;
+    updateStatus({ state: "committing", message: "Revoking the staged proposal without changing the canonical scene…" });
+    request("/api/studio/webmcp/discards", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ proposalId: proposalId })
+    }).then(function (response) {
+      return responsePayload(response).then(function (payload) {
+        if (!response || !response.ok) throw responseError(response, payload);
+        return payload;
+      });
+    }).then(function () {
+      proposalHydration++;
+      clearToolFlow();
+      clearProposal("Proposal revoked; the canonical scene was never changed.");
+      updateStatus({ state: "ready", message: "The staged proposal was revoked without changing the canonical scene." });
+    }).catch(function (error) {
+      if (error && (error.status === 404 || error.status === 410)) {
+        proposalHydration++;
+        clearProposal("This staged proposal is no longer available.");
+        updateStatus({ state: "ready", message: "The staged proposal was already unavailable; canonical state is unchanged." });
+        return;
+      }
+      button.disabled = false;
+      updateStatus({ state: "error", message: error && error.message ? error.message : "The staged proposal could not be revoked." });
+    });
+  }
+
+  function copyDemoPrompt(button) {
+    var prompt = one("[data-webmcp-demo-prompt]");
+    var status = one("[data-webmcp-copy-status]");
+    var value = prompt ? String(prompt.textContent || "").trim() : "";
+    if (!value) return;
+    var copied;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      copied = navigator.clipboard.writeText(value);
+    } else {
+      copied = new Promise(function (resolve, reject) {
+        var input = document.createElement("textarea");
+        input.value = value;
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        try {
+          if (!document.execCommand("copy")) throw new Error("Copy was not accepted by the browser.");
+          resolve();
+        } catch (error) {
+          reject(error);
+        } finally {
+          input.remove();
+        }
+      });
+    }
+    button.disabled = true;
+    Promise.resolve(copied).then(function () {
+      if (status) status.textContent = "Copied. Paste it into the browser agent.";
+      button.textContent = "Prompt copied";
+    }).catch(function () {
+      if (status) status.textContent = "Select the prompt text and copy it manually.";
+    }).finally(function () {
+      button.disabled = false;
+    });
+  }
+
   document.addEventListener("studio:webmcp:status", function (event) {
     updateStatus(event && event.detail);
   });
 
   document.addEventListener("studio:webmcp:proposal", function (event) {
     pendingProposal = event && event.detail ? event.detail : null;
+    proposalHydration++;
     renderProposal();
   });
 
@@ -364,8 +545,11 @@
 
   document.addEventListener("gosx:navigate", function () {
     renderStatus();
+    renderToolFlow();
     if (pendingProposal) renderProposal();
+    if (focusedEntityId) window.setTimeout(function () { highlightFocusedEntity(focusedEntityId); }, 0);
     discoverDemoState();
+    discoverPendingProposal();
   });
 
   document.addEventListener("click", function (event) {
@@ -382,12 +566,19 @@
       return;
     }
     var discard = event.target && event.target.closest ? event.target.closest("[data-webmcp-discard]") : null;
-    if (!discard) return;
+    if (discard) {
+      event.preventDefault();
+      discardProposal(discard);
+      return;
+    }
+    var copy = event.target && event.target.closest ? event.target.closest("[data-webmcp-copy-prompt]") : null;
+    if (!copy) return;
     event.preventDefault();
-    clearProposal("Proposal discarded locally; the canonical scene was never changed.");
-    updateStatus({ state: "ready", message: "The staged preview was discarded without changing the scene." });
+    copyDemoPrompt(copy);
   });
 
   renderStatus();
+  renderToolFlow();
   discoverDemoState();
+  discoverPendingProposal();
 })();

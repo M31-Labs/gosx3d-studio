@@ -1,0 +1,17 @@
+.git
+.github
+.canopy
+.devpost-hackathon-state.json
+.DS_Store
+.env
+.env.*
+build
+dist
+.studio
+docs/plans
+go.work
+go.work.sum
+gosx3d-studio
+studio-server
+*.bundle
+

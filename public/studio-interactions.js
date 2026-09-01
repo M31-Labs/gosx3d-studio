@@ -5,8 +5,9 @@
   window.__gosxStudioInteractions = true;
 
   var hierarchyQuery = "";
-  var projectPanelCollapsed = typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 88rem)").matches;
+  var publicDemo = document.querySelector('.studio-shell[data-studio-demo="true"]') !== null;
+  var projectPanelCollapsed = publicDemo || (typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 88rem)").matches);
   var sceneRuntimeObserver = null;
 
   function closest(target, selector) {

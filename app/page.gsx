@@ -1,15 +1,16 @@
 package app
 
 func Page() Node {
-	return <main class="studio-shell" aria-label="GoSX 3D Studio shared scene workbench">
+	return <main class="studio-shell" data-studio-demo={data.demoMode} aria-label="GoSX 3D Studio shared scene workbench">
 		<a class="skip-link" href="#inspector-panel">Skip to Inspector</a>
+		<h1 class="sr-only">GoSX 3D Studio</h1>
 		<header class="menu-bar">
 			<a href="/" data-gosx-link class="brand" aria-label="GoSX 3D Studio home">
 				<span class="brand-mark">GoSX</span>
 				<span>3D Studio</span>
 			</a>
 			<nav class="application-menu" aria-label="Application menu">
-				<button type="button" id="studio-open-project" data-revision={data.revision} data-dirty={data.project.dirty} title="Open a GoSX 3D Studio project through the native desktop dialog">Open</button>
+				<button type="button" class="desktop-only-control" id="studio-open-project" data-revision={data.revision} data-dirty={data.project.dirty} title="Open a GoSX 3D Studio project through the native desktop dialog">Open</button>
 				<form data-gosx-form method="post" action={actionPath("saveProject")} class="menu-save-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
@@ -45,6 +46,7 @@ func Page() Node {
 		</header>
 		<nav class="workspace-tabs" aria-label="Studio workspaces">
 			<button type="button" class="active" aria-current="page">Layout</button>
+			<span class="demo-mode-label">PUBLIC DEMO · GOVERNED AGENT REVIEW</span>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Modeling</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Sculpt</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Rigging</button>
@@ -785,18 +787,34 @@ func Page() Node {
 					<code data-webmcp-tool-count>0 tools</code>
 				</div>
 				<p class="webmcp-status-copy" data-webmcp-status-message>The complete human editing surface remains available while WebMCP initializes.</p>
-				<div class="studio-demo-reset" data-studio-demo-panel hidden>
+				<ol class="webmcp-flow" aria-label="WebMCP collaboration flow">
+					<li data-webmcp-flow-tool="scene_get_state" data-state="idle"><span>1</span><strong>Inspect</strong></li>
+					<li data-webmcp-flow-tool="scene_find_objects" data-state="idle"><span>2</span><strong>Find</strong></li>
+					<li data-webmcp-flow-tool="scene_focus_object" data-state="idle"><span>3</span><strong>Focus</strong></li>
+					<li data-webmcp-flow-tool="scene_preview_actions" data-state="idle"><span>4</span><strong>Stage</strong></li>
+				</ol>
+				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
+					<span class="overline" id="webmcp-mission-title">Try the collaboration loop</span>
+					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Cobalt Pieces material. Explain the revision boundary.</p>
+					<button type="button" data-webmcp-copy-prompt>Copy demo prompt</button>
+					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
+				</section>
+				<div class="studio-demo-reset" data-studio-demo-panel data-webmcp-idle-only hidden>
 					<span>
 						<strong>Shared public demo</strong>
 						<small>One ephemeral scene for every visitor. Reset clears edits and staged proposals.</small>
 					</span>
 					<button type="button" data-studio-demo-reset data-revision={data.revision}>Reset shared scene</button>
 				</div>
-				<p class="placeholder-copy">{data.agent.authority}</p>
+				<p class="placeholder-copy" data-webmcp-idle-only>{data.agent.authority}</p>
 				<div class="proposal" data-webmcp-proposal data-revision={data.revision}>
 					<span class="overline">Latest staged proposal</span>
 					<p data-webmcp-proposal-summary>{data.agent.proposalSummary}</p>
 					<p data-webmcp-proposal-rationale hidden></p>
+					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
+						<button type="button" data-webmcp-discard>Discard</button>
+						<button type="button" class="primary" data-webmcp-commit>Apply staged changes</button>
+					</div>
 					<ul class="webmcp-change-list" data-webmcp-proposal-changes hidden></ul>
 					<dl>
 						<div>
@@ -808,7 +826,7 @@ func Page() Node {
 							<dd data-webmcp-proposal-policy>Arbiter · awaiting proposal</dd>
 						</div>
 						<div>
-							<dt>Revision</dt>
+							<dt>Revision boundary</dt>
 							<dd data-webmcp-proposal-revision>{data.agent.proposalRevision}</dd>
 						</div>
 						<div>
@@ -820,13 +838,9 @@ func Page() Node {
 							<dd class="pending" data-webmcp-proposal-fingerprint>{data.agent.proposalFingerprint}</dd>
 						</div>
 					</dl>
-					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
-						<button type="button" data-webmcp-discard>Discard</button>
-						<button type="button" class="primary" data-webmcp-commit>Apply staged changes</button>
-					</div>
 				</div>
-				<div class="proposal">
-					<span class="overline">Session activity</span>
+				<div class="proposal" data-webmcp-idle-only>
+					<span class="overline">Shared workspace activity</span>
 					<dl>
 						<div>
 							<dt>Agent transactions</dt>
@@ -837,7 +851,7 @@ func Page() Node {
 							<dd class="authored">{data.agent.humanCount}</dd>
 						</div>
 					</dl>
-					<p class="placeholder-copy">Agents stage revision-safe previews; a human applies the exact reviewed operations through the session-protected commit path.</p>
+					<p class="placeholder-copy">Agent proposals and visible UI approvals share one canonical, revision-safe workspace.</p>
 				</div>
 				<div class="agent-actions">
 					<a class="primary" href="/api/studio/actions">Action catalog ↗</a>
@@ -871,13 +885,12 @@ func Page() Node {
 					</Each>
 				</div>
 				<div class="certification-card">
-					<span>Certification</span>
-					<strong>{data.certification.status}</strong>
-					<small>{data.certification.available} / {data.certification.total} editor dimensions available</small>
-					<small>{data.certification.liveChecksPass} / {data.certification.liveChecksTotal} live evidence checks pass · release {data.certification.releaseStatus}</small>
+					<span>Deterministic evidence</span>
+					<strong>{data.certification.liveChecksPass}/{data.certification.liveChecksTotal} PASS</strong>
+					<small>Live invariants for the current canonical scene</small>
 					<small class={"certification-state certification-state-" + data.certification.certState}>evidence {data.certification.certState} · revision {data.certification.certRevision}</small>
 					<details class="certification-details">
-						<summary>Evidence details · {data.certification.available}/{data.certification.total}</summary>
+						<summary>Editor coverage · {data.certification.available}/{data.certification.total}</summary>
 						<ul class="certification-dimensions">
 							<Each of={data.certification.dimensions} as="dimension">
 								<li title={dimension.evidence}>

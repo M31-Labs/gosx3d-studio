@@ -577,9 +577,10 @@ func modelingView(document studio.Document, workspace *studio.Workspace, selecte
 	return view
 }
 
-// agentView projects real automation state into the Agent Actions panel: the
-// latest propose-mode receipt, session activity counts, and whether the
-// bearer-token mutation surface is configured at all.
+// agentView projects shared workspace activity and whether the bearer-token
+// mutation surface is configured. Session-owned WebMCP proposals must never
+// be inferred from process-wide receipts: only the browser-session proposal
+// endpoint may hydrate the actionable review card.
 func agentView(workspace *studio.Workspace, tokenConfigured bool) map[string]any {
 	view := map[string]any{
 		"tokenConfigured":  fmt.Sprint(tokenConfigured),
@@ -602,14 +603,6 @@ func agentView(workspace *studio.Workspace, tokenConfigured bool) map[string]any
 			continue
 		}
 		agents++
-		if receipt.Mode == studio.ModePropose && view["proposalPresent"] == false {
-			view["proposalPresent"] = true
-			view["proposalSummary"] = fmt.Sprintf("%s · %d operation(s) validated without mutation", receipt.TransactionID, receipt.Operations)
-			view["proposalRevision"] = fmt.Sprintf("%04d", receipt.BeforeRevision)
-			view["proposalAffected"] = fmt.Sprint(len(receipt.Affected))
-			view["proposalFingerprint"] = shortID(studio.ID(receipt.AfterFingerprint))
-			view["proposalActor"] = receipt.Actor
-		}
 	}
 	view["agentCount"], view["humanCount"] = fmt.Sprint(agents), fmt.Sprint(humans)
 	return view

@@ -1,18 +1,18 @@
 # Native WebMCP verification
 
-Verified August 31, 2026 against the local demo server and the current source
+Verified September 1, 2026 against the local demo server and the current source
 tree.
 
 ## Client
 
-- Chrome for Testing `152.0.7977.64`
-- `enable-webmcp-testing@1`
+- Google Chrome stable `152.0.7977.64`
+- `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
 - GoSX `v0.54.0`
 
-This verifies the Chrome path accepted by the Challenge. It does not claim a
-test in ChatGPT's in-app browser or against the not-yet-deployed public URL.
+This verifies the local Chrome path accepted by the Challenge. Production-URL
+and ChatGPT in-app-browser verification remain separate release gates.
 
 ## WebMCP result
 
@@ -23,21 +23,35 @@ Chrome discovered and invoked exactly these four webpage tools:
 3. `scene_focus_object`
 4. `scene_preview_actions`
 
-The run proved:
+The preview tool schema exposed exactly three operation kinds:
+`rename-entity`, `set-transform`, and `assign-material`.
 
-- state inspection, stable-ID search, and visible focus;
-- non-mutating rename and affine group-scale previews;
+The latest release-candidate run proved:
+
+- native state inspection, stable-ID search, and visible focus;
+- a two-operation `Board` to `Launch Board` rename plus `Cobalt Pieces`
+  material preview;
+- all four visible tool-flow steps completing;
+- unchanged canonical name, material, and revision before approval;
+- restoration of the same session-owned proposal and Apply/Discard controls
+  after a full page reload;
+- a visible Apply action outside the registered tool surface that advanced the
+  canonical revision exactly once and applied both reviewed changes;
+- zero runtime exceptions, console errors, failed requests, or HTTP error
+  responses during the complete flow;
+- non-mutating affine group-scale previews in the broader native QA suite;
 - a semantic scale diff (`1.00, 1.00, 1.00 → 1.05, 1.00, 0.95`);
 - Arbiter Allow evidence for the bounded group-scale operation;
-- rejection of meaningless light scale;
+- adapter input-validation rejection of meaningless light scale, not an
+  Arbiter Deny claim;
 - discard with no canonical revision change;
-- a coordinate-clicked human Apply that advanced the revision exactly once;
-- stale proposal rejection and distinct agent/human attribution; and
-- a coordinate-clicked, human-confirmed reset back to the sample scene.
+- stale proposal rejection and distinct proposal/UI-approval attribution; and
+- a coordinate-clicked, browser-confirmed visible reset back to the sample
+  scene.
 
 The Apply and reset both refreshed the rendered hierarchy, Inspector, footer,
-and collaboration state through managed GoSX navigation. Neither required a
-page reload or a second main-document request.
+and Agent Collaboration panel through managed GoSX navigation. Neither required
+a page reload or a second main-document request.
 
 ## Core Studio result
 

@@ -299,6 +299,15 @@ time,
   background: var(--color-panel-raised);
 }
 
+.demo-mode-label {
+  display: none;
+  margin-left: auto;
+  color: var(--color-runtime);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  letter-spacing: 0.05em;
+}
+
 .tool-bar {
   min-height: 2.5rem;
   gap: var(--space-md);
@@ -1118,6 +1127,14 @@ time,
   flex-direction: column;
 }
 
+.agent-panel.has-pending-proposal [data-webmcp-idle-only] {
+  display: none;
+}
+
+.agent-panel:not(.has-pending-proposal) [data-webmcp-proposal] {
+  display: none;
+}
+
 .webmcp-status-banner {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1189,6 +1206,88 @@ time,
   line-height: 1.5;
 }
 
+.webmcp-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-xs);
+  margin: 0;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.webmcp-flow li {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+  color: var(--color-text-muted);
+}
+
+.webmcp-flow li span {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-round);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+}
+
+.webmcp-flow li strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--type-xs);
+}
+
+.webmcp-flow li[data-state="running"] {
+  border-color: var(--color-runtime);
+  color: var(--color-runtime);
+}
+
+.webmcp-flow li[data-state="complete"] {
+  border-color: color-mix(in srgb, var(--color-success) 70%, var(--color-border));
+  color: var(--color-text);
+}
+
+.webmcp-flow li[data-state="complete"] span {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 18%, var(--color-panel-sunken));
+  color: var(--color-success);
+}
+
+.webmcp-flow li[data-state="error"] {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.webmcp-demo-mission {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-runtime) 5%, var(--color-panel));
+}
+
+.webmcp-demo-mission p,
+.webmcp-demo-mission small {
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  line-height: 1.5;
+}
+
+.webmcp-demo-mission button {
+  padding: var(--space-xs) var(--space-sm);
+  border-color: var(--color-runtime);
+  color: var(--color-runtime);
+}
+
 .studio-demo-reset {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1252,6 +1351,11 @@ time,
   padding: var(--space-sm) var(--space-md);
 }
 
+.agent-panel.has-pending-proposal [data-webmcp-proposal] {
+  border-left: 2px solid var(--color-author);
+  background: color-mix(in srgb, var(--color-author) 4%, var(--color-panel));
+}
+
 .proposal > * {
   min-width: 0;
 }
@@ -1308,8 +1412,9 @@ time,
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
   gap: var(--space-sm);
-  padding-top: var(--space-sm);
+  padding: var(--space-sm) 0;
   border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .webmcp-review-actions[hidden] {
@@ -1438,9 +1543,34 @@ time,
 }
 
 .certification-card strong {
-  color: var(--color-warning);
+  color: var(--color-certified);
   font-family: var(--font-mono);
   font-size: var(--type-lg);
+}
+
+.studio-shell[data-studio-demo="true"] .demo-mode-label {
+  display: inline-flex;
+}
+
+.studio-shell[data-studio-demo="true"] .desktop-only-control,
+.studio-shell[data-studio-demo="true"] .application-menu button:disabled,
+.studio-shell[data-studio-demo="true"] .workspace-tabs button:disabled,
+.studio-shell[data-studio-demo="true"] .tool-bar button:disabled,
+.studio-shell[data-studio-demo="true"] .telemetry-dock nav button:disabled,
+.studio-shell[data-studio-demo="true"] .tool-bar .transport,
+.studio-shell[data-studio-demo="true"] .tool-bar .frame-readout,
+.studio-shell[data-studio-demo="true"] .timeline-panel {
+  display: none;
+}
+
+.studio-shell[data-studio-demo="true"] .workbench {
+  grid-template-rows: minmax(28rem, 1fr);
+  grid-template-areas: "project hierarchy viewport inspector agent";
+}
+
+.studio-shell[data-studio-demo="true"].project-panel-collapsed .workbench {
+  grid-template-rows: minmax(28rem, 1fr);
+  grid-template-areas: "hierarchy viewport inspector agent";
 }
 
 .certification-card small {

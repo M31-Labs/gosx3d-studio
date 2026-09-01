@@ -1,173 +1,169 @@
 # WebMCP Challenge demo video script
 
-Target runtime: **2:43**. Keep the final public YouTube upload under three
-minutes and record the application plus the WebMCP-capable agent in one frame.
-The bracketed revision values are cues, not lines to read literally.
+Target runtime: **2:38**. Keep the final public YouTube upload below three
+minutes. Record the Studio and its WebMCP-capable browser agent in one readable
+frame. Bracketed revision values such as `[R]` are production cues, not words
+to read literally.
+
+This demo makes one precise collaboration claim: a person and a browser agent
+work against the same canonical SceneDoc through a shared, revision-safe
+command path. The deployed demo is a **single-instance shared ephemeral
+workspace**, not a realtime multiplayer room system.
+
+For the operator's compact timeline and recording settings, keep
+[the demo shot list](demo-shot-list.md) open on a second device.
 
 ## Before recording
 
-- Start the hosted build in demo mode. Click **Reset shared scene**, confirm the
-  warning, and verify that the hierarchy contains `Board` with stable ID
-  `board`. Do this before recording so the take starts from a known revision.
-- Open the Studio in the compatible browser you will demonstrate. Wait until
-  **Agent Collaboration** reads **Agent tools ready** and **4 tools**.
-- Keep **REVISION**, **Latest staged proposal**, and **Agent Activity** visible
-  or reachable without hunting. Record the starting revision as `[R]`.
-- Put the three prompts below in a scratchpad for reliable copy/paste. Hide the
-  scratchpad, notifications, credentials, and developer tooling before capture.
-- Use a 1080p canvas, a readable browser zoom, a visible cursor, and one clear
-  microphone. Leave two seconds of stillness at the beginning and end.
+- Use the exact hosted build and browser that will appear in the video. Wait
+  until **Agent Collaboration** reads **Agent tools ready** and **4 tools**.
+- Confirm no one else is testing the shared deployment. A reset or edit affects
+  the one canonical demo workspace for every visitor.
+- Keep the hierarchy, viewport revision, four-step WebMCP rail, proposal card,
+  and Agent Activity readable at the same browser zoom.
+- Turn on Do Not Disturb. Hide bookmarks, credentials, account menus,
+  developer tools, unrelated tabs, and the recording controls.
+- Record a ten-second audio and screen test before the real take. Check that
+  the cursor is visible, text survives export, and speech peaks around
+  `-12 dB` to `-6 dB` without clipping.
+- Leave two seconds of stillness at the beginning and end. Dead waiting time
+  may be trimmed, but never splice together different browser sessions or
+  scene revisions.
 
-## One-take run of show
+## Exact agent prompt
 
-### 0:00–0:20 — The human problem
+Use **Copy demo prompt** in the Studio, then paste the copied text unchanged:
 
-**On screen:** Begin on the full Studio: dense Scene Hierarchy, 3D viewport,
-Inspector, **Agent Collaboration**, and the current **REVISION**.
+> Inspect the current scene, find and focus the object named Board, then
+> stage—without committing—a proposal that renames it Launch Board and
+> assigns the Cobalt Pieces material. Explain the revision boundary.
 
-**Voiceover:**
+The expected tool sequence is `scene_get_state`, `scene_find_objects`,
+`scene_focus_object`, then `scene_preview_actions`. There is deliberately no
+agent-callable commit tool.
 
-> A dense 3D scene is easy for a person to see, but hard for an agent to
-> understand safely. This scene has a board, pieces, lights, materials,
-> transforms, and stable identities; a visual guess can target the wrong thing.
-> The agent should not guess from pixels, and it should not silently edit the
-> scene. Here, both work against one canonical SceneDoc, with the human keeping
-> commit authority.
+## Four-step run of show
 
-### 0:20–0:37 — Discover the WebMCP surface
+### 1. 0:00-0:28 - Reset and establish the boundary
 
-**On screen:** Point to **Agent tools ready** and **4 tools**. In the agent tool
-list, briefly show `scene_get_state`, `scene_find_objects`,
-`scene_focus_object`, and `scene_preview_actions`.
-
-**Voiceover:**
-
-> The Studio exposes four structured WebMCP tools: inspect scene state, find
-> objects, focus one object, and preview bounded actions. There is deliberately
-> no agent-callable commit tool. Because these are webpage-declared contracts,
-> the agent discovers them in context.
-
-### 0:37–0:59 — Inspect, then find
-
-**On screen:** Send this exact prompt:
-
-> Inspect the current scene with `scene_get_state`. Then use
-> `scene_find_objects` to find visible mesh objects matching "board". Do not
-> propose changes yet.
-
-Show the returned revision `[R]` and stable ID `board`.
+**On screen:** Begin on the full Studio. Click **Reset shared scene**, accept
+the confirmation, and wait for the refreshed clean sample. Point to `Board`
+with stable ID `board`, then record the new baseline revision as `[R]`. Do not
+compare it with the pre-reset revision; reset revisions are monotonic.
 
 **Voiceover:**
 
-> I will ask the agent to inspect the scene, then find the visible mesh named
-> board. It reads revision [R] and returns the stable object ID `board`, instead
-> of inferring either from the interface.
+> A 3D editor is rich for a person, but ambiguous for an agent. I will reset
+> this public demo to a clean sample and record its new baseline, revision
+> [R]. To be precise, this deployment is one shared ephemeral server
+> workspace, not a realtime multiplayer room system. The collaboration shown
+> is between this person and this browser agent over one canonical SceneDoc.
 
-### 0:59–1:18 — Establish shared visible context
+### 2. 0:28-1:08 - Inspect, find, focus, and stage
 
-**On screen:** Send:
-
-> Use `scene_focus_object` on object ID `board`. Do not propose or mutate
-> anything.
-
-Show the focused row in **Scene Hierarchy**, the **Inspector** selection, and
-the unchanged viewport **REVISION** `[R]`.
-
-**Voiceover:**
-
-> Now I ask it to focus that object. The Scene Hierarchy and Inspector move to
-> Board, so the person and agent share the same visible target. Focus changes
-> only UI selection; the canonical scene is still revision [R].
-
-### 1:18–1:49 — Stage a non-mutating preview
-
-**On screen:** Send:
-
-> At the exact current revision, use `scene_preview_actions` to stage one
-> `rename-entity` operation: target `board`, name `Hero Board`. Title:
-> `Clarify the board in the hierarchy`. Rationale: `A more descriptive name
-> makes the shared focal object easier to find.` Do not do anything else.
-
-In **Latest staged proposal**, point to the rationale, semantic change
-`Board → Hero Board`, **Actor**, **Policy**, **Revision**, **Affected**, and
-**Result fingerprint**. Then point back to viewport **REVISION** `[R]`.
+**On screen:** Point to **Agent tools ready**, **4 tools**, and the
+**Inspect -> Find -> Focus -> Stage** rail. Click **Copy demo prompt**, paste
+the exact prompt into the browser agent, and send it. As the agent works, let
+the rail show all four steps completing. Hold briefly on the focused `board`
+row and converged Inspector selection before the proposal replaces the idle
+panel.
 
 **Voiceover:**
 
-> Next, I ask for a rename preview: Board to Hero Board, with a short
-> rationale. The Studio shows the staged proposal, semantic change, affected
-> object, proposed revision, and result fingerprint. Arbiter visibly allows the
-> reversible operation before the receipt is staged as `agent://webmcp`.
-> Notice the canonical revision remains [R].
+> This page declares four WebMCP tools: inspect, find, focus, and stage. There
+> is no agent-callable commit. I will paste the Studio's exact demo prompt. The
+> agent reads canonical revision [R], resolves Board to stable ID `board`,
+> focuses that same object in the visible Studio, then stages two bounded
+> operations: rename it Launch Board and assign Cobalt Pieces. The four-step
+> rail shows each tool completing.
 
-### 1:49–2:04 — Exercise human rejection
+### 3. 1:08-2:05 - Review the proof, then reload it
 
-**On screen:** Click **Discard**. Hold on the cleared proposal card, the status
-message, and unchanged **REVISION** `[R]`.
+**On screen:** In **Latest staged proposal**, point deliberately to:
 
-**Voiceover:**
+1. `Board -> Launch Board`;
+2. `board-material -> player-4-material`, the stable material ID the agent
+   resolved from `Cobalt Pieces`;
+3. `agent://webmcp`;
+4. **Arbiter - Allow - 2/2** and its evidence tooltip;
+5. the affected stable ID and result fingerprint; and
+6. **canonical [R] unchanged - approval [R+1]**.
 
-> I will discard this first proposal. The review card clears, and the message
-> confirms the canonical scene was never changed. Revision remains [R].
-
-### 2:04–2:31 — Restage and accept
-
-**On screen:** Send the same preview prompt again. When the proposal appears,
-move the cursor from the agent pane into the Studio and click
-**Apply staged changes** yourself. After refresh, show `Hero Board` and
-**REVISION** `[R+1]`.
-
-**Voiceover:**
-
-> I will ask for the same proposal again. This time, I—not the agent—click
-> Apply staged changes. The server commits the exact operations behind the
-> reviewed opaque proposal ID. The page refreshes: Board is now Hero Board, and
-> the canonical revision advances once, from [R] to [R+1].
-
-### 2:31–2:43 — Close on attribution and safety
-
-**On screen:** In **Agent Activity**, frame the `agent://webmcp` propose entry
-and the `human://webmcp-review` direct entry together. End on the Studio.
+Point back to the viewport's still-unchanged revision `[R]`. Then perform a
+full browser reload in the same tab. Wait for tool registration and proposal
+hydration; show that the same proposal and human review controls return while
+the viewport remains at `[R]`.
 
 **Voiceover:**
 
-> Agent Activity attributes the preview to `agent://webmcp` and the accepted
-> change to `human://webmcp-review`. If the scene changed before approval, the
-> expected-revision check would reject the stale commit. The collaboration is
-> inspect, align, propose, and review—not guess, click, and hope.
+> The scene has not changed. The card shows both semantic diffs, affected
+> object, agent attribution, deterministic result fingerprint, and Arbiter
+> Allow evidence for two of two operations. Most importantly, canonical
+> revision [R] is unchanged; approval would create [R+1]. The server keeps the
+> exact reviewed transaction behind an opaque, session-owned proposal ID. I
+> will prove that by reloading the whole page. The same proposal and review
+> controls return in this browser session, while the scene remains at [R].
 
-## Backup notes
+### 4. 2:05-2:38 - Human apply, one revision, and why WebMCP fits
 
-- If tool discovery does not complete, stop the take, confirm the browser's
-  WebMCP support is enabled, reload, and wait for **Agent tools ready**. Do not
-  claim a browser was verified unless that exact recording proves it.
-- If a tool call times out or the page reloads before review, restage from the
-  current revision. Never splice a response from a different revision into the
-  take.
-- **Discard** clears the visible review without changing the canonical scene.
-  If you accidentally click **Apply staged changes** on the first proposal,
-  stop the take and use **Reset shared scene** before recording again; do not
-  use Undo because that adds another canonical revision.
-- If `Board` was renamed before recording, use **Reset shared scene** before
-  capture. Do not improvise a second name; the prepared prompts and visible
-  semantic change should agree.
-- If the agent adds commentary, let it finish, then show only the structured
-  result needed for the shot. Accuracy matters more than filling every second.
+**On screen:** Move the cursor from the agent into the Studio and click
+**Apply staged changes** yourself. After the managed refresh, show all of the
+following in one deliberate sweep:
 
-## Final shot checklist
+- `Launch Board` in the hierarchy or Inspector;
+- `Cobalt Pieces` as the applied material;
+- canonical revision `[R+1]`, exactly one above the baseline; and
+- the `agent://webmcp` preview and `human://webmcp-review` apply entries in
+  **Agent Activity**.
 
-- [ ] Spoken runtime is below 2:45; uploaded video remains below 3:00.
-- [ ] Audio is clear, cursor is visible, and all text shown is readable.
-- [ ] **Agent tools ready** and **4 tools** appear on screen.
-- [ ] All four exact WebMCP tool names are visible or clearly invoked.
-- [ ] Starting revision `[R]`, stable ID `board`, and focused UI context appear.
-- [ ] The first preview shows rationale, semantic change, Arbiter policy,
-      fingerprint, and `agent://webmcp`, then **Discard** leaves revision `[R]`
-      unchanged.
-- [ ] The second proposal is accepted by a visible human click on
-      **Apply staged changes**.
-- [ ] `Hero Board` and exactly one canonical advance to `[R+1]` are visible.
-- [ ] **Agent Activity** shows both `agent://webmcp` and
-      `human://webmcp-review` attribution.
-- [ ] No credentials, localhost-only claims, unsupported features, or private
-      notifications appear.
+End on the Studio with the viewport and collaboration surface together.
+
+**Voiceover:**
+
+> Now I make the only commit by clicking Apply staged changes myself. The
+> server applies the exact reviewed operations through the same revision-safe
+> command path used by the human editor. Board becomes Launch Board, its
+> material becomes Cobalt Pieces, and the canonical revision advances exactly
+> once, from [R] to [R+1]. Agent Activity separates the agent preview from the
+> human approval. That is why WebMCP fits: the site exposes domain actions
+> instead of making agents guess through pixels, while the person keeps the
+> final decision.
+
+## Recovery rules
+
+- If WebMCP discovery does not reach **Agent tools ready** and **4 tools**, stop
+  the take, fix the compatible browser, and start again. Do not narrate an
+  unverified tool surface.
+- If the agent skips a tool, targets anything other than stable ID `board`, or
+  stages different operations, stop and restart with the exact prompt.
+- If another visitor changes or resets the scene, stop. Reset again, record a
+  new `[R]`, and restart the take; do not claim realtime multiplayer behavior.
+- If the proposal does not return after the full reload, stop. Do not claim
+  reload persistence from a different tab or browser session.
+- If Apply reports a revision conflict, the safety boundary worked. For the
+  main demo, stop, reset, and record a clean take rather than editing around
+  the conflict.
+- Do not use Undo to repair a take. Undo creates another canonical revision and
+  makes the promised `[R] -> [R+1]` proof harder to read.
+
+## Final content checklist
+
+- [ ] The spoken edit is between 2:30 and 2:45; the upload is below 3:00.
+- [ ] The public video and hosted URL both work while signed out.
+- [ ] The video visibly identifies the demo as one shared ephemeral workspace,
+      not realtime multiplayer.
+- [ ] **Agent tools ready**, **4 tools**, and all four completed flow steps are
+      visible.
+- [ ] The exact prompt, stable ID `board`, and baseline `[R]` are shown.
+- [ ] Both staged operations are visible: `Board -> Launch Board` and
+      `board-material -> player-4-material`; the agent output identifies the
+      latter as `Cobalt Pieces`.
+- [ ] Arbiter Allow evidence, the fingerprint, and
+      **canonical [R] unchanged - approval [R+1]** are readable.
+- [ ] A full same-session reload restores the proposal before approval.
+- [ ] A visible human click applies the proposal, and canonical state advances
+      exactly once to `[R+1]`.
+- [ ] Agent Activity distinguishes `agent://webmcp` from
+      `human://webmcp-review`.
+- [ ] No credentials, notifications, unsupported capability claims, or private
+      information appear.

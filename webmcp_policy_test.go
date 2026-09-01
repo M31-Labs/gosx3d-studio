@@ -23,10 +23,9 @@ func TestWebMCPOperationPolicyAllowsOnlyTheBrowserSurface(t *testing.T) {
 		t.Fatal(err)
 	}
 	allowed := map[studio.OperationKind]bool{
-		studio.OpRenameEntity:    true,
-		studio.OpSetTransform:    true,
-		studio.OpAssignMaterial:  true,
-		studio.OpDuplicateEntity: true,
+		studio.OpRenameEntity:   true,
+		studio.OpSetTransform:   true,
+		studio.OpAssignMaterial: true,
 	}
 	for _, capability := range studio.ActionCatalog() {
 		kind := studio.OperationKind(capability.ID)
