@@ -341,7 +341,7 @@ func TestRenderBlueprintBuildsAndRunsThePackagedGoSXArtifact(t *testing.T) {
 	}
 }
 
-func TestWindowsProductionPackagingProvisionsPinnedTinyGo(t *testing.T) {
+func TestWindowsProductionPackagingProvisionsPinnedToolchain(t *testing.T) {
 	workflow, err := os.ReadFile(".github/workflows/windows.yml")
 	if err != nil {
 		t.Fatal(err)
@@ -351,12 +351,16 @@ func TestWindowsProductionPackagingProvisionsPinnedTinyGo(t *testing.T) {
 		`$version = "0.41.1"`,
 		"tinygo$version.windows-amd64.zip",
 		"56b8ccf2c705b6a5da14b319ecffc73db2850cd5d09681d65022e604311276b5",
+		`$binaryenVersion = "132"`,
+		"binaryen-version_$binaryenVersion-x86_64-windows.tar.gz",
+		"2089428ec98c899b45ee5d00636ddd6e2da8636cc473ef50b165cc25793ef7cb",
 		"Get-FileHash -Path $archive -Algorithm SHA256",
+		`"WASMOPT=$($wasmOpt.FullName)"`,
 		"$env:GITHUB_PATH",
 		`..\gosx-cli.exe build --prod --offline .`,
 	} {
 		if !strings.Contains(contents, required) {
-			t.Fatalf("Windows production packaging is missing TinyGo contract %q", required)
+			t.Fatalf("Windows production packaging is missing toolchain contract %q", required)
 		}
 	}
 }

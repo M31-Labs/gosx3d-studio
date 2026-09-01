@@ -63,6 +63,31 @@ jobs:
           }
           $tinyGoBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           & $tinyGoExecutable version
+      # TinyGo's production optimizer is distributed by Binaryen rather than
+      # in the Windows TinyGo archive. Pin and verify it just like TinyGo so
+      # offline packaging does not depend on mutable runner state.
+      - name: Install pinned Binaryen wasm-opt
+        run: |
+          $binaryenVersion = "132"
+          $archive = Join-Path $env:RUNNER_TEMP "binaryen-version_$binaryenVersion-x86_64-windows.tar.gz"
+          $destination = Join-Path $env:RUNNER_TEMP "binaryen-$binaryenVersion"
+          $url = "https://github.com/WebAssembly/binaryen/releases/download/version_$binaryenVersion/binaryen-version_$binaryenVersion-x86_64-windows.tar.gz"
+          $expectedSHA256 = "2089428ec98c899b45ee5d00636ddd6e2da8636cc473ef50b165cc25793ef7cb"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $actualSHA256 = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSHA256 -ne $expectedSHA256) {
+            throw "Binaryen archive checksum mismatch: $actualSHA256"
+          }
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          tar -xzf $archive -C $destination
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $wasmOpt = Get-ChildItem -Path $destination -Recurse -Filter wasm-opt.exe -File | Select-Object -First 1
+          if (-not $wasmOpt) {
+            throw "Binaryen archive did not contain wasm-opt.exe"
+          }
+          "WASMOPT=$($wasmOpt.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $wasmOpt.Directory.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & $wasmOpt.FullName --version
       - name: Offline bundle + MSIX staging
         run: ..\gosx-cli.exe build --prod --offline .
       - name: MSIX pack (best effort until signing identity lands)
