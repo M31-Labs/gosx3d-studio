@@ -81,6 +81,8 @@ The pod must be ready on `ns1007492`; health must report `ok`; demo status must
 report a shared ephemeral scene; the root response must remain dynamic and
 `no-store`; plain HTTP must return a permanent HTTPS redirect; and HTTPS must
 include HSTS, `nosniff`, referrer, and permissions-policy headers. The origin
-ingress must also reject TLS below 1.2. Complete the native WebMCP inspect,
-find, focus, preview, discard, and human-apply browser flow before treating the
+ingress must also reject TLS below 1.2. The ten unversioned Studio-owned
+JavaScript, CSS, and SVG assets must use `no-store`; content-hashed GoSX runtime
+assets remain one-year immutable. Complete the native WebMCP inspect, find,
+focus, preview, discard, and human-apply browser flow before treating the
 deployment as submission-ready.

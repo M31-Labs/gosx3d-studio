@@ -161,6 +161,19 @@ metadata:
 spec:
   minVersion: VersionTLS12
 ---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gosx3d-studio-volatile-assets
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+spec:
+  headers:
+    customResponseHeaders:
+      Cache-Control: no-store
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -190,3 +203,59 @@ spec:
                 name: gosx3d-studio
                 port:
                   name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gosx3d-studio-volatile-assets
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-redirect-https@kubernetescrd,m31labs-gosx3d-studio-security-headers@kubernetescrd,m31labs-gosx3d-studio-volatile-assets@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls.options: m31labs-gosx3d-studio-modern-tls@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - gosx3d.m31labs.dev
+      secretName: gosx3d-studio-tls
+  rules:
+    - host: gosx3d.m31labs.dev
+      http:
+        paths:
+          - path: /favicon.svg
+            pathType: Exact
+            backend: &studioUnversionedAssetBackend
+              service:
+                name: gosx3d-studio
+                port:
+                  name: http
+          - path: /styles.css
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-camera.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-certification.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-gizmo.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-interactions.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-project.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-selection.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-webmcp-ui.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
+          - path: /studio-webmcp.js
+            pathType: Exact
+            backend: *studioUnversionedAssetBackend
