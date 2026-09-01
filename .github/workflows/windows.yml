@@ -114,7 +114,7 @@ jobs:
             throw "TinyGo cache warmup did not produce $output"
           }
       - name: Offline bundle + MSIX staging
-        run: ..\gosx-cli.exe build --prod --offline .
+        run: ..\gosx-cli.exe build --prod --offline --msix .
       - name: MSIX pack (best effort until signing identity lands)
         continue-on-error: true
         run: |
