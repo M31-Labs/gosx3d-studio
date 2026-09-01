@@ -48,6 +48,13 @@ revision delta, actor, and deterministic result fingerprint. The proposal is
 non-mutating. A person can discard it or explicitly click **Apply staged
 changes**. There is intentionally no WebMCP commit tool.
 
+A persistent typed-call trace shows what the browser agent accomplished at each
+step: the inspected revision and entity count, the stable object it found, the
+non-mutating focus request, and the number of operations staged. A 148-object
+scene becomes one intent, four typed calls, two exact edits, and one human
+approval. Technical artists can delegate hierarchy search and batch preparation
+without surrendering scene authority.
+
 When a person approves, the browser submits only an opaque proposal ID. The
 server commits the exact operations it previously previewed through the same
 revision-safe transaction engine used by the rest of the Studio. If the scene
@@ -77,11 +84,12 @@ preview evidence, exact picking, and gizmo commits.
   its real SceneDoc, hierarchy, Inspector, proposal card, command history, and
   transaction engine. The browser integration does not maintain a second demo
   scene or return canned edits.
-- **Potential Impact:** Artists and technical creators can delegate tedious
-  scene inventory and exact edit preparation without surrendering the moment
-  of spatial judgment. The same proposal boundary could help other high-context
-  web tools where agents prepare consequential work and people approve it in
-  place.
+- **Potential Impact:** In the hosted 148-object scene, one intent becomes four
+  typed calls, two exact edits, and one human approval. Technical artists can
+  delegate hierarchy search and batch preparation without surrendering the
+  moment of spatial judgment. The same proposal boundary could help other
+  high-context web tools where agents prepare consequential work and people
+  approve it in place.
 - **Creativity & Ambition:** The agent is not a chatbot bolted beside a canvas.
   The webpage becomes the shared protocol surface. Human and agent point at the
   same stable object, reason from the same revision, and create an auditable
@@ -99,8 +107,9 @@ fingerprints, authority, and canonical state—outside the model.
 In the prepared demo flow, the agent reads the scene revision, finds the mesh
 named `Board`, focuses stable ID `board`, and stages two changes: rename it
 `Launch Board` and assign the `Cobalt Pieces` material. The same browser
-session recovers the exact proposal after a full reload, then the person uses
-the visible Apply action. No registered WebMCP tool can commit a proposal.
+session recovers the persistent typed-call trace and exact proposal after a full
+reload, then the person uses the visible Apply action. No registered WebMCP tool
+can commit a proposal.
 
 Native browser QA used Google Chrome 152.0.7977.64 with
 `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome's native
@@ -142,6 +151,8 @@ Codex did not submit or update the project on Devpost in this drafting pass.
 - Stable-ID object search with component, visibility, and result-limit filters.
 - Agent-requested focus that aligns the Scene Hierarchy and Inspector without
   mutating the scene.
+- A persistent typed-call trace with concise, real results for inspect, find,
+  focus, and stage.
 - Preview support for `rename-entity`, `set-transform`, and `assign-material`;
   destructive, structural, and broad operations are excluded.
 - A visible review UI, outside the registered WebMCP tool surface, with title,
@@ -232,14 +243,15 @@ because the public deployment is one shared ephemeral workspace.
    stage—without committing—a proposal that renames it Launch Board and
    assigns the Cobalt Pieces material. Explain the revision boundary.” Record
    the baseline revision `R`.
-4. Confirm the **Inspect → Find → Focus → Stage** rail completes and **Scene
+4. Confirm the **Inspect → Find → Focus → Stage** rail completes, the
+   persistent typed-call trace records the real result of each step, and **Scene
    Hierarchy** plus **Inspector** visibly converge on stable ID `board`.
 5. Confirm **Latest staged proposal** shows a non-applied
    `agent://webmcp` receipt, Arbiter Allow evidence, semantic diff, affected
    object, proposed revision, and result fingerprint while the canonical
    revision remains `R`.
-6. Reload the same browser tab. Confirm the proposal and Apply/Discard controls
-   return while the canonical scene still reads `R`.
+6. Reload the same browser tab. Confirm the typed-call trace, proposal, and
+   Apply/Discard controls return while the canonical scene still reads `R`.
 7. Click **Apply staged changes** yourself.
 8. Confirm the hierarchy reads `Launch Board`, the Inspector reads `Cobalt
    Pieces`, canonical revision is `R+1`, and
@@ -298,10 +310,12 @@ instructions, WebMCP implementation, and a repository-root MIT License.
 
 `[TODO: PUBLIC YOUTUBE URL, UNDER 3 MINUTES, WITH AUDIO]`
 
-The recording plan is in `docs/demo-video-script.md`. It targets a 2:38
-one-take demo: problem, four-tool discovery, inspect/find/focus, two-operation
-non-mutating preview, same-session reload recovery, visible-UI Apply, one
-canonical revision advance, and distinct proposal/approval attribution.
+The recording plan is in `docs/demo-video-script.md`. It targets a 2:16
+one-take demo: problem, four-tool discovery, inspect/find/focus, persistent
+typed-call evidence, a two-operation non-mutating preview, same-session reload
+recovery, visible-UI Apply, one canonical revision advance, and distinct
+proposal/approval attribution. The shared scene is reset before recording so
+the opening belongs to the agent's object discovery rather than demo setup.
 
 ## Screenshot Shot List
 
@@ -309,10 +323,10 @@ canonical revision advance, and distinct proposal/approval attribution.
    Inspector, current **REVISION**, and **Agent Collaboration** showing
    **Agent tools ready · 4 tools**. Caption: “One scene, visible to both human
    and browser agent.”
-2. **Structured discovery** — agent results from `scene_get_state` and
-   `scene_find_objects` showing revision `R`, object name `Board`, and stable ID
-   `board`. Caption: “The agent reads scene truth instead of guessing from
-   pixels.”
+2. **Structured discovery** — agent results and the persistent typed-call trace
+   from `scene_get_state` and `scene_find_objects`, showing revision `R`, object
+   name `Board`, and stable ID `board`. Caption: “The agent reads scene truth
+   instead of guessing from pixels.”
 3. **Shared focus** — highlighted `board` row beside the Inspector selection and
    viewport. Caption: “A WebMCP focus request gives the person and agent the
    same visible referent without mutating the scene.”

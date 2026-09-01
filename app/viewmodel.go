@@ -345,10 +345,7 @@ func historyView(workspace *studio.Workspace) []map[string]any {
 		if len(receipt.Changes) > 0 {
 			kind = string(receipt.Changes[0].Kind)
 		}
-		actorLabel := "AGENT"
-		if strings.HasPrefix(receipt.Actor, "human://") {
-			actorLabel = "AUTHOR"
-		}
+		actorLabel := historyActorLabel(receipt.Actor)
 		out = append(out, map[string]any{
 			"afterRevision": fmt.Sprintf("%04d", receipt.AfterRevision),
 			"actorLabel":    actorLabel,
@@ -356,6 +353,20 @@ func historyView(workspace *studio.Workspace) []map[string]any {
 		})
 	}
 	return out
+}
+
+func historyActorLabel(actor string) string {
+	switch actor {
+	case "agent://webmcp":
+		return "PROPOSED"
+	case "human://webmcp-review":
+		return "APPROVED"
+	default:
+		if strings.HasPrefix(actor, "human://") {
+			return "AUTHOR"
+		}
+		return "AGENT"
+	}
 }
 
 // liveCertificationView reports the deterministic evidence suite for the

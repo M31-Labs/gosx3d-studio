@@ -164,6 +164,19 @@ func TestTimelineViewReflectsCanonicalRigClipAndSimulation(t *testing.T) {
 	}
 }
 
+func TestHistoryActorLabelMakesTheWebMCPHandoffExplicit(t *testing.T) {
+	for actor, want := range map[string]string{
+		"agent://webmcp":        "PROPOSED",
+		"human://webmcp-review": "APPROVED",
+		"human://inspector":     "AUTHOR",
+		"agent://automation":    "AGENT",
+	} {
+		if got := historyActorLabel(actor); got != want {
+			t.Errorf("historyActorLabel(%q) = %q, want %q", actor, got, want)
+		}
+	}
+}
+
 // The card reads "recomputing" after every edit and had no way back to
 // "current" until something else caused a render. The state a client polls has
 // to answer honestly at each stage, and must never claim "current" for a

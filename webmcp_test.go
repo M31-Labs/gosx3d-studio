@@ -282,6 +282,185 @@ func TestWebMCPProposalCanBeRestoredAndRevokedByItsOwner(t *testing.T) {
 	}
 }
 
+func TestWebMCPCommitClaimMakesCommitAndDiscardMutuallyExclusive(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	document, _ := workspace.Snapshot()
+	result, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: document.Revision,
+		Title:            "Atomic review",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Claimed Board"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposalID := result["proposalId"].(string)
+	if _, err := store.claimCommit(proposalID, "session-a"); err != nil {
+		t.Fatal(err)
+	}
+	if current := store.Current("session-a"); current != nil {
+		t.Fatalf("claimed proposal remained available to restore: %#v", current)
+	}
+	if _, err := store.Discard(proposalID, "session-a"); !errors.Is(err, errWebMCPProposalNotFound) {
+		t.Fatalf("discard of claimed proposal error = %v, want not found", err)
+	}
+	if _, err := store.claimCommit(proposalID, "session-a"); !errors.Is(err, errWebMCPProposalNotFound) {
+		t.Fatalf("second commit claim error = %v, want not found", err)
+	}
+	unchanged, _ := workspace.Snapshot()
+	if unchanged.Revision != document.Revision || unchanged.Entities["board"].Name != document.Entities["board"].Name {
+		t.Fatal("claim or rejected discard changed canonical scene")
+	}
+
+	transient := errors.New("transient commit failure")
+	store.finishCommit(proposalID, "session-a", transient)
+	if current := store.Current("session-a"); current == nil || current["proposalId"] != proposalID {
+		t.Fatalf("transient failure did not safely restore proposal: %#v", current)
+	}
+}
+
+func TestWebMCPStageSupersedesSameOwnerOnlyAfterSuccessfulPreview(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	document, _ := workspace.Snapshot()
+	first, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: document.Revision,
+		Title:            "First review",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "First Board"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstID := first["proposalId"].(string)
+	if _, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: document.Revision,
+		Title:            "Broken replacement",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "missing", Name: "Missing"}},
+	}, "session-a"); err == nil {
+		t.Fatal("invalid replacement preview succeeded")
+	}
+	if current := store.Current("session-a"); current == nil || current["proposalId"] != firstID {
+		t.Fatalf("failed replacement removed the prior review: %#v", current)
+	}
+
+	second, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: document.Revision,
+		Title:            "Second review",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Second Board"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondID := second["proposalId"].(string)
+	if current := store.Current("session-a"); current == nil || current["proposalId"] != secondID {
+		t.Fatalf("successful replacement is not the sole current review: %#v", current)
+	}
+	if _, err := store.Commit(firstID, "session-a"); !errors.Is(err, errWebMCPProposalNotFound) {
+		t.Fatalf("superseded proposal commit error = %v, want not found", err)
+	}
+	if _, err := store.Commit(secondID, "session-a"); err != nil {
+		t.Fatal(err)
+	}
+	committed, _ := workspace.Snapshot()
+	if committed.Entities["board"].Name != "Second Board" {
+		t.Fatalf("committed board name = %q, want replacement", committed.Entities["board"].Name)
+	}
+}
+
+func TestWebMCPStageRejectsNetNoEffectOperations(t *testing.T) {
+	for name, operations := range map[string][]studio.Operation{
+		"same trimmed name": {{Kind: studio.OpRenameEntity, Target: "board", Name: "  Board  "}},
+		"same material":     {{Kind: studio.OpAssignMaterial, Target: "board", Material: "board-material"}},
+		"cancelled rename": {
+			{Kind: studio.OpRenameEntity, Target: "board", Name: "Temporary Board"},
+			{Kind: studio.OpRenameEntity, Target: "board", Name: "Board"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			workspace, err := studio.NewWorkspace(studio.SampleDocument())
+			if err != nil {
+				t.Fatal(err)
+			}
+			store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+			before, _ := workspace.Snapshot()
+			if _, err := store.Stage(webMCPProposalRequest{
+				ExpectedRevision: before.Revision,
+				Title:            "No effect",
+				Operations:       operations,
+			}, "session-a"); !errors.Is(err, errWebMCPProposalNoChanges) {
+				t.Fatalf("stage error = %v, want no-changes", err)
+			}
+			if current := store.Current("session-a"); current != nil {
+				t.Fatalf("no-effect request created a proposal: %#v", current)
+			}
+			after, _ := workspace.Snapshot()
+			if after.Revision != before.Revision {
+				t.Fatalf("no-effect request advanced revision to %d", after.Revision)
+			}
+			if receipts := workspace.RecentReceipts(10); len(receipts) != 0 {
+				t.Fatalf("no-effect request recorded preview receipts: %#v", receipts)
+			}
+		})
+	}
+
+	t.Run("same transform", func(t *testing.T) {
+		workspace, err := studio.NewWorkspace(studio.SampleDocument())
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+		before, _ := workspace.Snapshot()
+		transform := before.Entities["board"].Transform
+		_, err = store.Stage(webMCPProposalRequest{
+			ExpectedRevision: before.Revision,
+			Title:            "No transform effect",
+			Operations:       []studio.Operation{{Kind: studio.OpSetTransform, Target: "board", Transform: &transform}},
+		}, "session-a")
+		if !errors.Is(err, errWebMCPProposalNoChanges) {
+			t.Fatalf("stage error = %v, want no-changes", err)
+		}
+	})
+}
+
+func TestWebMCPProposalIncludesMaterialDisplayNames(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	document, _ := workspace.Snapshot()
+	result, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: document.Revision,
+		Title:            "Repaint the board",
+		Operations:       []studio.Operation{{Kind: studio.OpAssignMaterial, Target: "board", Material: "player-4-material"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	materials, ok := result["materials"].(map[string]string)
+	if !ok {
+		t.Fatalf("materials = %#v", result["materials"])
+	}
+	if materials["board-material"] != "Carved Wood" || materials["player-4-material"] != "Cobalt Pieces" {
+		t.Fatalf("material display names = %#v", materials)
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Carved Wood", "Cobalt Pieces"} {
+		if !bytes.Contains(encoded, []byte(name)) {
+			t.Fatalf("proposal JSON omits material name %q: %s", name, encoded)
+		}
+	}
+}
+
 type webMCPTestBrowser struct {
 	handler http.Handler
 	cookies map[string]*http.Cookie

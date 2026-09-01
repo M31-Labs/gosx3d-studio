@@ -29,6 +29,7 @@ type studioDemoPublicState struct {
 	Enabled        bool      `json:"enabled"`
 	SharedScene    bool      `json:"sharedScene"`
 	Ephemeral      bool      `json:"ephemeral"`
+	Clean          bool      `json:"clean"`
 	Mode           string    `json:"mode,omitempty"`
 	SourceDocument string    `json:"sourceDocument,omitempty"`
 	ResetPath      string    `json:"resetPath,omitempty"`
@@ -110,10 +111,15 @@ func (project *studioDemoProject) publicStateLocked() (studioDemoPublicState, er
 	if err != nil {
 		return studioDemoPublicState{}, err
 	}
+	clean, err := studioDemoDocumentIsClean(document)
+	if err != nil {
+		return studioDemoPublicState{}, err
+	}
 	return studioDemoPublicState{
 		Enabled:        true,
 		SharedScene:    true,
 		Ephemeral:      true,
+		Clean:          clean,
 		Mode:           "shared-clean-room",
 		SourceDocument: "studio.SampleDocument",
 		ResetPath:      studioDemoResetPath,
@@ -121,6 +127,23 @@ func (project *studioDemoProject) publicStateLocked() (studioDemoPublicState, er
 		ProjectName:    document.Name,
 		Revision:       document.Revision,
 	}, nil
+}
+
+func studioDemoDocumentIsClean(document studio.Document) (bool, error) {
+	baseline := studio.SampleDocument()
+	// Reset intentionally preserves a monotonic revision, so cleanliness is
+	// the deterministic sample content independent of its concurrency token.
+	document.Revision = 0
+	baseline.Revision = 0
+	actual, err := document.Fingerprint()
+	if err != nil {
+		return false, err
+	}
+	want, err := baseline.Fingerprint()
+	if err != nil {
+		return false, err
+	}
+	return actual == want, nil
 }
 
 func (project *studioDemoProject) Reset(expectedRevision uint64) (studioDemoResetResult, error) {

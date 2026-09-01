@@ -86,6 +86,11 @@ body {
   transform: translateY(0);
 }
 
+.skip-link-agent {
+  right: var(--space-sm);
+  left: auto;
+}
+
 body {
   min-height: 100vh;
   overflow: auto;
@@ -961,6 +966,7 @@ time,
   width: 3rem;
   aspect-ratio: 1;
   margin: 0 var(--space-sm) var(--space-sm);
+  background: var(--material-preview-color, var(--color-panel-raised));
 }
 
 .properties,
@@ -1206,6 +1212,59 @@ time,
   line-height: 1.5;
 }
 
+.webmcp-authority-cue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-panel-raised) 42%, var(--color-panel-sunken));
+}
+
+.webmcp-agent-authority,
+.webmcp-human-authority {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.webmcp-agent-authority strong,
+.webmcp-human-authority strong,
+.webmcp-authority-boundary {
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  text-transform: uppercase;
+}
+
+.webmcp-agent-authority strong {
+  color: var(--color-runtime);
+}
+
+.webmcp-human-authority {
+  text-align: right;
+}
+
+.webmcp-human-authority strong {
+  color: var(--color-author);
+}
+
+.webmcp-agent-authority small,
+.webmcp-human-authority small,
+.webmcp-authority-boundary {
+  color: var(--color-text-muted);
+  font-size: var(--type-xs);
+  line-height: 1.35;
+}
+
+.webmcp-authority-boundary {
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  white-space: nowrap;
+}
+
 .webmcp-flow {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1267,6 +1326,60 @@ time,
   color: var(--color-error);
 }
 
+.webmcp-trace-shell {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-panel-sunken);
+}
+
+.webmcp-trace-shell > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.webmcp-trace-shell > header small {
+  color: var(--color-text-muted);
+  font-size: var(--type-xs);
+}
+
+.webmcp-trace {
+  max-height: 6.5rem;
+  overflow: auto;
+}
+
+.webmcp-trace-empty {
+  color: var(--color-text-muted);
+  font-size: var(--type-xs);
+  line-height: 1.4;
+}
+
+.webmcp-trace-list {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webmcp-trace-list li {
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--color-runtime);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.webmcp-trace-list li[data-state="error"] {
+  border-left-color: var(--color-error);
+  color: var(--color-error);
+}
+
 .webmcp-demo-mission {
   display: grid;
   gap: var(--space-sm);
@@ -1320,6 +1433,27 @@ time,
   line-height: 1.4;
 }
 
+.studio-demo-reset[data-state="clean"] .studio-demo-state {
+  color: var(--color-success);
+}
+
+.studio-demo-reset[data-state="clean"] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.studio-demo-reset[data-state="clean"] > span > small:first-of-type {
+  display: none;
+}
+
+.studio-demo-reset[data-state="clean"] button {
+  width: auto;
+}
+
+.studio-demo-reset[data-state="dirty"] .studio-demo-state {
+  color: var(--color-warning);
+}
+
 .studio-demo-reset button {
   width: 100%;
   border-color: var(--color-warning);
@@ -1337,7 +1471,8 @@ time,
 }
 
 .authority-tabs button,
-.agent-actions button {
+.agent-actions button,
+.agent-actions a {
   padding: var(--space-xs) var(--space-sm);
   border-color: var(--color-border);
   background: var(--color-panel-sunken);
@@ -1401,11 +1536,29 @@ time,
 }
 
 .webmcp-change-list li {
-  color: var(--color-runtime);
+  color: var(--color-author);
   font-family: var(--font-mono);
   font-size: var(--type-xs);
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.webmcp-policy-details {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-panel-sunken);
+}
+
+.webmcp-policy-details summary {
+  padding: var(--space-sm);
+  color: var(--color-certified);
+  cursor: pointer;
+  font-size: var(--type-xs);
+}
+
+.webmcp-policy-details p {
+  padding: 0 var(--space-sm) var(--space-sm);
+  color: var(--color-text-secondary);
 }
 
 .webmcp-review-actions {
@@ -1447,11 +1600,44 @@ time,
   border-top: 1px solid var(--color-border);
 }
 
+.agent-actions a {
+  min-width: 0;
+  min-height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.agent-actions a:hover {
+  border-color: var(--color-runtime);
+  background: var(--color-panel-raised);
+  color: var(--color-runtime);
+}
+
+.agent-actions a:active {
+  transform: translateY(1px);
+}
+
 .agent-actions button.primary,
+.agent-actions a.primary,
 .button.primary {
   color: var(--color-canvas);
   border-color: var(--color-author);
   background: var(--color-author);
+}
+
+.agent-actions a.primary:hover {
+  color: var(--color-canvas);
+  border-color: var(--color-focus);
+  background: var(--color-focus);
 }
 
 .telemetry-dock {
@@ -1671,6 +1857,107 @@ time,
 
   .application-menu button {
     padding: 0 var(--space-xs);
+  }
+
+  .webmcp-authority-cue {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .webmcp-agent-authority small,
+  .webmcp-human-authority small,
+  .webmcp-trace-shell > header small {
+    display: none;
+  }
+
+  .webmcp-trace-empty,
+  .studio-demo-reset[data-state="clean"] > span > strong {
+    display: none;
+  }
+
+  .studio-demo-reset[data-state="clean"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .studio-demo-reset[data-state="clean"] button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 75rem) {
+  html,
+  body {
+    min-width: 0;
+  }
+
+  :root {
+    --panel-hierarchy: 8.75rem;
+    --panel-inspector: 12rem;
+    --panel-agent: 17rem;
+  }
+
+  .studio-shell[data-studio-demo="true"] {
+    min-width: 0;
+  }
+
+  .studio-shell[data-studio-demo="true"] .workbench,
+  .studio-shell[data-studio-demo="true"].project-panel-collapsed .workbench {
+    grid-template-columns:
+      var(--panel-hierarchy)
+      minmax(17.5rem, 1fr)
+      var(--panel-inspector)
+      var(--panel-agent);
+    grid-template-areas: "hierarchy viewport inspector agent";
+  }
+
+  .studio-shell[data-studio-demo="true"] .project-panel,
+  .studio-shell[data-studio-demo="true"] [data-project-panel-toggle] {
+    display: none;
+  }
+
+  .studio-shell[data-studio-demo="true"] .telemetry-content {
+    grid-template-columns: minmax(0, 1fr) minmax(13rem, 15rem);
+  }
+
+  .studio-shell[data-studio-demo="true"] .manifest-link {
+    display: none;
+  }
+
+  .studio-shell[data-studio-demo="true"] .status-bar {
+    gap: var(--space-sm);
+  }
+
+  .studio-shell[data-studio-demo="true"] .studio-demo-reset[data-state="clean"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-xs);
+  }
+
+  .studio-shell[data-studio-demo="true"] .studio-demo-reset[data-state="clean"] button {
+    width: auto;
+  }
+
+  .studio-shell[data-studio-demo="true"] .webmcp-demo-mission {
+    gap: var(--space-xs);
+    padding-block: var(--space-xs);
+  }
+}
+
+@media (max-width: 56rem) {
+  :root {
+    --panel-hierarchy: 8rem;
+    --panel-agent: 16rem;
+  }
+
+  .studio-shell[data-studio-demo="true"] .workbench,
+  .studio-shell[data-studio-demo="true"].project-panel-collapsed .workbench {
+    grid-template-columns:
+      var(--panel-hierarchy)
+      minmax(17rem, 1fr)
+      var(--panel-agent);
+    grid-template-areas: "hierarchy viewport agent";
+  }
+
+  .studio-shell[data-studio-demo="true"] .inspector-panel {
+    display: none;
   }
 }
 

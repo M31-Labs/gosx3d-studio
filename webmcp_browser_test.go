@@ -289,3 +289,91 @@ func TestPublicDemoResetIsVisibleAndNeverAgentCallable(t *testing.T) {
 		t.Fatal("WebMCP adapter must not expose the human-only demo reset")
 	}
 }
+
+func TestWebMCPAdapterEmitsPersistentOutcomeReceipts(t *testing.T) {
+	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+
+	for _, required := range []string{
+		`trace: "studio:webmcp:trace"`,
+		`"Inspect · revision "`,
+		`"Find · "`,
+		`"Focus · "`,
+		`"Stage · "`,
+		`emitTrace(callId, tool, "complete"`,
+	} {
+		if !strings.Contains(adapter, required) {
+			t.Errorf("adapter trace contract missing %q", required)
+		}
+	}
+	for _, required := range []string{
+		`traceStorageKey`,
+		`window.sessionStorage.setItem(traceStorageKey`,
+		`document.addEventListener("studio:webmcp:trace"`,
+		`traceEntries.slice(-8)`,
+		`renderTrace()`,
+	} {
+		if !strings.Contains(review, required) {
+			t.Errorf("persistent trace UI contract missing %q", required)
+		}
+	}
+	if !strings.Contains(page, "data-webmcp-trace") {
+		t.Error("page does not expose the visible WebMCP outcome trace")
+	}
+}
+
+func TestWebMCPAdapterRejectsNoOpProposals(t *testing.T) {
+	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
+	normalize := javascriptFunctionSource(t, adapter, "normalizeOperations")
+	for _, required := range []string{
+		`"ALREADY_SATISFIED"`,
+		`entity.name === name`,
+		`entity.mesh.material === material`,
+		`vec3Equal(position, current.position)`,
+		`operations cancel out or already match`,
+	} {
+		if !strings.Contains(normalize, required) {
+			t.Errorf("no-op rejection contract missing %q", required)
+		}
+	}
+}
+
+func TestWebMCPReviewLocksBothTerminalActionsAndShowsTrustEvidence(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+	buttons := javascriptFunctionSource(t, review, "reviewButtons")
+	requireSourceFragments(t, buttons, "mutually exclusive review actions",
+		`[data-webmcp-commit], [data-webmcp-discard]`,
+		`action.disabled = disabled === true`,
+	)
+	commit := javascriptFunctionSource(t, review, "commitProposal")
+	discard := javascriptFunctionSource(t, review, "discardProposal")
+	if !strings.Contains(commit, "reviewButtons(true)") || !strings.Contains(discard, "reviewButtons(true)") {
+		t.Fatal("Apply and Discard do not both lock the review controls before their requests")
+	}
+	for _, required := range []string{
+		"data-webmcp-proposal-policy-reasons",
+		"data-webmcp-proposal-expiry",
+		"data-webmcp-proposal-fingerprint",
+	} {
+		if !strings.Contains(page, required) || !strings.Contains(review, required) {
+			t.Errorf("proposal trust evidence is missing shared hook %q", required)
+		}
+	}
+}
+
+func TestPublicDemoPromptRequiresCleanBaseline(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	discover := javascriptFunctionSource(t, review, "discoverDemoState")
+	requireSourceFragments(t, discover, "clean baseline gate",
+		`state.clean === true`,
+		`copy.disabled = !demoClean`,
+		`"Prepare clean demo"`,
+		`"Clean baseline ready`,
+	)
+	copyPrompt := javascriptFunctionSource(t, review, "copyDemoPrompt")
+	if !strings.Contains(copyPrompt, "if (!demoClean)") {
+		t.Fatal("copy handler does not enforce the clean baseline when invoked directly")
+	}
+}

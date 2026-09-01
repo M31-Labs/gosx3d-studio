@@ -7,6 +7,10 @@
   var pendingProposal = null;
   var proposalHydration = 0;
   var focusedEntityId = "";
+  var demoClean = false;
+  var reviewInFlight = false;
+  var reviewFocusTarget = null;
+  var traceEntries = [];
   var toolStates = {
     scene_get_state: "idle",
     scene_find_objects: "idle",
@@ -14,6 +18,7 @@
     scene_preview_actions: "idle"
   };
   var toolStateStorageKey = "gosx3d:webmcp-flow:v1";
+  var traceStorageKey = "gosx3d:webmcp-trace:v1";
   try {
     var storedToolStates = JSON.parse(window.sessionStorage.getItem(toolStateStorageKey) || "null");
     Object.keys(toolStates).forEach(function (tool) {
@@ -21,6 +26,14 @@
         toolStates[tool] = storedToolStates[tool];
       }
     });
+  } catch (_) {}
+  try {
+    var storedTrace = JSON.parse(window.sessionStorage.getItem(traceStorageKey) || "[]");
+    if (Array.isArray(storedTrace)) {
+      traceEntries = storedTrace.filter(function (entry) {
+        return entry && typeof entry === "object" && typeof entry.callId === "string" && typeof entry.message === "string";
+      }).slice(-8);
+    }
   } catch (_) {}
   var latestStatus = {
     state: "detecting",
@@ -96,8 +109,90 @@
   function renderToolFlow() {
     Object.keys(toolStates).forEach(function (tool) {
       var item = one('[data-webmcp-flow-tool="' + tool + '"]');
-      if (item) item.setAttribute("data-state", toolStates[tool]);
+      if (item) {
+        item.setAttribute("data-state", toolStates[tool]);
+        item.setAttribute("aria-label", String(item.getAttribute("data-label") || tool) + ": " + toolStates[tool]);
+      }
     });
+  }
+
+  function persistTrace() {
+    try { window.sessionStorage.setItem(traceStorageKey, JSON.stringify(traceEntries)); } catch (_) {}
+  }
+
+  function traceItem(entry) {
+    var item = document.createElement("li");
+    item.setAttribute("data-state", entry.state === "error" ? "error" : "complete");
+    item.textContent = String(entry.message || entry.tool || "WebMCP call");
+    return item;
+  }
+
+  function renderTrace() {
+    var host = one("[data-webmcp-trace]");
+    if (!host) return;
+    host.setAttribute("aria-busy", "true");
+    host.setAttribute("aria-live", "off");
+    while (host.firstChild) host.removeChild(host.firstChild);
+    if (!traceEntries.length) {
+      var empty = document.createElement("p");
+      empty.className = "webmcp-trace-empty";
+      empty.textContent = "Typed-call receipts will appear here.";
+      host.appendChild(empty);
+    } else {
+      var list = document.createElement("ol");
+      list.className = "webmcp-trace-list";
+      traceEntries.forEach(function (entry) { list.appendChild(traceItem(entry)); });
+      host.appendChild(list);
+    }
+    var restoreAnnouncements = function () {
+      host.removeAttribute("aria-busy");
+      host.setAttribute("aria-live", "polite");
+    };
+    if (typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(restoreAnnouncements);
+    } else {
+      window.setTimeout(restoreAnnouncements, 0);
+    }
+  }
+
+  function appendTrace(detail) {
+    detail = detail || {};
+    var callId = String(detail.callId || "");
+    if (!callId || traceEntries.some(function (entry) { return entry.callId === callId; })) return;
+    var entry = {
+      callId: callId,
+      tool: String(detail.tool || ""),
+      state: detail.state === "error" ? "error" : "complete",
+      message: String(detail.message || "WebMCP call completed"),
+      timestamp: String(detail.timestamp || "")
+    };
+    traceEntries.push(entry);
+    traceEntries = traceEntries.slice(-8);
+    persistTrace();
+    var host = one("[data-webmcp-trace]");
+    var list = host && host.querySelector(".webmcp-trace-list");
+    if (!host) return;
+    if (!list && traceEntries.length > 1) {
+      renderTrace();
+      return;
+    }
+    if (!list) {
+      while (host.firstChild) host.removeChild(host.firstChild);
+      list = document.createElement("ol");
+      list.className = "webmcp-trace-list";
+      host.appendChild(list);
+    }
+    host.removeAttribute("aria-busy");
+    host.setAttribute("aria-live", "polite");
+    list.appendChild(traceItem(entry));
+    while (list.children.length > traceEntries.length) list.removeChild(list.firstElementChild);
+    host.scrollTop = host.scrollHeight;
+  }
+
+  function clearTrace() {
+    traceEntries = [];
+    persistTrace();
+    renderTrace();
   }
 
   function persistToolFlow() {
@@ -149,7 +244,14 @@
     });
   }
 
-  function changeSummary(change) {
+  function materialSummary(id, materials) {
+    if (!id) return "none";
+    var material = materials && materials[id];
+    var name = material && typeof material === "object" ? material.name : material;
+    return name ? String(name) + " (" + String(id) + ")" : String(id);
+  }
+
+  function changeSummary(change, materials) {
     change = change || {};
     var kind = String(change.kind || "scene edit");
     var target = String(change.target || "scene");
@@ -162,7 +264,7 @@
       var beforeMaterial = before.material || before.mesh && before.mesh.material;
       var afterMaterial = after.material || after.mesh && after.mesh.material;
       if (beforeMaterial || afterMaterial) {
-        return kind + " · " + target + " · " + String(beforeMaterial || "none") + " → " + String(afterMaterial || "none");
+        return kind + " · " + target + " · " + materialSummary(beforeMaterial, materials) + " → " + materialSummary(afterMaterial, materials);
       }
     }
     if (kind === "set-transform" && after.transform) {
@@ -178,17 +280,65 @@
     return kind + " · " + target;
   }
 
-  function renderChanges(receipt) {
+  function renderChanges(receipt, materials) {
     var list = one("[data-webmcp-proposal-changes]");
     if (!list) return;
     while (list.firstChild) list.removeChild(list.firstChild);
     var changes = receipt && Array.isArray(receipt.changes) ? receipt.changes : [];
     changes.forEach(function (change) {
       var item = document.createElement("li");
-      item.textContent = changeSummary(change);
+      item.textContent = changeSummary(change, materials);
       list.appendChild(item);
     });
     list.hidden = changes.length === 0;
+  }
+
+  function shortFingerprint(value) {
+    value = String(value || "");
+    if (value.length <= 22) return value;
+    return value.slice(0, 10) + "…" + value.slice(-8);
+  }
+
+  function reviewButtons(disabled) {
+    var actions = document.querySelectorAll("[data-webmcp-commit], [data-webmcp-discard]");
+    if (disabled === true && document.activeElement) {
+      Array.prototype.some.call(actions, function (action) {
+        if (action !== document.activeElement && !action.contains(document.activeElement)) return false;
+        reviewFocusTarget = action;
+        return true;
+      });
+    }
+    Array.prototype.forEach.call(actions, function (action) { action.disabled = disabled === true; });
+    if (
+      disabled !== true && pendingProposal && reviewFocusTarget &&
+      reviewFocusTarget.isConnected && !reviewFocusTarget.closest("[hidden]")
+    ) {
+      try { reviewFocusTarget.focus({ preventScroll: true }); }
+      catch (_) { reviewFocusTarget.focus(); }
+      reviewFocusTarget = null;
+    }
+  }
+
+  function renderProposalExpiry() {
+    var expiry = one("[data-webmcp-proposal-expiry]");
+    if (!expiry) return;
+    if (!pendingProposal || !pendingProposal.expiresAt) {
+      expiry.textContent = "not staged";
+      return;
+    }
+    var expiresAt = Date.parse(pendingProposal.expiresAt);
+    if (!Number.isFinite(expiresAt)) {
+      expiry.textContent = "review window unavailable";
+      return;
+    }
+    var remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      expiry.textContent = "expired · restage required";
+      reviewButtons(true);
+      return;
+    }
+    var minutes = Math.max(1, Math.ceil(remaining / 60000));
+    expiry.textContent = "expires in " + minutes + " min";
   }
 
   function renderProposal() {
@@ -211,6 +361,7 @@
       policy.textContent = governance.length ? "Arbiter · Allow · " + allowed + "/" + governance.length : "Arbiter · evidence unavailable";
       var reasons = governance.map(function (decision) { return decision && decision.reason; }).filter(Boolean);
       policy.setAttribute("title", reasons.length ? reasons.join(" · ") : "Every operation is evaluated by the server policy before preview.");
+      setText("[data-webmcp-proposal-policy-reasons]", reasons.length ? reasons.join(" · ") : "Every operation is evaluated by the server policy before preview.");
     }
     var canonicalRevision = receipt.beforeRevision == null ? "?" : String(receipt.beforeRevision);
     var approvalRevision = pendingProposal.preview && pendingProposal.preview.revision != null
@@ -224,34 +375,62 @@
     var fingerprint = one("[data-webmcp-proposal-fingerprint]");
     var fingerprintValue = receipt.afterFingerprint || "preview ready";
     if (fingerprint) {
-      fingerprint.textContent = fingerprintValue;
+      fingerprint.textContent = shortFingerprint(fingerprintValue);
       fingerprint.setAttribute("title", fingerprintValue);
+      fingerprint.setAttribute("aria-label", "Full preview fingerprint " + fingerprintValue);
     }
-    renderChanges(receipt);
+    renderChanges(receipt, pendingProposal.materials || {});
+    renderProposalExpiry();
     var actions = one("[data-webmcp-review-actions]");
     if (actions) actions.hidden = false;
+    reviewButtons(reviewInFlight);
+    renderProposalExpiry();
     updateStatus({
       state: "proposal",
       tool: "scene_preview_actions",
       message: "Canonical revision " + canonicalRevision + " is unchanged. Review the exact staged operations, then apply or discard."
     });
+    var proposalCard = one("[data-webmcp-proposal]");
+    if (proposalCard && agentPanel && typeof agentPanel.scrollTo === "function") {
+      window.setTimeout(function () {
+        var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var panelTop = agentPanel.getBoundingClientRect().top;
+        var proposalTop = proposalCard.getBoundingClientRect().top;
+        agentPanel.scrollTo({
+          top: Math.max(0, agentPanel.scrollTop + proposalTop - panelTop),
+          behavior: reducedMotion ? "auto" : "smooth"
+        });
+      }, 0);
+    }
   }
 
   function clearProposal(message) {
-    pendingProposal = null;
     var agentPanel = one(".agent-panel");
-    if (agentPanel) agentPanel.classList.remove("has-pending-proposal");
     var rationale = one("[data-webmcp-proposal-rationale]");
     if (rationale) rationale.hidden = true;
     var actions = one("[data-webmcp-review-actions]");
+    var restoreReviewFocus = Boolean(
+      reviewFocusTarget || actions && document.activeElement && actions.contains(document.activeElement)
+    );
+    pendingProposal = null;
+    reviewInFlight = false;
     if (actions) actions.hidden = true;
-    renderChanges(null);
+    if (agentPanel) agentPanel.classList.remove("has-pending-proposal");
+    reviewButtons(false);
+    reviewFocusTarget = null;
+    renderChanges(null, null);
     setText("[data-webmcp-proposal-summary]", message || "No staged WebMCP proposal is awaiting review.");
     setText("[data-webmcp-proposal-actor]", "none");
     setText("[data-webmcp-proposal-policy]", "Arbiter · awaiting proposal");
     setText("[data-webmcp-proposal-revision]", "current");
     setText("[data-webmcp-proposal-affected]", "0 entities");
     setText("[data-webmcp-proposal-fingerprint]", "not staged");
+    setText("[data-webmcp-proposal-policy-reasons]", "Stage a proposal to see the policy decision for every operation.");
+    setText("[data-webmcp-proposal-expiry]", "not staged");
+    if (restoreReviewFocus && agentPanel && typeof agentPanel.focus === "function") {
+      try { agentPanel.focus({ preventScroll: true }); }
+      catch (_) { agentPanel.focus(); }
+    }
   }
 
   function discoverPendingProposal() {
@@ -354,6 +533,9 @@
   function hideDemoPanel() {
     var panel = one("[data-studio-demo-panel]");
     if (panel) panel.hidden = true;
+    demoClean = false;
+    var copy = one("[data-webmcp-copy-prompt]");
+    if (copy) copy.disabled = true;
   }
 
   function discoverDemoState() {
@@ -368,13 +550,28 @@
     }).then(function (state) {
       var panel = one("[data-studio-demo-panel]");
       var button = one("[data-studio-demo-reset]");
+      var copy = one("[data-webmcp-copy-prompt]");
       if (!panel || !button || !state || state.enabled !== true) {
         hideDemoPanel();
         return;
       }
       panel.hidden = false;
+      demoClean = state.clean === true;
+      panel.setAttribute("data-state", demoClean ? "clean" : "dirty");
       button.setAttribute("data-revision", String(state.revision));
       button.disabled = false;
+      button.textContent = demoClean ? "Reset clean demo" : "Prepare clean demo";
+      if (copy) copy.disabled = !demoClean;
+      setText(
+        "[data-studio-demo-state]",
+        demoClean
+          ? "Clean baseline ready · the exact prompt is safe to run."
+          : "Scene differs from the showcase baseline · prepare a clean demo before copying the prompt."
+      );
+      setText(
+        "[data-webmcp-copy-status]",
+        demoClean ? "Ready for the browser agent." : "Prepare a clean demo before copying."
+      );
     }).catch(hideDemoPanel);
   }
 
@@ -399,6 +596,7 @@
     }).then(function (payload) {
       proposalHydration++;
       clearToolFlow();
+      clearTrace();
       clearProposal("The shared demo was restored; no staged proposal is awaiting review.");
       updateStatus({
         state: "ready",
@@ -413,8 +611,10 @@
 
   function commitProposal(button) {
     if (!pendingProposal || !pendingProposal.proposalId) return;
+    if (reviewInFlight) return;
     var proposal = pendingProposal;
-    button.disabled = true;
+    reviewInFlight = true;
+    reviewButtons(true);
     updateStatus({ state: "committing", message: "Applying the exact operations from the reviewed preview…" });
     request("/api/studio/webmcp/commits", {
       method: "POST",
@@ -450,7 +650,9 @@
         });
         return;
       }
-      button.disabled = false;
+      reviewInFlight = false;
+      reviewButtons(false);
+      renderProposalExpiry();
       updateStatus({ state: "error", message: error && error.message ? error.message : "The proposal could not be applied." });
       if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
         window.__gosx.reportFailure("WebMCP proposal commit", error, {
@@ -462,8 +664,10 @@
 
   function discardProposal(button) {
     if (!pendingProposal || !pendingProposal.proposalId) return;
+    if (reviewInFlight) return;
     var proposalId = pendingProposal.proposalId;
-    button.disabled = true;
+    reviewInFlight = true;
+    reviewButtons(true);
     updateStatus({ state: "committing", message: "Revoking the staged proposal without changing the canonical scene…" });
     request("/api/studio/webmcp/discards", {
       method: "POST",
@@ -486,7 +690,9 @@
         updateStatus({ state: "ready", message: "The staged proposal was already unavailable; canonical state is unchanged." });
         return;
       }
-      button.disabled = false;
+      reviewInFlight = false;
+      reviewButtons(false);
+      renderProposalExpiry();
       updateStatus({ state: "error", message: error && error.message ? error.message : "The staged proposal could not be revoked." });
     });
   }
@@ -496,6 +702,10 @@
     var status = one("[data-webmcp-copy-status]");
     var value = prompt ? String(prompt.textContent || "").trim() : "";
     if (!value) return;
+    if (!demoClean) {
+      if (status) status.textContent = "Prepare a clean demo before copying this exact showcase prompt.";
+      return;
+    }
     var copied;
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
       copied = navigator.clipboard.writeText(value);
@@ -539,6 +749,10 @@
     renderProposal();
   });
 
+  document.addEventListener("studio:webmcp:trace", function (event) {
+    appendTrace(event && event.detail);
+  });
+
   document.addEventListener("studio:webmcp:focus", function (event) {
     focusEntity(event && event.detail);
   });
@@ -546,6 +760,7 @@
   document.addEventListener("gosx:navigate", function () {
     renderStatus();
     renderToolFlow();
+    renderTrace();
     if (pendingProposal) renderProposal();
     if (focusedEntityId) window.setTimeout(function () { highlightFocusedEntity(focusedEntityId); }, 0);
     discoverDemoState();
@@ -579,6 +794,9 @@
 
   renderStatus();
   renderToolFlow();
+  renderTrace();
   discoverDemoState();
   discoverPendingProposal();
+  window.setInterval(renderProposalExpiry, 10000);
+  window.setInterval(discoverDemoState, 15000);
 })();

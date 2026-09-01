@@ -3,6 +3,7 @@ package app
 func Page() Node {
 	return <main class="studio-shell" data-studio-demo={data.demoMode} aria-label="GoSX 3D Studio shared scene workbench">
 		<a class="skip-link" href="#inspector-panel">Skip to Inspector</a>
+		<a class="skip-link skip-link-agent" href="#agent-panel">Skip to Agent review</a>
 		<h1 class="sr-only">GoSX 3D Studio</h1>
 		<header class="menu-bar">
 			<a href="/" data-gosx-link class="brand" aria-label="GoSX 3D Studio home">
@@ -280,7 +281,7 @@ func Page() Node {
 				</details>
 				<details open>
 					<summary>Material</summary>
-					<div class="material-preview authored-material"></div>
+					<div class="material-preview" style={"--material-preview-color: " + data.inspector.materialColor}></div>
 					<dl class="properties">
 						<div>
 							<dt>Material</dt>
@@ -773,48 +774,67 @@ func Page() Node {
 					</form>
 				</div>
 			</section>
-			<aside class="agent-panel" aria-labelledby="agent-title">
+			<aside id="agent-panel" class="agent-panel" aria-labelledby="agent-title" tabindex="-1">
 				<header class="panel-heading">
 					<h2 id="agent-title">Agent Collaboration</h2>
-					<span class="runtime-label">typed surface</span>
+					<span class="runtime-label">proposal-only</span>
 				</header>
-				<div class="webmcp-status-banner" data-webmcp-status-panel data-state="detecting" role="status" aria-live="polite">
-					<span class="webmcp-status-dot" aria-hidden="true"></span>
-					<span>
-						<strong>WebMCP</strong>
-						<small data-webmcp-status-label>Detecting browser support</small>
-					</span>
-					<code data-webmcp-tool-count>0 tools</code>
+				<div class="webmcp-status-region" role="status" aria-live="polite" aria-atomic="true">
+					<div class="webmcp-status-banner" data-webmcp-status-panel data-state="detecting">
+						<span class="webmcp-status-dot" aria-hidden="true"></span>
+						<span>
+							<strong>WebMCP</strong>
+							<small data-webmcp-status-label>Detecting browser support</small>
+						</span>
+						<code data-webmcp-tool-count>0 tools</code>
+					</div>
+					<p class="webmcp-status-copy" data-webmcp-status-message>The complete human editing surface remains available while WebMCP initializes.</p>
 				</div>
-				<p class="webmcp-status-copy" data-webmcp-status-message>The complete human editing surface remains available while WebMCP initializes.</p>
+				<div class="webmcp-authority-cue" role="note" aria-label="Authority boundary: agents can inspect, focus, and stage proposals. A person must review and apply changes.">
+					<span class="webmcp-agent-authority">
+						<strong>Agent</strong>
+						<small>inspect · focus · stage</small>
+					</span>
+					<span class="webmcp-authority-boundary" aria-hidden="true">proposal only</span>
+					<span class="webmcp-human-authority">
+						<strong>Human</strong>
+						<small>review · apply</small>
+					</span>
+				</div>
 				<ol class="webmcp-flow" aria-label="WebMCP collaboration flow">
-					<li data-webmcp-flow-tool="scene_get_state" data-state="idle"><span>1</span><strong>Inspect</strong></li>
-					<li data-webmcp-flow-tool="scene_find_objects" data-state="idle"><span>2</span><strong>Find</strong></li>
-					<li data-webmcp-flow-tool="scene_focus_object" data-state="idle"><span>3</span><strong>Focus</strong></li>
-					<li data-webmcp-flow-tool="scene_preview_actions" data-state="idle"><span>4</span><strong>Stage</strong></li>
+					<li data-webmcp-flow-tool="scene_get_state" data-label="Inspect" data-state="idle" aria-label="Inspect: idle"><span aria-hidden="true">1</span><strong aria-hidden="true">Inspect</strong></li>
+					<li data-webmcp-flow-tool="scene_find_objects" data-label="Find" data-state="idle" aria-label="Find: idle"><span aria-hidden="true">2</span><strong aria-hidden="true">Find</strong></li>
+					<li data-webmcp-flow-tool="scene_focus_object" data-label="Focus" data-state="idle" aria-label="Focus: idle"><span aria-hidden="true">3</span><strong aria-hidden="true">Focus</strong></li>
+					<li data-webmcp-flow-tool="scene_preview_actions" data-label="Stage" data-state="idle" aria-label="Stage: idle"><span aria-hidden="true">4</span><strong aria-hidden="true">Stage</strong></li>
 				</ol>
-				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
-					<span class="overline" id="webmcp-mission-title">Try the collaboration loop</span>
-					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Cobalt Pieces material. Explain the revision boundary.</p>
-					<button type="button" data-webmcp-copy-prompt>Copy demo prompt</button>
-					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
+				<section class="webmcp-trace-shell" aria-labelledby="webmcp-trace-title">
+					<header>
+						<span class="overline" id="webmcp-trace-title">Typed call trace</span>
+						<small>this browser session</small>
+					</header>
+					<div class="webmcp-trace" data-webmcp-trace role="log" aria-live="polite" aria-relevant="additions text">
+						<p class="webmcp-trace-empty">Typed-call receipts will appear here.</p>
+					</div>
 				</section>
 				<div class="studio-demo-reset" data-studio-demo-panel data-webmcp-idle-only hidden>
 					<span>
 						<strong>Shared public demo</strong>
 						<small>One ephemeral scene for every visitor. Reset clears edits and staged proposals.</small>
+						<small class="studio-demo-state" data-studio-demo-state aria-live="polite">Checking showcase baseline…</small>
 					</span>
 					<button type="button" data-studio-demo-reset data-revision={data.revision}>Reset shared scene</button>
 				</div>
+				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
+					<span class="overline" id="webmcp-mission-title">Try the collaboration loop</span>
+					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Cobalt Pieces material. Explain the revision boundary.</p>
+					<button type="button" data-webmcp-copy-prompt disabled>Copy demo prompt</button>
+					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
+				</section>
 				<p class="placeholder-copy" data-webmcp-idle-only>{data.agent.authority}</p>
 				<div class="proposal" data-webmcp-proposal data-revision={data.revision}>
 					<span class="overline">Latest staged proposal</span>
 					<p data-webmcp-proposal-summary>{data.agent.proposalSummary}</p>
 					<p data-webmcp-proposal-rationale hidden></p>
-					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
-						<button type="button" data-webmcp-discard>Discard</button>
-						<button type="button" class="primary" data-webmcp-commit>Apply staged changes</button>
-					</div>
 					<ul class="webmcp-change-list" data-webmcp-proposal-changes hidden></ul>
 					<dl>
 						<div>
@@ -830,6 +850,10 @@ func Page() Node {
 							<dd data-webmcp-proposal-revision>{data.agent.proposalRevision}</dd>
 						</div>
 						<div>
+							<dt>Review window</dt>
+							<dd data-webmcp-proposal-expiry>not staged</dd>
+						</div>
+						<div>
 							<dt>Affected</dt>
 							<dd data-webmcp-proposal-affected>{data.agent.proposalAffected}</dd>
 						</div>
@@ -838,6 +862,14 @@ func Page() Node {
 							<dd class="pending" data-webmcp-proposal-fingerprint>{data.agent.proposalFingerprint}</dd>
 						</div>
 					</dl>
+					<details class="webmcp-policy-details">
+						<summary>Why Arbiter allowed this proposal</summary>
+						<p data-webmcp-proposal-policy-reasons>Stage a proposal to see the policy decision for every operation.</p>
+					</details>
+					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
+						<button type="button" data-webmcp-discard>Discard</button>
+						<button type="button" class="primary" data-webmcp-commit>Apply staged changes</button>
+					</div>
 				</div>
 				<div class="proposal" data-webmcp-idle-only>
 					<span class="overline">Shared workspace activity</span>
@@ -890,7 +922,7 @@ func Page() Node {
 					<small>Live invariants for the current canonical scene</small>
 					<small class={"certification-state certification-state-" + data.certification.certState}>evidence {data.certification.certState} · revision {data.certification.certRevision}</small>
 					<details class="certification-details">
-						<summary>Editor coverage · {data.certification.available}/{data.certification.total}</summary>
+						<summary>Capability evidence · {data.certification.available} complete · {data.certification.total} tracked</summary>
 						<ul class="certification-dimensions">
 							<Each of={data.certification.dimensions} as="dimension">
 								<li title={dimension.evidence}>

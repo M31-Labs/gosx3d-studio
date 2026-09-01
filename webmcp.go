@@ -22,8 +22,10 @@ const (
 )
 
 var (
-	errWebMCPProposalNotFound = errors.New("WebMCP proposal not found")
-	errWebMCPProposalExpired  = errors.New("WebMCP proposal expired")
+	errWebMCPProposalNotFound   = errors.New("WebMCP proposal not found")
+	errWebMCPProposalExpired    = errors.New("WebMCP proposal expired")
+	errWebMCPProposalNoChanges  = errors.New("WebMCP proposal does not change the scene")
+	errWebMCPProposalCommitting = errors.New("a WebMCP proposal is already being committed")
 )
 
 // webMCPProposalRequest is intentionally narrower than studio.Transaction.
@@ -49,7 +51,9 @@ type webMCPProposal struct {
 	Receipt     studio.Receipt
 	Governance  []webMCPOperationDecision
 	Preview     map[string]any
+	Materials   map[string]string
 	ExpiresAt   time.Time
+	Claimed     bool
 }
 
 // webMCPProposalStore keeps staged edits exact and bounded. The browser only
@@ -218,6 +222,23 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 	// after that invalidation has completed.
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	store.pruneLocked(store.now())
+	if store.hasClaimedOwnerLocked(owner) {
+		return nil, errWebMCPProposalCommitting
+	}
+	var sameRevision, changesScene bool
+	if err := store.workspace.Read(func(document *studio.Document) error {
+		sameRevision = document.Revision == request.ExpectedRevision
+		if sameRevision {
+			changesScene = webMCPOperationsChangeDocument(document, request.Operations)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if sameRevision && !changesScene {
+		return nil, errWebMCPProposalNoChanges
+	}
 	receipt, preview, err := store.workspace.Execute(transaction)
 	if err != nil {
 		return nil, err
@@ -227,12 +248,13 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 	proposal := webMCPProposal{
 		ID: proposalID, Owner: owner, Title: request.Title, Rationale: request.Rationale,
 		Transaction: transaction, Receipt: receipt, Governance: governance,
-		Preview: previewSummary, ExpiresAt: expiresAt,
+		Preview: previewSummary, Materials: webMCPMaterialDisplayNames(receipt, preview), ExpiresAt: expiresAt,
 	}
-	store.pruneLocked(store.now())
-	for len(store.order) >= maxWebMCPProposals {
-		delete(store.proposals, store.order[0])
-		store.order = store.order[1:]
+	// A successful preview supersedes an older review from the same browser.
+	// Failed validation or preview execution returns above and preserves it.
+	store.removeOwnerProposalsLocked(owner)
+	if err := store.makeRoomLocked(); err != nil {
+		return nil, err
 	}
 	store.proposals[proposalID] = proposal
 	store.order = append(store.order, proposalID)
@@ -252,7 +274,7 @@ func (store *webMCPProposalStore) Current(owner string) map[string]any {
 	store.pruneLocked(store.now())
 	for index := len(store.order) - 1; index >= 0; index-- {
 		proposal, ok := store.proposals[store.order[index]]
-		if ok && webMCPProposalOwnerMatches(proposal.Owner, owner) {
+		if ok && !proposal.Claimed && webMCPProposalOwnerMatches(proposal.Owner, owner) {
 			return webMCPProposalView(proposal)
 		}
 	}
@@ -267,7 +289,7 @@ func (store *webMCPProposalStore) Discard(proposalID, owner string) (map[string]
 	defer store.mu.Unlock()
 	store.pruneLocked(store.now())
 	proposal, ok := store.proposals[proposalID]
-	if !ok || !webMCPProposalOwnerMatches(proposal.Owner, owner) {
+	if !ok || proposal.Claimed || !webMCPProposalOwnerMatches(proposal.Owner, owner) {
 		return nil, errWebMCPProposalNotFound
 	}
 	delete(store.proposals, proposalID)
@@ -288,24 +310,15 @@ func webMCPProposalView(proposal webMCPProposal) map[string]any {
 		"receipt":    proposal.Receipt,
 		"governance": proposal.Governance,
 		"preview":    proposal.Preview,
+		"materials":  proposal.Materials,
 	}
 }
 
 func (store *webMCPProposalStore) Commit(proposalID, owner string) (map[string]any, error) {
-	now := store.now()
-	store.mu.Lock()
-	proposal, ok := store.proposals[proposalID]
-	if !ok || !webMCPProposalOwnerMatches(proposal.Owner, owner) {
-		store.mu.Unlock()
-		return nil, errWebMCPProposalNotFound
+	proposal, err := store.claimCommit(proposalID, owner)
+	if err != nil {
+		return nil, err
 	}
-	if !proposal.ExpiresAt.After(now) {
-		delete(store.proposals, proposalID)
-		store.removeOrderLocked(proposalID)
-		store.mu.Unlock()
-		return nil, errWebMCPProposalExpired
-	}
-	store.mu.Unlock()
 
 	transaction := proposal.Transaction
 	transaction.ID = "webmcp-commit:" + proposalID
@@ -313,24 +326,56 @@ func (store *webMCPProposalStore) Commit(proposalID, owner string) (map[string]a
 	transaction.Mode = studio.ModeDirect
 	receipt, document, err := store.workspace.Execute(transaction)
 	if err != nil {
-		if errors.Is(err, studio.ErrRevisionConflict) {
-			store.mu.Lock()
-			delete(store.proposals, proposalID)
-			store.removeOrderLocked(proposalID)
-			store.mu.Unlock()
-		}
+		store.finishCommit(proposalID, owner, err)
 		return nil, err
 	}
-	store.mu.Lock()
-	delete(store.proposals, proposalID)
-	store.removeOrderLocked(proposalID)
-	store.mu.Unlock()
+	store.finishCommit(proposalID, owner, nil)
 	return map[string]any{
 		"proposalId": proposalID,
 		"title":      proposal.Title,
 		"receipt":    receipt,
 		"document":   webMCPDocumentSummary(document),
 	}, nil
+}
+
+// claimCommit atomically makes a proposal unavailable to every other
+// lifecycle action before canonical execution begins. In particular, a
+// concurrent Discard can no longer report success while this commit applies.
+func (store *webMCPProposalStore) claimCommit(proposalID, owner string) (webMCPProposal, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	proposal, ok := store.proposals[proposalID]
+	if !ok || proposal.Claimed || !webMCPProposalOwnerMatches(proposal.Owner, owner) {
+		return webMCPProposal{}, errWebMCPProposalNotFound
+	}
+	if !proposal.ExpiresAt.After(store.now()) {
+		delete(store.proposals, proposalID)
+		store.removeOrderLocked(proposalID)
+		return webMCPProposal{}, errWebMCPProposalExpired
+	}
+	proposal.Claimed = true
+	store.proposals[proposalID] = proposal
+	return proposal, nil
+}
+
+// finishCommit consumes successful and revision-conflicted proposals. A
+// transient execution failure releases the claim only if Clear has not
+// invalidated the proposal in the meantime, allowing a safe retry without
+// resurrecting reset state.
+func (store *webMCPProposalStore) finishCommit(proposalID, owner string, executionErr error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	proposal, ok := store.proposals[proposalID]
+	if !ok || !proposal.Claimed || !webMCPProposalOwnerMatches(proposal.Owner, owner) {
+		return
+	}
+	if executionErr == nil || errors.Is(executionErr, studio.ErrRevisionConflict) {
+		delete(store.proposals, proposalID)
+		store.removeOrderLocked(proposalID)
+		return
+	}
+	proposal.Claimed = false
+	store.proposals[proposalID] = proposal
 }
 
 // Clear invalidates every staged proposal without touching the canonical
@@ -354,13 +399,53 @@ func (store *webMCPProposalStore) pruneLocked(now time.Time) {
 	kept := store.order[:0]
 	for _, id := range store.order {
 		proposal, ok := store.proposals[id]
-		if !ok || !proposal.ExpiresAt.After(now) {
+		if !ok || (!proposal.Claimed && !proposal.ExpiresAt.After(now)) {
 			delete(store.proposals, id)
 			continue
 		}
 		kept = append(kept, id)
 	}
 	store.order = kept
+}
+
+func (store *webMCPProposalStore) hasClaimedOwnerLocked(owner string) bool {
+	for _, proposal := range store.proposals {
+		if proposal.Claimed && webMCPProposalOwnerMatches(proposal.Owner, owner) {
+			return true
+		}
+	}
+	return false
+}
+
+func (store *webMCPProposalStore) removeOwnerProposalsLocked(owner string) {
+	kept := store.order[:0]
+	for _, id := range store.order {
+		proposal, ok := store.proposals[id]
+		if ok && !proposal.Claimed && webMCPProposalOwnerMatches(proposal.Owner, owner) {
+			delete(store.proposals, id)
+			continue
+		}
+		kept = append(kept, id)
+	}
+	store.order = kept
+}
+
+func (store *webMCPProposalStore) makeRoomLocked() error {
+	for len(store.order) >= maxWebMCPProposals {
+		candidate := ""
+		for _, id := range store.order {
+			if proposal, ok := store.proposals[id]; ok && !proposal.Claimed {
+				candidate = id
+				break
+			}
+		}
+		if candidate == "" {
+			return fmt.Errorf("WebMCP proposal capacity is busy; try again")
+		}
+		delete(store.proposals, candidate)
+		store.removeOrderLocked(candidate)
+	}
+	return nil
 }
 
 func (store *webMCPProposalStore) removeOrderLocked(id string) {
@@ -389,4 +474,84 @@ func webMCPDocumentSummary(document studio.Document) map[string]any {
 		"entityCount":   len(document.Entities),
 		"materialCount": len(document.Materials),
 	}
+}
+
+type webMCPEntityEditState struct {
+	Name      string
+	Transform studio.Transform
+	Material  studio.ID
+	HasMesh   bool
+}
+
+// webMCPOperationsChangeDocument evaluates the final effect of the deliberately
+// narrow WebMCP operation surface. Invalid targets are left to Workspace's
+// authoritative validator; this helper only rejects valid requests whose net
+// result would be identical to canonical state.
+func webMCPOperationsChangeDocument(document *studio.Document, operations []studio.Operation) bool {
+	original := make(map[studio.ID]webMCPEntityEditState, len(operations))
+	working := make(map[studio.ID]webMCPEntityEditState, len(operations))
+	for _, operation := range operations {
+		state, seen := working[operation.Target]
+		if !seen {
+			entity, ok := document.Entities[operation.Target]
+			if !ok || entity.Locked {
+				return true
+			}
+			state = webMCPEntityEditState{Name: entity.Name, Transform: entity.Transform, HasMesh: entity.Mesh != nil}
+			if entity.Mesh != nil {
+				state.Material = entity.Mesh.Material
+			}
+			original[operation.Target] = state
+		}
+		switch operation.Kind {
+		case studio.OpRenameEntity:
+			state.Name = strings.TrimSpace(operation.Name)
+		case studio.OpSetTransform:
+			if operation.Transform == nil {
+				return true
+			}
+			state.Transform = *operation.Transform
+		case studio.OpAssignMaterial:
+			if !state.HasMesh {
+				return true
+			}
+			if _, ok := document.Materials[operation.Material]; !ok {
+				return true
+			}
+			state.Material = operation.Material
+		default:
+			return true
+		}
+		working[operation.Target] = state
+	}
+	for id, state := range working {
+		if state != original[id] {
+			return true
+		}
+	}
+	return false
+}
+
+func webMCPMaterialDisplayNames(receipt studio.Receipt, preview studio.Document) map[string]string {
+	ids := map[studio.ID]struct{}{}
+	for _, change := range receipt.Changes {
+		if change.Kind != studio.OpAssignMaterial {
+			continue
+		}
+		if change.Before != nil && change.Before.Mesh != nil {
+			ids[change.Before.Mesh.Material] = struct{}{}
+		}
+		if change.After != nil && change.After.Mesh != nil {
+			ids[change.After.Mesh.Material] = struct{}{}
+		}
+	}
+	names := make(map[string]string, len(ids))
+	for id := range ids {
+		name := string(id)
+		if material, ok := preview.Materials[id]; ok && strings.TrimSpace(material.Name) != "" {
+			name = material.Name
+		}
+		names[string(id)] = name
+	}
+	return names
 }

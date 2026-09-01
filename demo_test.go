@@ -83,6 +83,7 @@ func TestStudioDemoResetRestoresARevisionSafeCleanSample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	requireStudioDemoCleanState(t, project, true)
 	_, firstEdit, err := workspace.Execute(studio.Transaction{
 		ID:               "demo-dirty-1",
 		Actor:            "human://demo-test",
@@ -120,6 +121,7 @@ func TestStudioDemoResetRestoresARevisionSafeCleanSample(t *testing.T) {
 	if len(workspace.RecentReceipts(10)) == 0 || workspace.ProjectStatus().UndoDepth == 0 {
 		t.Fatal("test did not populate project-scoped transient history")
 	}
+	requireStudioDemoCleanState(t, project, false)
 
 	result, err := project.Reset(beforeReset.Revision)
 	if err != nil {
@@ -131,6 +133,7 @@ func TestStudioDemoResetRestoresARevisionSafeCleanSample(t *testing.T) {
 	if !result.Enabled || !result.SharedScene || !result.Ephemeral || result.Mode != "shared-clean-room" || result.ResetPath != studioDemoResetPath {
 		t.Fatalf("reset public state = %+v", result.studioDemoPublicState)
 	}
+	requireStudioDemoCleanFlag(t, result.Clean, true)
 	if result.CleanupWarning != "" {
 		t.Fatalf("unexpected cleanup warning: %q", result.CleanupWarning)
 	}
@@ -210,6 +213,22 @@ func TestStudioDemoResetRestoresARevisionSafeCleanSample(t *testing.T) {
 	}
 	if strings.Contains(string(publicJSON), baseDir) || strings.Contains(string(publicJSON), currentGeneration) {
 		t.Fatalf("public reset result leaked manager-owned paths: %s", publicJSON)
+	}
+}
+
+func requireStudioDemoCleanState(t *testing.T, project *studioDemoProject, want bool) {
+	t.Helper()
+	state, err := project.PublicState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireStudioDemoCleanFlag(t, state.Clean, want)
+}
+
+func requireStudioDemoCleanFlag(t *testing.T, got, want bool) {
+	t.Helper()
+	if got != want {
+		t.Fatalf("demo clean state = %t, want %t", got, want)
 	}
 }
 
@@ -335,7 +354,7 @@ func TestStudioDemoHTTPResetRequiresBrowserCSRFAndClearsAllProposals(t *testing.
 	if err := json.Unmarshal(statusResponse.Body.Bytes(), &state); err != nil {
 		t.Fatal(err)
 	}
-	if !state.Enabled || !state.SharedScene || !state.Ephemeral || state.ResetPath != studioDemoResetPath || state.Revision != 1 {
+	if !state.Enabled || !state.SharedScene || !state.Ephemeral || !state.Clean || state.ResetPath != studioDemoResetPath || state.Revision != 1 {
 		t.Fatalf("demo status = %+v", state)
 	}
 	project.mu.Lock()
@@ -380,7 +399,7 @@ func TestStudioDemoHTTPResetRequiresBrowserCSRFAndClearsAllProposals(t *testing.
 	if err := json.Unmarshal(resetResponse.Body.Bytes(), &reset); err != nil {
 		t.Fatal(err)
 	}
-	if reset.PreviousRevision != state.Revision || reset.Revision != state.Revision+1 || !reset.SharedScene {
+	if reset.PreviousRevision != state.Revision || reset.Revision != state.Revision+1 || !reset.SharedScene || !reset.Clean {
 		t.Fatalf("reset response = %+v", reset)
 	}
 

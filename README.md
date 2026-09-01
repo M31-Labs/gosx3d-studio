@@ -12,6 +12,10 @@ viewport selection and revision-safe human/agent commands, and exposes its
 collaboration surface through four browser-native WebMCP tools. A visible reset
 restores the sample at a newer canonical revision.
 
+A 148-object scene becomes one intent, four typed calls, two exact edits, and
+one human approval. Technical artists can delegate hierarchy search and batch
+preparation without surrendering scene authority.
+
 ## WebMCP collaboration
 
 The Studio now exposes its existing human/agent scene contract directly to a
@@ -21,6 +25,12 @@ preview appears in the Studio with its rationale, revision, affected objects,
 semantic changes, deterministic fingerprint, and Arbiter Allow evidence. It
 does not change the scene until a person uses the visible **Apply staged
 changes** action, which is not exposed as a WebMCP tool.
+
+A persistent typed-call trace makes the collaboration legible in the page: it
+records the inspected revision, the object the agent found, the visible focus
+request, and the bounded operation count staged for review. The trace and
+server-owned proposal return after a same-session reload, while canonical scene
+state remains unchanged.
 
 Four tools are registered in `public/studio-webmcp.js`:
 

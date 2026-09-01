@@ -10,7 +10,8 @@
   var EVENTS = {
     status: "studio:webmcp:status",
     focus: "studio:webmcp:focus",
-    proposal: "studio:webmcp:proposal"
+    proposal: "studio:webmcp:proposal",
+    trace: "studio:webmcp:trace"
   };
   var TOOL_NAMES = ["scene_get_state", "scene_find_objects", "scene_focus_object", "scene_preview_actions"];
   var REQUEST_TIMEOUT_MS = 15000;
@@ -19,6 +20,7 @@
   var registrationState = "idle";
   var registrationAttempts = 0;
   var retryTimer = 0;
+  var callSequence = 0;
 
   function AdapterError(code, message, status) {
     this.name = "AdapterError";
@@ -93,12 +95,49 @@
     };
   }
 
+  function traceMessage(tool, result) {
+    var data = result && result.data || {};
+    if (tool === "scene_get_state") {
+      var scene = data.scene || {};
+      var counts = data.counts || {};
+      return "Inspect · revision " + String(scene.revision == null ? "?" : scene.revision) + " · " + String(counts.objects == null ? "?" : counts.objects) + " objects";
+    }
+    if (tool === "scene_find_objects") {
+      var objects = Array.isArray(data.objects) ? data.objects : [];
+      var first = objects[0] || {};
+      var kinds = Array.isArray(first.components) ? first.components : [];
+      return "Find · " + String(data.totalMatches == null ? objects.length : data.totalMatches) + " match" + (Number(data.totalMatches) === 1 ? "" : "es") + (first.id ? " · " + String(first.id) : "") + (kinds[0] ? " · " + String(kinds[0]) : "");
+    }
+    if (tool === "scene_focus_object") {
+      return "Focus · " + String(data.object && data.object.id || "object") + " · UI only";
+    }
+    if (tool === "scene_preview_actions") {
+      var receipt = data.receipt || {};
+      return "Stage · " + String(receipt.operations == null ? "?" : receipt.operations) + " operations · canonical " + String(receipt.beforeRevision == null ? "?" : receipt.beforeRevision) + " unchanged";
+    }
+    return tool + " completed";
+  }
+
+  function emitTrace(callId, tool, state, message, code) {
+    dispatch(EVENTS.trace, {
+      source: "webmcp",
+      callId: callId,
+      tool: tool,
+      state: state,
+      message: message,
+      code: code || "",
+      timestamp: new Date().toISOString()
+    });
+  }
+
   function execute(tool, handler) {
     return async function (input, options) {
       var signal = options && options.signal;
+      var callId = "webmcp-" + String(Date.now()) + "-" + String(++callSequence);
       emitStatus("ready", "Running " + tool + "…", { tool: tool, toolCount: TOOL_NAMES.length });
       try {
         var result = await handler(typeof input === "undefined" ? {} : input, signal);
+        emitTrace(callId, tool, "complete", traceMessage(tool, result));
         // The proposal event moves the UI into an explicit human-review state;
         // do not immediately overwrite that state with a generic completion.
         if (tool !== "scene_preview_actions") {
@@ -107,6 +146,7 @@
         return successResult(tool, result.message, result.data);
       } catch (caught) {
         var error = normalizedError(caught);
+        emitTrace(callId, tool, "error", tool + " · " + String(error.code || "UNEXPECTED_ERROR"), error.code);
         emitStatus("error", error.message, { tool: tool, code: error.code, toolCount: TOOL_NAMES.length });
         return errorResult(tool, error);
       }
@@ -469,13 +509,31 @@
     if (entity.locked === true) fail("INVALID_INPUT", path + " targets locked scene object " + JSON.stringify(entity.id) + ".");
   }
 
+  function vec3Equal(left, right, fallback) {
+    left = copyVec3(left, fallback);
+    right = copyVec3(right, fallback);
+    return left.x === right.x && left.y === right.y && left.z === right.z;
+  }
+
+  function editableState(entity) {
+    var transform = entity && entity.transform || {};
+    return {
+      name: entity && entity.name || "",
+      material: entity && entity.mesh && entity.mesh.material || "",
+      position: copyVec3(transform.position),
+      rotation: copyVec3(transform.rotation),
+      scale: copyVec3(transform.scale, { x: 1, y: 1, z: 1 })
+    };
+  }
+
   function normalizeOperations(operations, documentValue) {
     if (!Array.isArray(operations) || !operations.length || operations.length > MAX_OPERATIONS) {
       fail("INVALID_INPUT", "input.operations must contain 1 to " + MAX_OPERATIONS + " actions.");
     }
     var entities = Object.assign({}, documentValue.entities);
     var materials = documentValue.materials || {};
-    return operations.map(function (operation, index) {
+    var touched = {};
+    var normalized = operations.map(function (operation, index) {
       var path = "input.operations[" + index + "]";
       expectObject(operation, path);
       var kind = readString(operation, "kind", path, { required: true, max: 40 });
@@ -487,9 +545,13 @@
         entity = requireEntity(entities, target, path);
         ensureUnlocked(entity, path);
         var name = readString(operation, "name", path, { required: true, max: 120 });
+        if (entity.name === name) {
+          fail("ALREADY_SATISFIED", path + " already names " + JSON.stringify(target) + " " + JSON.stringify(name) + "; inspect the current scene or choose a different edit.");
+        }
         entity = clone(entity);
         entity.name = name;
         entities[target] = entity;
+        touched[target] = true;
         return { kind: kind, target: target, name: name };
       }
       if (kind === "assign-material") {
@@ -500,9 +562,13 @@
         var material = readID(operation, "material", path);
         if (!entity.mesh) fail("INVALID_INPUT", path + " can only assign material to a mesh object.");
         if (!materials[material]) fail("INVALID_INPUT", path + " references missing material " + JSON.stringify(material) + ".");
+        if (entity.mesh.material === material) {
+          fail("ALREADY_SATISFIED", path + " already assigns material " + JSON.stringify(material) + " to " + JSON.stringify(target) + "; inspect the current scene or choose a different material.");
+        }
         entity = clone(entity);
         entity.mesh.material = material;
         entities[target] = entity;
+        touched[target] = true;
         return { kind: kind, target: target, material: material };
       }
       if (kind === "set-transform") {
@@ -520,6 +586,9 @@
         if (entity.light && (scale.x !== 1 || scale.y !== 1 || scale.z !== 1)) {
           fail("INVALID_INPUT", path + " cannot scale a light; light scale has no render meaning.");
         }
+        if (vec3Equal(position, current.position) && vec3Equal(rotation, current.rotation) && vec3Equal(scale, current.scale, { x: 1, y: 1, z: 1 })) {
+          fail("ALREADY_SATISFIED", path + " already matches the current transform for " + JSON.stringify(target) + "; inspect the current scene or choose a different transform.");
+        }
         var transform = {
           position: position,
           quaternion: Object.prototype.hasOwnProperty.call(patch, "rotation") ? quaternionFromEuler(rotation) : normalizedQuaternion(current.quaternion),
@@ -529,10 +598,18 @@
         entity = clone(entity);
         entity.transform = transform;
         entities[target] = entity;
+        touched[target] = true;
         return { kind: kind, target: target, transform: transform };
       }
       fail("INVALID_INPUT", path + ".kind must be rename-entity, set-transform, or assign-material.");
     });
+    var changed = Object.keys(touched).some(function (id) {
+      return JSON.stringify(editableState(entities[id])) !== JSON.stringify(editableState(documentValue.entities[id]));
+    });
+    if (!changed) {
+      fail("ALREADY_SATISFIED", "The proposed operations cancel out or already match the canonical scene; inspect the current scene and stage a meaningful change.");
+    }
+    return normalized;
   }
 
   function receiptSummary(receipt) {
@@ -585,6 +662,7 @@
       receipt: receipt,
       governance: governance,
       preview: preview,
+      materials: response.materials || {},
       expiresAt: response.expiresAt || null
     };
     dispatch(EVENTS.proposal, eventDetail);
@@ -604,6 +682,7 @@
             reason: decision && decision.reason
           };
         }),
+        materials: response.materials || {},
         humanCommitRequired: true,
         canonicalSceneChanged: false
       }
