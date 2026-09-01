@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -298,11 +299,12 @@ func TestRenderBlueprintBuildsAndRunsThePackagedGoSXArtifact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if buildScriptInfo.Mode().Perm()&0o111 == 0 {
+	if runtime.GOOS != "windows" && buildScriptInfo.Mode().Perm()&0o111 == 0 {
 		t.Fatal("Render build script must be executable")
 	}
 	buildContents := string(buildScript)
 	for _, required := range []string{
+		"#!/bin/sh",
 		`studio_tinygo_version="0.41.1"`,
 		"sha256sum --check --status",
 		`tinygo${studio_tinygo_version}.linux-${studio_tinygo_arch}.tar.gz`,
