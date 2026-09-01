@@ -88,6 +88,31 @@ jobs:
           "WASMOPT=$($wasmOpt.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $wasmOpt.Directory.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           & $wasmOpt.FullName --version
+      # GoSX builds its capability-linked WASM variants concurrently. On a
+      # fresh Windows runner, parallel TinyGo processes can race while creating
+      # the shared WASI libc archive and one loses the final rename with
+      # ERROR_ACCESS_DENIED. Build one tiny browser target first so that cache
+      # initialization is serialized; the real build still runs every variant.
+      - name: Warm TinyGo WASI cache serially
+        run: |
+          $warmupDir = Join-Path $env:RUNNER_TEMP "gosx-tinygo-cache-warmup"
+          New-Item -ItemType Directory -Path $warmupDir -Force | Out-Null
+          $source = Join-Path $warmupDir "main.go"
+          $output = Join-Path $warmupDir "warmup.wasm"
+          @'
+          package main
+
+          import "syscall/js"
+
+          func main() {
+              _ = js.Global()
+          }
+          '@ | Set-Content -Path $source -Encoding utf8
+          tinygo build -target wasm -no-debug -panic=trap -o $output $source
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not (Test-Path $output -PathType Leaf)) {
+            throw "TinyGo cache warmup did not produce $output"
+          }
       - name: Offline bundle + MSIX staging
         run: ..\gosx-cli.exe build --prod --offline .
       - name: MSIX pack (best effort until signing identity lands)
