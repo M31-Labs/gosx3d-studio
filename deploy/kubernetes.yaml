@@ -177,6 +177,31 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  name: gosx3d-studio-http-redirect
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-redirect-https@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: gosx3d.m31labs.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gosx3d-studio
+                port:
+                  name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
   name: gosx3d-studio
   namespace: m31labs
   labels:
@@ -184,7 +209,8 @@ metadata:
     app.kubernetes.io/part-of: m31labs
   annotations:
     cert-manager.io/cluster-issuer: cloudflare-issuer
-    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-redirect-https@kubernetescrd,m31labs-gosx3d-studio-security-headers@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-security-headers@kubernetescrd
     traefik.ingress.kubernetes.io/router.tls.options: m31labs-gosx3d-studio-modern-tls@kubernetescrd
 spec:
   ingressClassName: traefik
@@ -213,7 +239,8 @@ metadata:
     app.kubernetes.io/name: gosx3d-studio
     app.kubernetes.io/part-of: m31labs
   annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-redirect-https@kubernetescrd,m31labs-gosx3d-studio-security-headers@kubernetescrd,m31labs-gosx3d-studio-volatile-assets@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-security-headers@kubernetescrd,m31labs-gosx3d-studio-volatile-assets@kubernetescrd
     traefik.ingress.kubernetes.io/router.tls.options: m31labs-gosx3d-studio-modern-tls@kubernetescrd
 spec:
   ingressClassName: traefik
