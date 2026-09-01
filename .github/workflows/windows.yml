@@ -125,7 +125,7 @@ jobs:
         run: ..\gosx-cli.exe build --prod --offline --msix .
       - name: Verify unsigned MSIX package
         run: |
-          foreach ($required in @("dist\app.msix", "dist\msix\package\AppxManifest.xml", "dist\msix\package\app.exe")) {
+          foreach ($required in @("dist\app.msix", "dist\msix\package\AppxManifest.xml", "dist\msix\package\server\app.exe")) {
             if (-not (Test-Path $required -PathType Leaf)) {
               throw "MSIX build is missing $required"
             }

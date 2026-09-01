@@ -362,6 +362,7 @@ func TestWindowsProductionPackagingProvisionsPinnedToolchain(t *testing.T) {
 		`"GOSX_MAKEAPPX=$($makeappx.FullName)"`,
 		`..\gosx-cli.exe build --prod --offline --msix .`,
 		`dist\app.msix`,
+		`dist\msix\package\server\app.exe`,
 	} {
 		if !strings.Contains(contents, required) {
 			t.Fatalf("Windows production packaging is missing toolchain contract %q", required)
