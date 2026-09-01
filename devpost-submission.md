@@ -279,12 +279,10 @@ No public demo URL has been confirmed yet.
 
 ## Public Repository Link
 
-`[TODO: PUBLIC GITHUB, GITLAB, OR BITBUCKET URL]`
+<https://github.com/M31-Labs/gosx3d-studio>
 
-The local checkout has a Git remote, but its public visibility and final
-Challenge branch have not been confirmed. Do not replace this placeholder until
-the repository is publicly reachable, includes all required source and run
-instructions, and displays the selected open-source license.
+The public default branch contains the complete source, run and verification
+instructions, WebMCP implementation, and a repository-root MIT License.
 
 ## Demo Video
 
@@ -342,7 +340,7 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
       smoke.
 - [ ] Deploy one HTTPS instance, test it from an external compatible browser,
       and fill the public demo URL.
-- [ ] Publish the final source repository, verify anonymous access and license
+- [x] Publish the final source repository, verify anonymous access and license
       detection, and fill the repository URL.
 - [ ] Capture screenshots, record the under-three-minute video with audio,
       publish it on YouTube, and fill the video URL.
@@ -393,12 +391,12 @@ Challenge. Values in brackets require the submitter's confirmation.
 | **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; an explicit human review and exact-commit UI; a human-only shared-demo reset; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; a GoSX v0.54.0 upgrade with affine group-scale integration; Challenge documentation; and deployment configuration. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
 | **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | `[TODO: PUBLIC HTTPS DEMO URL]` |
 | **If applicable, testing instructions for application** (private to Devpost and judges) | `[PROVISIONAL—replace the URL after deployment] No credentials are planned. Open the live URL in a compatible browser, click Reset shared scene and confirm the warning, confirm Agent Collaboration reports four tools, then follow the Hosted judge flow in this draft.` |
-| **URL to your PUBLIC Code Repo** (required) | `[TODO: PUBLIC GITHUB, GITLAB, OR BITBUCKET URL WITH VISIBLE LICENSE]` |
+| **URL to your PUBLIC Code Repo** (required) | `https://github.com/M31-Labs/gosx3d-studio` |
 | **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome for Testing 152.0.7977.64 with enable-webmcp-testing@1. Chrome exposed its native Document.modelContext / ModelContext implementation, discovered all four webpage tools, and completed the inspect, search, focus, preview, discard, human-apply, conflict-rejection, policy-denial, and reset workflow. We also ran adapter regression coverage in Chrome 143 with an injected modelContext mock; we have not yet tested ChatGPT's in-app browser.` |
 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification support, documentation, and submission preparation. [TODO: add any other AI tools actually used; do not list planned tools.]` |
 | **Describe the level of learning you/your team derived from the project** (required) | `[TODO: choose None, Moderate, or Significant]` |
 | **Did you gain AI value that you can use in your career?** (required) | `[TODO: choose Yes or No]` |
 
-Required deliverables outside those custom questions remain open: a working
-live URL, public repository with a visible open-source license, truthful project
-description, and a public YouTube demo under three minutes with audio.
+Remaining required deliverables outside those custom questions are a working
+live URL and a public YouTube demo under three minutes with audio. The public
+MIT-licensed source repository and truthful project description are ready.
