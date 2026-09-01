@@ -6,6 +6,10 @@ path.
 
 **Live judge demo:** [gosx3d.m31labs.dev](https://gosx3d.m31labs.dev)
 
+![GoSX 3D Studio showing a human-approved WebMCP scene change](docs/assets/webmcp-human-applied.png)
+
+_One intent, four typed calls, two exact edits, and one human approval._
+
 The hosted sample is one shared, ephemeral workspace. It mounts a real
 Studio-owned Chinese Checkers SceneDoc through typed Scene3D, supports exact
 viewport selection and revision-safe human/agent commands, and exposes its

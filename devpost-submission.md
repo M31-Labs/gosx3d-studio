@@ -319,6 +319,9 @@ the opening belongs to the agent's object discovery rather than demo setup.
 
 ## Screenshot Shot List
 
+Final 1440px public-deployment frames are ready in `docs/assets/` for the clean
+workbench, staged review, and human-applied result.
+
 1. **Full workbench and tool readiness** — Scene Hierarchy, 3D viewport,
    Inspector, current **REVISION**, and **Agent Collaboration** showing
    **Agent tools ready · 4 tools**. Caption: “One scene, visible to both human
@@ -331,9 +334,10 @@ the opening belongs to the agent's object discovery rather than demo setup.
    viewport. Caption: “A WebMCP focus request gives the person and agent the
    same visible referent without mutating the scene.”
 4. **Reviewable proposal** — **Latest staged proposal** with rationale,
-   `Board → Launch Board` and `board-material → player-4-material` semantic
-   changes, `agent://webmcp`, affected ID, Arbiter Allow evidence, revision
-   boundary, fingerprint, **Discard**, and **Apply staged changes**.
+   `Board → Launch Board` and `Carved Wood (board-material) → Cobalt Pieces
+   (player-4-material)` semantic changes, `agent://webmcp`, affected ID,
+   Arbiter Allow evidence, revision boundary, fingerprint, **Discard**, and
+   **Apply staged changes**.
    Caption: “The agent proposes; Apply stays in the visible Studio UI, outside
    the WebMCP tool surface.”
 5. **Auditable handoff** — `Launch Board`, `Cobalt Pieces`, revision `R+1`, and
@@ -370,8 +374,10 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
       URL.
 - [x] Publish the final source repository, verify anonymous access and license
       detection, and fill the repository URL.
-- [ ] Capture screenshots, record the under-three-minute video with audio,
-      publish it on YouTube, and fill the video URL.
+- [x] Capture final clean, staged-review, and human-applied screenshots from the
+      public deployment.
+- [ ] Record the under-three-minute video with audio, publish it on YouTube,
+      and fill the video URL.
 - [ ] Fill every required official form answer and update the existing Devpost
       project only after the URLs and proof are ready.
 
