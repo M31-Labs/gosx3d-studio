@@ -26,8 +26,8 @@ until exercised on the named operating system.
 (tests, vet, smoke, certify) natively on `windows-latest`, stages the offline
 bundle and MSIX payload, best-effort packs an unsigned `.msix` when MakeAppx
 is present, and uploads the certification JSON as the attached evidence for
-this matrix. Private sibling checkouts require the `SIBLING_REPO_TOKEN`
-repository secret.
+this matrix. Released dependencies resolve from the public Go module proxy, so
+the evidence job does not require a cross-repository credential.
 
 ## Windows verification commands
 
@@ -35,7 +35,7 @@ repository secret.
 go test ./...
 gosx check app/page.gsx
 gosx desktop --native-bridge --app-id m31labs.gosx3d-studio dev .
-gosx build --offline --msix --sign .
+gosx build --prod --offline --msix --sign .
 ```
 
 The live verification must open a project using the native picker, import a GLB
@@ -45,7 +45,9 @@ cleanly, and run `studio-certify` without opening an external browser.
 
 ## Current cross-build evidence
 
-- `GOOS=windows GOARCH=amd64 gosx build --offline .` succeeds.
+- `GOOS=windows GOARCH=amd64 gosx build --prod --offline .` succeeds.
+- Windows CI installs the official TinyGo 0.41.1 archive after verifying its
+  published SHA-256 digest before production WASM and MSIX staging.
 - The produced server entry is a PE32+ x86-64 executable and Windows defaults
   to the native desktop path unless `STUDIO_SERVER_ONLY=1` is set.
 - MSIX staging emits a Windows Desktop/full-trust manifest with

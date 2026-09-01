@@ -1,6 +1,6 @@
 # GoSX 3D Studio scaffold design contract
 
-Status: initial implementation contract
+Status: active product design contract
 Product: standalone GoSX Desktop scene, animation, game, and simulation workbench
 
 ## Visual System
@@ -112,9 +112,12 @@ Dense 4 px base scale:
 }
 ```
 
-## Scaffold boundary
+## Product and evidence boundary
 
-The first scaffold presents application regions, semantic states, and package
-seams. It does not claim that modeling, rigging, simulation, Selena compilation,
-or certification actions are implemented. Mock values are visibly labeled as
-scaffold data, and the viewport is a placeholder for the shared Scene3D engine.
+The original scaffold has evolved into a working Scene3D workbench. The
+viewport mounts the shared typed scene, hierarchy and viewport selection
+converge on canonical SceneDoc state, Inspector and Timeline forms execute real
+revision-safe commands, and live evidence reports the dimensions that are
+actually available. Unfinished surfaces remain disabled or explicitly labeled;
+partial certification stays visible in Diagnostics rather than masquerading as
+completed capability.

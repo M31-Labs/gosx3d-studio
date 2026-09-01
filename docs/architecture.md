@@ -80,12 +80,13 @@ GoSX typed Scene3D ──► shared SceneIR ──► runtime backends
 
 The compiler supports groups, box/plane/sphere/cylinder and retained indexed meshes,
 StandardMaterial records, and ambient/directional/point lights. Since gosx
-v0.31.18 mesh and model entities carry non-uniform leaf scale end to end —
-validation, typed lowering into `scene.Mesh.Scale`/`scene.Model.Scale`,
-shared SceneIR `scaleX/Y/Z`, both browser renderers, the native/headless
-vertex and normal paths, and CPU raycasting. Group and light scale remains a
-deliberate honesty gate because engine group transforms are scale-free by
-design; validation and compilation reject it with the same diagnostic.
+v0.31.18 mesh and model entities carry non-uniform leaf scale end to end.
+Since GoSX v0.54.0, group and prefab-group entities also lower through
+`scene.Group.Scale`; nested non-uniform scale and rotation retain their exact
+affine parent matrix (including shear) across shared SceneIR, browser
+renderers, native preview, BVH/raycast queries, and Studio picking. Light scale
+remains a deliberate honesty gate because it has no render meaning; validation,
+compilation, prefab overrides, and gizmo commits reject it explicitly.
 
 Transform rotation follows the spec contract: a normalized quaternion is the
 authoritative value and the euler field is display metadata. Quaternion
@@ -124,10 +125,10 @@ gosx v0.31.17 gizmo drags are interactive: the engine emits `gizmo-commit`
 input events with axis-constrained drag math shared with pure-Go helpers,
 translate drags preview live client-side, and the end phase commits exactly
 one revision-safe `set-transform` transaction (one undo step per drag,
-actor `human://viewport-gizmo`). Scale drags commit per-axis
-multiplicative factors on mesh/model entities (group scale stays rejected);
-ring rotation composes a Z-axis quaternion delta onto the authoritative
-rotation.
+actor `human://viewport-gizmo`). Scale drags commit per-axis multiplicative
+factors on mesh, model, group, and prefab-group entities; light scale stays
+rejected. Ring rotation composes a Z-axis quaternion delta onto the
+authoritative rotation.
 
 Browser viewport clicks are confirmed by the canonical exact CPU query, not
 trusted from the GPU picker alone. The click forwards the GPU-reported world

@@ -39,26 +39,51 @@ func main() {
 
 	appName := getenv("APP_NAME", "GoSX 3D Studio")
 	port := getenv("PORT", "8080")
-	projectDir := getenv("STUDIO_PROJECT_DIR", filepath.Join(root, ".studio"))
-	workspace, err := studio.OpenWorkspace(projectDir, studio.SampleDocument())
+	var (
+		workspace   *studio.Workspace
+		demoProject *studioDemoProject
+		err         error
+	)
+	if studioDemoModeEnabled(os.Getenv("STUDIO_DEMO_MODE")) {
+		demoProject, err = newStudioDemoProject()
+		if err == nil {
+			workspace = demoProject.Workspace()
+		}
+	} else {
+		projectDir := getenv("STUDIO_PROJECT_DIR", filepath.Join(root, ".studio"))
+		workspace, err = studio.OpenWorkspace(projectDir, studio.SampleDocument())
+	}
 	if err != nil {
 		log.Fatal(err)
+	}
+	cleanupDemo := func() {
+		if demoProject == nil {
+			return
+		}
+		if cleanupErr := demoProject.Close(); cleanupErr != nil {
+			log.Printf("clean public demo project: %v", cleanupErr)
+		}
+		demoProject = nil
 	}
 	app, err := buildStudioApp(studioConfig{
 		root:        root,
 		appName:     appName,
 		workspace:   workspace,
+		demoProject: demoProject,
 		actionToken: os.Getenv("STUDIO_ACTION_TOKEN"),
 		// desktopHost decides whether native-host-only routes answer at all.
 		desktopHost:   desktopMode(runtime.GOOS, os.Getenv("STUDIO_DESKTOP"), os.Getenv("STUDIO_SERVER_ONLY")),
 		sessionSecret: os.Getenv("SESSION_SECRET"),
 	})
 	if err != nil {
+		cleanupDemo()
 		log.Fatal(err)
 	}
 	if err := runApplication(app, appName, port); err != nil {
+		cleanupDemo()
 		log.Fatal(err)
 	}
+	cleanupDemo()
 }
 
 // studioConfig is everything buildStudioApp needs from the environment. Taking
@@ -69,9 +94,32 @@ type studioConfig struct {
 	root          string
 	appName       string
 	workspace     *studio.Workspace
+	demoProject   *studioDemoProject
 	actionToken   string
 	desktopHost   bool
 	sessionSecret string
+}
+
+func studioRuntimeRoot(root string) string {
+	root = filepath.Clean(root)
+	if studioRegularFile(filepath.Join(root, "build.json")) && studioDirectory(filepath.Join(root, "assets")) {
+		return root
+	}
+	dist := filepath.Join(root, "dist")
+	if studioRegularFile(filepath.Join(dist, "build.json")) && studioDirectory(filepath.Join(dist, "assets")) {
+		return dist
+	}
+	return root
+}
+
+func studioRegularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
+func studioDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // buildStudioApp wires the Studio HTTP surface. Route authority is declared in
@@ -83,12 +131,19 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 	workspace := config.workspace
 	actionToken := config.actionToken
 	desktopHost := config.desktopHost
+	if config.demoProject != nil && config.demoProject.Workspace() != workspace {
+		return nil, fmt.Errorf("public demo project does not own the configured workspace")
+	}
 
 	sessionSecret, err := resolveSessionSecret(config.sessionSecret)
 	if err != nil {
 		return nil, err
 	}
-	sessions, err := session.New(sessionSecret, session.Options{})
+	sessions, err := session.New(sessionSecret, session.Options{
+		Secure:   studioProductionMode(),
+		HTTPOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -101,18 +156,27 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 				{Rel: "stylesheet", Href: "/styles.css"},
 			},
 		})
-		return server.HTMLDocument(ctx.Title(appName), ctx.Head(), body)
+		return server.HTMLDocument(ctx.Document(appName, body))
 	})
 	if err := router.AddDir(filepath.Join(root, "app"), route.FileRoutesOptions{}); err != nil {
 		return nil, err
 	}
 
 	app := server.New()
+	// Keep page-generated runtime URLs and the /gosx asset server on one
+	// manifest root. Source runs keep the generated bundle under dist/, while
+	// packaged launches already receive dist as GOSX_APP_ROOT.
+	app.SetRuntimeRoot(studioRuntimeRoot(root))
 	app.EnableISR()
 	app.EnableNavigation()
 	app.Use(sessions.Middleware)
 	app.Use(studioCSRF(sessions, actionToken))
 	app.SetPublicDir(filepath.Join(root, "public"))
+	webMCPOperationPolicy, err := compileWebMCPOperationPolicy()
+	if err != nil {
+		return nil, fmt.Errorf("compile WebMCP operation policy: %w", err)
+	}
+	webMCPProposals := newWebMCPProposalStore(workspace, webMCPOperationPolicy)
 	app.API("GET /api/health", func(ctx *server.Context) (any, error) {
 		ctx.CachePublic(30 * time.Second)
 		ctx.CacheTag("health")
@@ -122,6 +186,13 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 			"version": gosx.Version,
 			"time":    time.Now().Format(time.RFC3339),
 		}, nil
+	})
+	app.API("GET /api/studio/demo/status", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		if config.demoProject == nil {
+			return studioDemoPublicState{}, nil
+		}
+		return config.demoProject.PublicState()
 	})
 	app.API("GET /api/studio/platform", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
@@ -411,6 +482,60 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		}
 		return map[string]any{"receipt": receipt, "document": preview}, nil
 	})
+	app.API("POST /api/studio/webmcp/proposals", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		request, err := decodeWebMCPProposal(ctx.Request.Body)
+		if err != nil {
+			return nil, statusError{http.StatusBadRequest, err}
+		}
+		proposal, err := webMCPProposals.Stage(request, sessions.Token(ctx.Request))
+		if err != nil {
+			return nil, commandError(err)
+		}
+		return proposal, nil
+	})
+	app.API("POST /api/studio/webmcp/commits", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		request, err := decodeWebMCPCommit(ctx.Request.Body)
+		if err != nil {
+			return nil, statusError{http.StatusBadRequest, err}
+		}
+		result, err := webMCPProposals.Commit(request.ProposalID, sessions.Token(ctx.Request))
+		if err != nil {
+			switch {
+			case errors.Is(err, errWebMCPProposalNotFound):
+				return nil, statusError{http.StatusNotFound, err}
+			case errors.Is(err, errWebMCPProposalExpired):
+				return nil, statusError{http.StatusGone, err}
+			default:
+				return nil, commandError(err)
+			}
+		}
+		return result, nil
+	})
+	app.API("POST /api/studio/demo/reset", func(ctx *server.Context) (any, error) {
+		ctx.NoStore()
+		if config.demoProject == nil {
+			return nil, statusError{http.StatusNotFound, errStudioDemoUnavailable}
+		}
+		request, err := decodeStudioDemoReset(ctx.Request.Body)
+		if err != nil {
+			return nil, statusError{http.StatusBadRequest, err}
+		}
+		result, err := config.demoProject.Reset(request.ExpectedRevision)
+		if err != nil {
+			switch {
+			case errors.Is(err, studio.ErrRevisionConflict):
+				return nil, commandError(err)
+			case errors.Is(err, errStudioDemoUnavailable):
+				return nil, statusError{http.StatusNotFound, err}
+			default:
+				return nil, err
+			}
+		}
+		webMCPProposals.Clear()
+		return result, nil
+	})
 	app.API("POST /api/studio/transactions/call", func(ctx *server.Context) (any, error) {
 		if err := authorizeAction(ctx.Request, actionToken); err != nil {
 			return nil, err
@@ -670,6 +795,7 @@ const (
 // studioRouteAuthority declares the authority of every registered route.
 var studioRouteAuthority = map[string]studioAuthority{
 	"GET /api/health":                            authorityRead,
+	"GET /api/studio/demo/status":                authorityRead,
 	"GET /api/studio/platform":                   authorityRead,
 	"GET /api/studio/manifest":                   authorityRead,
 	"GET /api/studio/gltf/capabilities":          authorityRead,
@@ -697,6 +823,9 @@ var studioRouteAuthority = map[string]studioAuthority{
 	"POST /api/studio/selection":                 authorityToken,
 	"POST /api/studio/pick":                      authorityToken,
 	"POST /api/studio/actions/preview":           authorityToken,
+	"POST /api/studio/webmcp/proposals":          authoritySession,
+	"POST /api/studio/webmcp/commits":            authoritySession,
+	"POST /api/studio/demo/reset":                authoritySession,
 	"POST /api/studio/transactions/call":         authorityToken,
 	"POST /api/studio/undo":                      authorityToken,
 	"POST /api/studio/redo":                      authorityToken,
@@ -744,7 +873,7 @@ func resolveSessionSecret(configured string) (string, error) {
 	if configured != "" {
 		reason = "SESSION_SECRET is still the published placeholder"
 	}
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("GOSX_ENV")), "production") {
+	if studioProductionMode() {
 		return "", fmt.Errorf("%s; production requires a private session secret", reason)
 	}
 	ephemeral := make([]byte, 32)
@@ -753,6 +882,10 @@ func resolveSessionSecret(configured string) (string, error) {
 	}
 	log.Printf("%s; using a random per-process secret. Sessions will not survive a restart.", reason)
 	return hex.EncodeToString(ephemeral), nil
+}
+
+func studioProductionMode() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("GOSX_ENV")), "production")
 }
 
 // bearerMatches compares the Authorization header against the configured
@@ -780,7 +913,14 @@ func studioCSRF(sessions *session.Manager, token string) server.Middleware {
 	return func(next http.Handler) http.Handler {
 		csrf := protected(next)
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			if strings.HasPrefix(request.URL.Path, "/api/studio/") && bearerMatches(request.Header.Get("Authorization"), token) {
+			// GoSX telemetry is append-only, bounded, and sanitized by the
+			// framework. Its browser beacon intentionally carries no CSRF token.
+			if request.URL.Path == server.ClientEventsRoute {
+				next.ServeHTTP(writer, request)
+				return
+			}
+			pattern := request.Method + " " + request.URL.Path
+			if studioRouteAuthority[pattern] == authorityToken && bearerMatches(request.Header.Get("Authorization"), token) {
 				next.ServeHTTP(writer, request)
 				return
 			}

@@ -27,8 +27,17 @@
   }
 
   function refresh() {
-    if (window.__gosx_page_nav && typeof window.__gosx_page_nav.navigate === "function") {
-      window.__gosx_page_nav.navigate(window.location.href, { replace: true, preserveScroll: true });
+    var navigation = window.__gosx && window.__gosx.navigation
+      ? window.__gosx.navigation
+      : window.__gosx_page_nav;
+    if (navigation && typeof navigation.revalidate === "function") {
+      navigation.revalidate({ replace: true, preserveScroll: true }).catch(function () { window.location.reload(); });
+      return;
+    }
+    if (navigation && typeof navigation.navigate === "function") {
+      navigation.navigate(window.location.href, {
+        replace: true, preserveScroll: true, force: true, revalidate: true
+      }).catch(function () { window.location.reload(); });
       return;
     }
     window.location.reload();

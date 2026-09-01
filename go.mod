@@ -4,15 +4,14 @@ go 1.26
 
 require (
 	m31labs.dev/arbiter v1.9.0
-	m31labs.dev/gosx v0.36.0
+	m31labs.dev/gosx v0.54.0
 )
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/odvcencio/corkscrewdb v0.2.0 // indirect
-	github.com/odvcencio/gotreesitter v0.47.0 // indirect
+	github.com/odvcencio/gotreesitter v0.50.1 // indirect
 	github.com/odvcencio/turboquant v0.1.3 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/image v0.38.0 // indirect
@@ -26,6 +25,6 @@ require (
 	m31labs.dev/eos v0.1.4 // indirect
 	m31labs.dev/mll v0.1.0 // indirect
 	m31labs.dev/prism v0.1.3 // indirect
-	m31labs.dev/selena v0.4.0 // indirect
+	m31labs.dev/selena v0.5.2 // indirect
 	m31labs.dev/turboquant v0.2.0 // indirect
 )

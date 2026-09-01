@@ -2,9 +2,13 @@ package studio
 
 import (
 	"encoding/json"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
+
+	"m31labs.dev/gosx/scene"
+	"m31labs.dev/gosx/scene/preview"
 )
 
 func TestTransformLegacyJSONMigratesEulerToQuaternion(t *testing.T) {
@@ -54,14 +58,23 @@ func TestValidateRejectsNonNormalizedQuaternion(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsGroupScaleMatchingCompile(t *testing.T) {
+func TestValidateAcceptsGroupScaleAndRejectsLightScale(t *testing.T) {
 	document := SampleDocument()
 	entity := document.Entities["scene-root"]
 	entity.Transform.Scale = Vec3{X: 2, Y: 1, Z: 1}
 	document.Entities["scene-root"] = entity
-	err := document.Validate()
-	if err == nil || !strings.Contains(err.Error(), "scale-free") {
-		t.Fatalf("validation must reject group scale exactly like compilation, got %v", err)
+	if err := document.Validate(); err != nil {
+		t.Fatalf("v0.54 group scale must validate: %v", err)
+	}
+
+	light := document.Entities["key-light"]
+	light.Transform.Scale = Vec3{X: 2, Y: 1, Z: 1}
+	document.Entities[light.ID] = light
+	if err := document.Validate(); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+		t.Fatalf("meaningless light scale must remain rejected, got %v", err)
+	}
+	if _, err := Compile(document); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+		t.Fatalf("compiler must reject the same meaningless light scale, got %v", err)
 	}
 }
 
@@ -118,12 +131,73 @@ func TestMeshEntityScaleCompilesThroughSceneIR(t *testing.T) {
 	}
 }
 
-func TestGroupEntityScaleStaysAnHonestyGate(t *testing.T) {
+func TestGroupEntityScaleMatchesSceneIRRaycastAndPreview(t *testing.T) {
 	document := SampleDocument()
-	entity := document.Entities["scene-root"]
-	entity.Transform.Scale = Vec3{X: 2, Y: 2, Z: 2}
-	document.Entities["scene-root"] = entity
-	if err := document.Validate(); err == nil {
-		t.Fatal("group scale must stay rejected: engine groups are scale-free by design")
+	root := document.Entities["scene-root"]
+	root.Transform = TransformFromEuler(Vec3{X: 3, Y: -2, Z: 5}, Vec3{}, Vec3{X: 2, Y: 3, Z: 4})
+	root.Children = []ID{"scaled-child"}
+	child := Entity{
+		ID: "scaled-child", Name: "Scaled child", Parent: root.ID, Visible: true,
+		Transform: TransformFromEuler(Vec3{X: 1, Y: 2, Z: 3}, Vec3{}, Vec3{X: 5, Y: 6, Z: 7}),
+		Mesh: &MeshComponent{
+			Geometry: Geometry{Kind: "box", Width: 1, Height: 1, Depth: 1},
+			Material: "board-material", Pickable: true,
+		},
+	}
+	document.Entities = map[ID]Entity{root.ID: root, child.ID: child}
+
+	if err := document.Validate(); err != nil {
+		t.Fatalf("scaled hierarchy must validate: %v", err)
+	}
+	props, err := Compile(document)
+	if err != nil {
+		t.Fatalf("scaled hierarchy must compile: %v", err)
+	}
+	ir := props.SceneIR()
+	if len(ir.Objects) != 1 || ir.Objects[0].ID != string(child.ID) {
+		t.Fatalf("scaled SceneIR objects = %+v", ir.Objects)
+	}
+	object := ir.Objects[0]
+	assertFloatSliceClose(t, object.ParentMatrix, []float64{
+		2, 0, 0, 0,
+		0, 3, 0, 0,
+		0, 0, 4, 0,
+		3, -2, 5, 1,
+	})
+	if object.X != 1 || object.Y != 2 || object.Z != 3 || object.ScaleX != 5 || object.ScaleY != 6 || object.ScaleZ != 7 {
+		t.Fatalf("SceneIR lost authored local transform: %+v", object)
+	}
+
+	frame := preview.Bundle(props, preview.Options{})
+	if len(frame.InstancedMeshes) != 1 {
+		t.Fatalf("preview meshes = %d, want one", len(frame.InstancedMeshes))
+	}
+	assertFloatSliceClose(t, frame.InstancedMeshes[0].Transforms, []float64{
+		10, 0, 0, 0,
+		0, 18, 0, 0,
+		0, 0, 28, 0,
+		5, 4, 17, 1,
+	})
+
+	trace := scene.TraceGraph(props.Graph, scene.Ray{
+		Origin: scene.Vec3(5, 4, 40), Direction: scene.Vec3(0, 0, -1),
+	}, scene.PickableOnly())
+	if trace.Closest == nil || trace.Closest.ID != string(child.ID) {
+		t.Fatalf("scaled ray trace missed child: %+v", trace)
+	}
+	if math.Abs(trace.Closest.Point.X-5) > 1e-9 || math.Abs(trace.Closest.Point.Y-4) > 1e-9 || math.Abs(trace.Closest.Point.Z-31) > 1e-9 {
+		t.Fatalf("scaled ray hit = %+v, want point (5,4,31)", trace.Closest)
+	}
+}
+
+func assertFloatSliceClose(t *testing.T, got, want []float64) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("float slice length = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for index := range want {
+		if math.Abs(got[index]-want[index]) > 1e-9 {
+			t.Fatalf("float slice[%d] = %.15g, want %.15g (all=%v)", index, got[index], want[index], got)
+		}
 	}
 }

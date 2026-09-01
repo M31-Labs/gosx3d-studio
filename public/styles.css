@@ -52,7 +52,7 @@
   --panel-project: 12.5rem;
   --panel-hierarchy: 13.5rem;
   --panel-inspector: 17rem;
-  --panel-agent: 16rem;
+  --panel-agent: 18rem;
   color-scheme: dark;
 }
 
@@ -68,6 +68,24 @@ body {
   background: var(--color-canvas);
 }
 
+.skip-link {
+  position: fixed;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  z-index: 100;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-focus);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+  color: var(--color-text);
+  transform: translateY(calc(-100% - var(--space-lg)));
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 body {
   min-height: 100vh;
   overflow: auto;
@@ -77,9 +95,16 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   color: inherit;
   font: inherit;
+}
+
+select,
+textarea {
+  color-scheme: dark;
 }
 
 button {
@@ -107,6 +132,8 @@ button:active:not(:disabled) {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 1px;
@@ -116,6 +143,14 @@ button:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
   opacity: 0.48;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 a {
@@ -161,8 +196,10 @@ time,
 }
 
 .studio-shell {
+  height: 100vh;
   display: grid;
-  grid-template-rows: auto auto auto minmax(35rem, 1fr) auto auto;
+  grid-template-rows: auto auto auto minmax(28rem, 1fr) auto auto;
+  overflow: hidden;
   background: var(--color-canvas);
 }
 
@@ -214,6 +251,10 @@ time,
   border-radius: 0;
   color: var(--color-text-secondary);
   font-size: var(--type-xs);
+}
+
+.application-menu [data-project-panel-toggle][aria-expanded="false"] {
+  color: var(--color-author);
 }
 
 .build-badge {
@@ -311,7 +352,7 @@ time,
 }
 
 .workbench {
-  min-height: 35rem;
+  min-height: 28rem;
   display: grid;
   grid-template-columns:
     var(--panel-project)
@@ -319,10 +360,25 @@ time,
     minmax(30rem, 1fr)
     var(--panel-inspector)
     var(--panel-agent);
-  grid-template-rows: minmax(27rem, 1fr) 8rem;
+  grid-template-rows: minmax(20rem, 1fr) 8rem;
   grid-template-areas:
     "project hierarchy viewport inspector agent"
     "project hierarchy timeline inspector agent";
+}
+
+.studio-shell.project-panel-collapsed .workbench {
+  grid-template-columns:
+    var(--panel-hierarchy)
+    minmax(30rem, 1fr)
+    var(--panel-inspector)
+    var(--panel-agent);
+  grid-template-areas:
+    "hierarchy viewport inspector agent"
+    "hierarchy timeline inspector agent";
+}
+
+.studio-shell.project-panel-collapsed .project-panel {
+  display: none;
 }
 
 .panel,
@@ -342,6 +398,12 @@ time,
 .inspector-panel { grid-area: inspector; }
 .agent-panel { grid-area: agent; }
 .timeline-panel { grid-area: timeline; }
+
+.project-panel,
+.inspector-panel,
+.agent-panel {
+  overflow-y: auto;
+}
 
 .panel-heading,
 .viewport-header {
@@ -384,6 +446,13 @@ time,
   padding: var(--space-xs) var(--space-sm);
 }
 
+.viewport-header button.active,
+.viewport-header button[aria-pressed="true"] {
+  color: var(--color-author);
+  border-color: var(--color-author);
+  background: var(--color-author-soft);
+}
+
 .panel-count,
 .panel-note,
 .selection-id,
@@ -394,7 +463,15 @@ time,
   font-size: var(--type-xs);
 }
 
+.panel-count {
+  white-space: nowrap;
+}
+
 .selection-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--color-author);
 }
 
@@ -434,6 +511,15 @@ time,
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
   white-space: nowrap;
+}
+
+.tree li[hidden] {
+  display: none;
+}
+
+.tree li[data-hierarchy-empty] {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .tree li:hover {
@@ -482,6 +568,7 @@ time,
 
 .hierarchy-tree {
   overflow: auto;
+  overflow-x: hidden;
 }
 
 .hierarchy-tree li {
@@ -497,6 +584,26 @@ time,
   padding: var(--space-xs) var(--space-sm);
   color: inherit;
   text-decoration: none;
+}
+
+.hierarchy-tree code,
+.hierarchy-tree .entity-kind {
+  flex: 0 0 auto;
+}
+
+.hierarchy-tree a > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hierarchy-tree li.webmcp-focused {
+  background: color-mix(in srgb, var(--color-runtime) 12%, var(--color-panel));
+  box-shadow: inset var(--space-xs) 0 0 var(--color-runtime);
+}
+
+.hierarchy-tree li.webmcp-focused a {
+  color: var(--color-text);
 }
 
 .entity-kind {
@@ -731,7 +838,9 @@ time,
   font-size: var(--type-xs);
 }
 
-.inspector-form input {
+.inspector-form input,
+.inspector-form select,
+.inspector-form textarea {
   width: 100%;
   min-width: 0;
   padding: var(--space-xs);
@@ -741,6 +850,22 @@ time,
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
   font-size: var(--type-xs);
+}
+
+.inspector-form textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.inspector-form input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--color-author);
+}
+
+.vector-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: var(--space-xs);
 }
 
 .asset-import-form {
@@ -811,6 +936,18 @@ time,
   color: var(--color-runtime);
 }
 
+.certification-details {
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-xs);
+}
+
+.certification-details summary {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--type-xs);
+}
+
 .material-preview {
   width: 3rem;
   aspect-ratio: 1;
@@ -833,6 +970,10 @@ time,
   gap: var(--space-sm);
 }
 
+.proposal dl div {
+  min-width: 0;
+}
+
 .properties dt,
 .proposal dt {
   color: var(--color-text-muted);
@@ -840,9 +981,19 @@ time,
 
 .properties dd,
 .proposal dd {
+  min-width: 0;
   margin: 0;
   color: var(--color-text-secondary);
   text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.proposal dt {
+  flex: 0 0 auto;
+}
+
+.proposal dd {
+  flex: 1 1 0;
 }
 
 .properties dd.authored {
@@ -854,6 +1005,9 @@ time,
 }
 
 .timeline-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
   background: var(--color-panel-sunken);
 }
 
@@ -903,6 +1057,8 @@ time,
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-xs);
+  min-height: 0;
+  align-content: start;
   padding: var(--space-xs) var(--space-sm) var(--space-sm);
   overflow: auto;
 }
@@ -926,7 +1082,7 @@ time,
 
 .timeline-form label {
   display: grid;
-  gap: var(--space-2xs);
+  gap: var(--space-xs);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: var(--type-xs);
@@ -934,19 +1090,19 @@ time,
 
 .timeline-form input {
   min-width: 0;
-  padding: var(--space-2xs) var(--space-xs);
+  padding: var(--space-xs);
   border: 1px solid var(--color-border-strong);
   background: var(--color-panel-sunken);
-  color: var(--color-text-primary);
+  color: var(--color-text);
   font: inherit;
 }
 
 .timeline-form button {
   min-height: 1.75rem;
-  padding: var(--space-2xs) var(--space-xs);
+  padding: var(--space-xs);
   border-color: color-mix(in srgb, var(--color-author) 55%, var(--color-border));
   background: color-mix(in srgb, var(--color-author) 14%, var(--color-panel));
-  color: var(--color-text-primary);
+  color: var(--color-text);
 }
 
 .timeline-form.compact {
@@ -960,6 +1116,117 @@ time,
 .agent-panel {
   display: flex;
   flex-direction: column;
+}
+
+.webmcp-status-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-panel-sunken);
+}
+
+.webmcp-status-banner > span:not(.webmcp-status-dot) {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.webmcp-status-banner strong {
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--type-sm);
+}
+
+.webmcp-status-banner small,
+.webmcp-status-banner code {
+  color: var(--color-text-muted);
+  font-size: var(--type-xs);
+}
+
+.webmcp-status-dot {
+  width: var(--space-sm);
+  height: var(--space-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-round);
+  background: var(--color-runtime);
+  box-shadow: 0 0 0 var(--space-xs) color-mix(in srgb, var(--color-runtime) 12%, transparent);
+}
+
+.webmcp-status-banner[data-state="ready"] .webmcp-status-dot,
+.webmcp-status-banner[data-state="applied"] .webmcp-status-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 var(--space-xs) color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.webmcp-status-banner[data-state="proposal"] .webmcp-status-dot {
+  background: var(--color-author);
+  box-shadow: 0 0 0 var(--space-xs) color-mix(in srgb, var(--color-author) 14%, transparent);
+}
+
+.webmcp-status-banner[data-state="committing"] .webmcp-status-dot {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 var(--space-xs) color-mix(in srgb, var(--color-warning) 12%, transparent);
+}
+
+.webmcp-status-banner[data-state="unavailable"] .webmcp-status-dot {
+  background: var(--color-text-muted);
+  box-shadow: none;
+}
+
+.webmcp-status-banner[data-state="error"] .webmcp-status-dot {
+  background: var(--color-error);
+  box-shadow: 0 0 0 var(--space-xs) color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+
+.webmcp-status-copy {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  line-height: 1.5;
+}
+
+.studio-demo-reset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-panel-sunken));
+}
+
+.studio-demo-reset[hidden] {
+  display: none;
+}
+
+.studio-demo-reset > span {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.studio-demo-reset strong {
+  color: var(--color-warning);
+  font-family: var(--font-display);
+  font-size: var(--type-xs);
+}
+
+.studio-demo-reset small {
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  line-height: 1.4;
+}
+
+.studio-demo-reset button {
+  width: 100%;
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+  font-size: var(--type-xs);
+  white-space: nowrap;
 }
 
 .authority-tabs {
@@ -981,14 +1248,19 @@ time,
 
 .proposal {
   display: grid;
-  gap: var(--space-sm);
-  padding: var(--space-md);
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.proposal > * {
+  min-width: 0;
 }
 
 .proposal p {
   color: var(--color-text-secondary);
   font-size: var(--type-xs);
   line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .proposal dl {
@@ -1000,6 +1272,65 @@ time,
 .status-bar .pending,
 .pending {
   color: var(--color-warning);
+}
+
+.proposal [data-webmcp-proposal-fingerprint] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.webmcp-change-list {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-panel-sunken);
+  list-style: none;
+}
+
+.webmcp-change-list[hidden] {
+  display: none;
+}
+
+.webmcp-change-list li {
+  color: var(--color-runtime);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.webmcp-review-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.webmcp-review-actions[hidden] {
+  display: none;
+}
+
+.webmcp-review-actions button {
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-color: var(--color-border-strong);
+  background: var(--color-panel-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.webmcp-review-actions button.primary {
+  border-color: var(--color-author);
+  background: var(--color-author);
+  color: var(--color-canvas);
 }
 
 .agent-actions {
@@ -1019,7 +1350,11 @@ time,
 }
 
 .telemetry-dock {
-  min-height: 7.5rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: clamp(9rem, 18vh, 12rem);
+  min-height: 0;
+  overflow: hidden;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-panel-sunken);
 }
@@ -1047,8 +1382,14 @@ time,
 
 .telemetry-content {
   display: grid;
-  grid-template-columns: minmax(24rem, 1fr) 12rem 16rem;
-  min-height: 5.5rem;
+  grid-template-columns: minmax(24rem, 1fr) minmax(18rem, 20rem) 16rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.telemetry-content > * {
+  min-height: 0;
+  overflow: auto;
 }
 
 .console-lines,
@@ -1175,10 +1516,27 @@ time,
 
 @media (max-width: 88rem) {
   :root {
-    --panel-project: 11rem;
-    --panel-hierarchy: 12rem;
-    --panel-inspector: 15rem;
-    --panel-agent: 14rem;
+    --panel-project: 10rem;
+    --panel-hierarchy: 11rem;
+    --panel-inspector: 14rem;
+    --panel-agent: 15rem;
+  }
+
+  .workbench {
+    grid-template-columns:
+      var(--panel-project)
+      var(--panel-hierarchy)
+      minmax(26rem, 1fr)
+      var(--panel-inspector)
+      var(--panel-agent);
+  }
+
+  .studio-shell.project-panel-collapsed .workbench {
+    grid-template-columns:
+      var(--panel-hierarchy)
+      minmax(26rem, 1fr)
+      var(--panel-inspector)
+      var(--panel-agent);
   }
 
   .application-menu button {

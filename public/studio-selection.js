@@ -11,10 +11,15 @@
     return fetch(url, options);
   }
 
+  function csrfToken() {
+    var field = document.querySelector('input[name="csrf_token"]');
+    return field && typeof field.value === "string" ? field.value : "";
+  }
+
   document.addEventListener("gosx:scene3d:input", function (event) {
     var detail = event && event.detail;
     var input = detail && detail.kind === "pick" ? detail.input : null;
-    if (!input || input.type !== "click" || !input.selectedID) return;
+    if (!input || (input.type !== "select" && input.type !== "click") || !input.selectedID) return;
 
     var selected = String(input.selectedID);
     var payload = { selected: selected, kind: String(input.selectedKind || "") };
@@ -32,9 +37,12 @@
         direction: { x: Number(input.rayDirX), y: Number(input.rayDirY), z: Number(input.rayDirZ) }
       };
     }
+    var headers = { "Accept": "application/json", "Content-Type": "application/json" };
+    var token = csrfToken();
+    if (token) headers["X-CSRF-Token"] = token;
     request("/api/studio/viewport-selection", {
       method: "POST",
-      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify(payload)
     }).then(function (response) {
       if (!response || !response.ok) return;

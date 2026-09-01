@@ -12,7 +12,7 @@ func nestedPrefabDocument() Document {
 			"inner-root": {ID: "inner-root", Transform: IdentityTransform(), Visible: true, Mesh: &MeshComponent{Geometry: Geometry{Kind: "box", Width: 0.2, Height: 0.2, Depth: 0.2}, Material: "board-material", Pickable: true}},
 		}},
 		"outer": {ID: "outer", Name: "Outer", Root: "outer-root", Entities: map[ID]Entity{
-			"outer-root": {ID: "outer-root", Transform: IdentityTransform(), Visible: true, Children: []ID{"outer-nested"}},
+			"outer-root":   {ID: "outer-root", Transform: IdentityTransform(), Visible: true, Children: []ID{"outer-nested"}},
 			"outer-nested": {ID: "outer-nested", Parent: "outer-root", Transform: TransformFromEuler(Vec3{X: 1}, Vec3{}, Vec3{X: 1, Y: 1, Z: 1}), Visible: true, Prefab: &PrefabInstance{Prefab: "inner"}},
 		}},
 	}
@@ -41,6 +41,117 @@ func TestNestedPrefabInstancesValidateAndCompileWithNamespacedIDs(t *testing.T) 
 	if !ids[want] {
 		t.Fatalf("nested runtime id %q missing from SceneIR objects: %v", want, ids)
 	}
+}
+
+func TestPrefabInstanceAndNestedGroupScaleLowerExactAffine(t *testing.T) {
+	document := nestedPrefabDocument()
+	outer := document.Prefabs["outer"]
+	nested := outer.Entities["outer-nested"]
+	nested.Transform.Scale = Vec3{X: 5, Y: 6, Z: 7}
+	outer.Entities[nested.ID] = nested
+	document.Prefabs[outer.ID] = outer
+	instance := document.Entities["outer-instance"]
+	instance.Transform.Scale = Vec3{X: 2, Y: 3, Z: 4}
+	instance.Prefab.Overrides = map[ID]PrefabEntityOverride{
+		"outer-root": {Transform: &Transform{Rotation: identityQuaternion(), Scale: Vec3{X: 3, Y: 1, Z: 1}}},
+	}
+	document.Entities[instance.ID] = instance
+
+	if err := document.Validate(); err != nil {
+		t.Fatalf("scaled prefab groups must validate: %v", err)
+	}
+	props, err := Compile(document)
+	if err != nil {
+		t.Fatalf("scaled prefab groups must compile: %v", err)
+	}
+	wantID := "outer-instance--outer-nested--inner-root"
+	for _, object := range props.SceneIR().Objects {
+		if object.ID != wantID {
+			continue
+		}
+		assertFloatSliceClose(t, object.ParentMatrix, []float64{
+			30, 0, 0, 0,
+			0, 18, 0, 0,
+			0, 0, 28, 0,
+			6, 0, 0, 1,
+		})
+		return
+	}
+	t.Fatalf("scaled prefab object %q missing from SceneIR", wantID)
+}
+
+func TestPrefabLightScaleRemainsRejected(t *testing.T) {
+	document := nestedPrefabDocument()
+	inner := document.Prefabs["inner"]
+	light := inner.Entities["inner-root"]
+	light.Mesh = nil
+	light.Light = &LightComponent{Kind: "ambient", Color: "#ffffff", Intensity: 1}
+	light.Transform.Scale = Vec3{X: 2, Y: 1, Z: 1}
+	inner.Entities[light.ID] = light
+	document.Prefabs[inner.ID] = inner
+	if err := document.Validate(); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+		t.Fatalf("prefab light scale must remain rejected, got %v", err)
+	}
+	if _, err := Compile(document); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+		t.Fatalf("prefab compiler must reject the same meaningless light scale, got %v", err)
+	}
+}
+
+func TestResolvedPrefabLightScaleRejectedAcrossVariantsAndInstanceOverrides(t *testing.T) {
+	scaled := TransformFromEuler(Vec3{}, Vec3{}, Vec3{X: 2, Y: 1, Z: 1})
+
+	t.Run("variant addition", func(t *testing.T) {
+		document := nestedPrefabDocument()
+		document.Prefabs["light-addition"] = PrefabDefinition{
+			ID: "light-addition", Name: "Light addition", Base: "inner",
+			Entities: map[ID]Entity{
+				"added-light": {
+					ID: "added-light", Parent: "inner-root", Transform: scaled, Visible: true,
+					Light: &LightComponent{Kind: "ambient", Color: "#ffffff", Intensity: 1},
+				},
+			},
+		}
+		if err := document.Validate(); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+			t.Fatalf("variant-added light scale must be rejected, got %v", err)
+		}
+	})
+
+	t.Run("variant override", func(t *testing.T) {
+		document := prefabWithLightRoot()
+		document.Prefabs["light-variant"] = PrefabDefinition{
+			ID: "light-variant", Name: "Light variant", Base: "inner",
+			Overrides: map[ID]PrefabEntityOverride{"inner-root": {Transform: &scaled}},
+		}
+		if err := document.Validate(); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+			t.Fatalf("variant light override scale must be rejected, got %v", err)
+		}
+	})
+
+	t.Run("instance override", func(t *testing.T) {
+		document := prefabWithLightRoot()
+		root := document.Entities["scene-root"]
+		instance := Entity{
+			ID: "light-instance", Name: "Light instance", Parent: root.ID, Transform: IdentityTransform(), Visible: true,
+			Prefab: &PrefabInstance{Prefab: "inner", Overrides: map[ID]PrefabEntityOverride{"inner-root": {Transform: &scaled}}},
+		}
+		root.Children = append(root.Children, instance.ID)
+		document.Entities[root.ID] = root
+		document.Entities[instance.ID] = instance
+		if err := document.Validate(); err == nil || !strings.Contains(err.Error(), "light scale has no render meaning") {
+			t.Fatalf("instance light override scale must be rejected, got %v", err)
+		}
+	})
+}
+
+func prefabWithLightRoot() Document {
+	document := nestedPrefabDocument()
+	inner := document.Prefabs["inner"]
+	light := inner.Entities["inner-root"]
+	light.Mesh = nil
+	light.Light = &LightComponent{Kind: "ambient", Color: "#ffffff", Intensity: 1}
+	inner.Entities[light.ID] = light
+	document.Prefabs[inner.ID] = inner
+	return document
 }
 
 func TestPrefabDefinitionCyclesAreRejectedWithConcretePath(t *testing.T) {

@@ -10,14 +10,8 @@ name: linux-evidence
 
 on:
   push:
-    branches: [main, codex/deep-implementation-foundation]
   pull_request:
   workflow_dispatch: {}
-
-env:
-  # The m31labs.dev vanity module paths resolve straight to their private
-  # repositories, so the module proxy is bypassed and git needs credentials.
-  GOPRIVATE: m31labs.dev/*,github.com/odvcencio/*,github.com/M31-Labs/*
 
 jobs:
   evidence:
@@ -28,12 +22,16 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: Authenticate private module fetches
-        run: git config --global url."https://x-access-token:${{ secrets.SIBLING_REPO_TOKEN || github.token }}@github.com/".insteadOf "https://github.com/"
       # A stale go.mod or go.sum means the pinned versions are not the ones
       # being built. Fail loudly instead of resolving something else.
       - name: Module pins are current
         run: go mod verify && go mod tidy -diff
+      - name: GoSX component contract
+        run: go run m31labs.dev/gosx/cmd/gosx@v0.54.0 check app/page.gsx
+      - name: Arbiter WebMCP policy contract
+        run: |
+          go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
+          go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
       - name: Vet
         run: go vet ./...
       - name: Unit and integration tests
@@ -46,6 +44,8 @@ jobs:
         run: go run ./cmd/studio-smoke > studio-smoke.json
       - name: Deterministic certification evidence
         run: go run ./cmd/studio-certify > studio-certify.json
+      - name: Package the production Scene3D application
+        run: ./scripts/render-build.sh
       - name: Upload evidence artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -73,12 +73,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: odvcencio/gosx
-          token: ${{ secrets.SIBLING_REPO_TOKEN || github.token }}
           path: gosx
       - uses: actions/checkout@v4
         with:
           repository: odvcencio/arbiter
-          token: ${{ secrets.SIBLING_REPO_TOKEN || github.token }}
           path: arbiter
       - uses: actions/setup-go@v5
         with:

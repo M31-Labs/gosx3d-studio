@@ -11,6 +11,11 @@
     return fetch(url, options);
   }
 
+  function csrfToken() {
+    var field = document.querySelector('input[name="csrf_token"]');
+    return field && typeof field.value === "string" ? field.value : "";
+  }
+
   document.addEventListener("click", function (event) {
     var button = event.target && event.target.closest ? event.target.closest("#studio-open-project") : null;
     if (!button) return;
@@ -29,13 +34,16 @@
       allowMultiple: false
     }).then(function (paths) {
       if (!Array.isArray(paths) || !paths.length) return null;
+      var headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-GoSX-Desktop-Intent": "native-dialog"
+      };
+      var token = csrfToken();
+      if (token) headers["X-CSRF-Token"] = token;
       return request("/api/studio/project/open-from-desktop", {
         method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "X-GoSX-Desktop-Intent": "native-dialog"
-        },
+        headers: headers,
         body: JSON.stringify({
           path: String(paths[0]),
           expectedRevision: Number(button.getAttribute("data-revision") || 0),

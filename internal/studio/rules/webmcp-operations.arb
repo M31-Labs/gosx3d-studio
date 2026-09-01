@@ -1,0 +1,20 @@
+input { operation: { kind: string } }
+
+outcome WebMCPOperationDecision {
+    allowed: bool
+    reason: string
+}
+
+strategy DecideWebMCPOperation returns WebMCPOperationDecision {
+    when {
+        operation.kind in ["rename-entity", "set-transform", "assign-material", "duplicate-entity"]
+    } then Allow {
+        allowed: true,
+        reason: "operation kind is in the reversible WebMCP allowlist",
+    }
+
+    else Deny {
+        allowed: false,
+        reason: "operation kind is outside the WebMCP allowlist",
+    }
+}

@@ -131,6 +131,14 @@ func TestTimelineViewReflectsCanonicalRigClipAndSimulation(t *testing.T) {
 	if view["armatureId"] != "arm" || view["clipId"] != "idle" || view["trackId"] != "idle-lower" || view["simulationId"] != "articulated-physics" || view["tickRate"] != "60" || view["retargetMapId"] != "arm-to-tall" || view["machineId"] != "locomotion" || view["machineParameter"] != "speed" {
 		t.Fatalf("timeline view = %#v", view)
 	}
+	for _, key := range []string{"boneAvailable", "clipAvailable", "ikAvailable", "simulationAvailable", "retargetAvailable", "machineParameterAvailable", "machineAvailable"} {
+		if view[key] != true {
+			t.Fatalf("timeline capability %s = %#v, want true", key, view[key])
+		}
+	}
+	if empty := timelineView(studio.SampleDocument()); empty["boneAvailable"] != false || empty["machineParameterLabel"] != "Parameter" {
+		t.Fatalf("empty timeline availability = %#v", empty)
+	}
 }
 
 // The card reads "recomputing" after every edit and had no way back to

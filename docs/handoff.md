@@ -1,78 +1,64 @@
-# M0 implementation handoff
+# Current implementation handoff
 
 ## What exists
 
-- A conventional GoSX file-routed application in `app/`.
-- Industrial Void visual tokens and a dense desktop workbench shell.
-- A typed scaffold manifest in `internal/studio`.
-- SceneDoc v1 validation, deterministic fingerprints, typed Scene3D compilation,
-  revision-safe proposal/direct transactions, and undo.
-- Health, manifest, SceneDoc, and compiled SceneIR JSON endpoints.
-- A pure-Go smoke harness with visible-frame and exact-ray gates.
-- Original approved visual references in `design/`.
-- A sibling-module development link to `../gosx`.
+- A standalone GoSX v0.54 application with a dense desktop workbench shell,
+  typed `SceneDoc`, shared `SceneIR`, and Scene3D rendering.
+- Live hierarchy selection, transform and material editing, modeling operators,
+  timeline controls, diagnostics, and command receipts backed by canonical
+  workspace state rather than display-only fixtures.
+- Revision-safe preview and direct transactions, undo/redo, explicit atomic
+  saves, checksummed journals, recovery, and asset cleanup planning.
+- Deterministic browser-free frame, exact-pick, simulation, rigging, animation,
+  export, and certification evidence.
+- Four browser-native WebMCP tools for scene inspection, search, visible focus,
+  and bounded edit proposals. Every proposal is evaluated by Arbiter and stays
+  non-mutating until a person applies the exact staged transaction.
+- A pinned production build, Render Blueprint, Linux evidence workflow, and a
+  Windows workflow that stages an offline bundle and unsigned MSIX package.
 
-## What does not exist yet
+## Honest limits
 
-The Hierarchy, Inspector, timeline, telemetry, and displayed proposal remain
-static shell data. The canonical SceneDoc is mounted into the Scene3D viewport,
-but those panels are not yet generated from descriptor/workspace state. Exact
-interactive selection enrichment, semantic proposal diffs, strict Studio
-certification, and desktop packaging remain unimplemented.
+- The hosted demonstration uses one process and process-local scene state. It
+  is not yet an account-backed, durable, realtime multiplayer service.
+- WebMCP intentionally cannot delete, reparent, switch projects, clean assets,
+  commit a proposal, undo, or redo. Those operations remain human-only until
+  their review and authority contracts are equally strong.
+- Native Windows window, bridge, picker, recovery, install, and update behavior
+  still needs verification on a real Windows host. Signing identity is pending.
+- Certification remains `partial`; the capability matrix is the authority for
+  what is available, partial, planned, or unsupported.
 
-## First vertical slice
+## Next product slices
 
-1. ~~Bind browser selection to the canonical exact CPU query and surface
-   disagreements.~~ Done: viewport clicks confirm through `ExactPick`, the
-   canonical result wins, and disagreements are machine-readable on selection
-   state and in certification (`m1-viewport-exact-selection`).
-2. Generate Hierarchy and Inspector UI from live document and descriptors.
-3. Add semantic diffs, inverse IDs, telemetry correlation, and action JSON Schemas.
-4. ~~Integrate editor-facing `scene/cert` dimensions and Selena evidence.~~
-   Superseded: GoSX removed `scene/cert` as dead code on 2026-07-26. Studio now
-   records the linked framework module and version and does not republish a
-   framework matrix it cannot re-derive. See
-   [[decisions/0002-dependency-model-pinned-versions-not-replace]] in the
-   `gosx3d-studio` Hyphae space.
-5. Launch, package, and recovery-test the same app through `gosx desktop` on Windows.
+1. Deploy and verify the HTTPS judge instance in an external compatible
+   browser, including ChatGPT's in-app browser when available.
+2. Add durable private workspaces, identity, backups, and revision history
+   without moving scene truth into the presentation layer.
+3. Add presence, soft claims, and conflict-free collaboration over the stable
+   scene IDs and revision metadata already in `SceneDoc`.
+4. Complete native Windows runtime evidence, signing, installed launch,
+   recovery, and update verification.
+5. Expand the agent action surface only through the shared command path, with
+   semantic previews, explicit authority, deterministic receipts, and tests.
 
 ## Substrate work still open
 
-Named here so it is not rediscovered. None of it blocks the slices above.
-
-- Undo retains a document pair per entry, so the undo stack still costs
-  O(document) per edit. Storing inverse operations instead would remove it.
-  The journal itself now writes operations with a full SceneDoc only every
-  32nd record, not a whole SceneDoc per record.
-- `Document.Fingerprint` re-marshals the whole document. Per-entity content
-  hashes with a Merkle root would make it incremental and fix every caller,
-  including the compiled-graph and certification caches, at once.
-- ~~The certification card reports `recomputing` until the next render.~~
-  Done: `GET /api/studio/certification/state` answers from two fields under a
-  mutex, and `public/studio-certification.js` polls it only while the card is
-  waiting, then lets the page's own morph refresh redraw it.
-- ~~Undoing an asset import leaves its payload in the store with nothing to
-  reclaim it.~~ Done: `AuditAssets` reports them as `orphans`, the garbage
-  collection plan carries them, and direct collection reclaims them under the
-  same explicit-confirmation boundary as an unused-asset delete. The plan
-  fingerprint covers the orphan list, so a confirmed plan cannot delete a set
-  the caller never saw.
-- ~~A direct commit clones the document twice, and each clone is expensive.~~
-  Mostly done: `Document.Clone` no longer round-trips through JSON, which was
-  spending two thirds of its time parsing text it had just produced. A
-  reflection deep copy costs 1.5 ms against 10.4 ms for a 1,000-entity scene,
-  and took a direct set-transform from 42 ms to 6 ms at the median. Both copies
-  remain, because at 1.5 ms each removing the second is not worth changing what
-  `Execute` returns. Copy-on-write per entity is the next step if a scene ever
-  makes even that matter.
+- Undo retains a document pair per entry, so its stack costs O(document) per
+  edit. Inverse operations or copy-on-write entities would reduce that cost.
+- `Document.Fingerprint` re-marshals the full document. Per-entity hashes with
+  a Merkle root would make fingerprints and dependent caches incremental.
+- `Document.Clone` now uses a reflection deep copy instead of a JSON round trip,
+  but direct commits still clone twice to preserve the current return contract.
 
 ## Non-negotiable invariants
 
 - Studio, runtime, native harness, and exported applications share SceneIR
   semantics.
 - Unavailable capabilities remain explicit and machine-readable.
-- Agent actions use the same command path as human UI operations.
+- Human UI and agent operations converge on the same revision-safe command
+  path.
 - Orange is authored state, cyan is observed runtime state, and gold is trusted
   certification state.
-- The application must not depend on Chrome or browser GPU access for scene
-  evidence and certification.
+- Scene evidence and certification must not depend on Chrome or browser GPU
+  access.

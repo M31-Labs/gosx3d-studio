@@ -106,7 +106,17 @@ func assetGCView(document studio.Document, workspace *studio.Workspace) map[stri
 }
 
 func timelineView(document studio.Document) map[string]any {
-	view := map[string]any{"state": "No articulated clip loaded", "armatureId": "", "boneId": "", "boneName": "—", "constraintId": "", "clipId": "", "clipName": "No clip", "trackId": "", "duration": "0", "keyTime": "0.500", "rx": "0", "ry": "0", "rz": "0", "simulationId": "", "simulationName": "No simulation", "tickRate": "0", "ticks": "60", "retargetMapId": "", "retargetName": "No retarget map", "retargetClipId": "retargeted-clip", "machineId": "", "machineName": "No state machine", "machineState": "—", "machineParameter": "", "machineValue": "0", "deltaTime": "0.016667"}
+	view := map[string]any{
+		"state": "No articulated clip loaded", "armatureId": "", "boneId": "", "boneName": "—", "constraintId": "",
+		"clipId": "", "clipName": "No clip", "trackId": "", "duration": "0", "keyTime": "0.500",
+		"rx": "0", "ry": "0", "rz": "0", "simulationId": "", "simulationName": "No simulation",
+		"tickRate": "0", "ticks": "60", "retargetMapId": "", "retargetName": "No retarget map",
+		"retargetClipId": "retargeted-clip", "machineId": "", "machineName": "No state machine",
+		"machineState": "—", "machineParameter": "", "machineParameterLabel": "Parameter", "machineValue": "0",
+		"deltaTime": "0.016667", "boneAvailable": false, "clipAvailable": false, "ikAvailable": false,
+		"simulationAvailable": false, "retargetAvailable": false, "machineParameterAvailable": false,
+		"machineAvailable": false,
+	}
 	armatureIDs := sortedMapIDs(document.Armatures)
 	if len(armatureIDs) > 0 {
 		armature := document.Armatures[armatureIDs[0]]
@@ -120,9 +130,11 @@ func timelineView(document studio.Document) map[string]any {
 			}
 			view["boneId"], view["boneName"] = string(bone.ID), bone.Name
 			view["rx"], view["ry"], view["rz"] = number(pose.Euler.X), number(pose.Euler.Y), number(pose.Euler.Z)
+			view["boneAvailable"] = true
 		}
 		if len(armature.Constraints) > 0 {
 			view["constraintId"] = string(armature.Constraints[0].ID)
+			view["ikAvailable"] = true
 		}
 	}
 	clipIDs := sortedMapIDs(document.Animations)
@@ -132,6 +144,7 @@ func timelineView(document studio.Document) map[string]any {
 		trackIDs := sortedMapIDs(clip.Tracks)
 		if len(trackIDs) > 0 {
 			view["trackId"] = string(trackIDs[0])
+			view["clipAvailable"] = true
 		}
 		view["state"] = fmt.Sprintf("%d tracks · %.3fs", len(clip.Tracks), clip.Duration)
 	}
@@ -139,16 +152,19 @@ func timelineView(document studio.Document) map[string]any {
 	if len(simulationIDs) > 0 {
 		profile := document.Simulations[simulationIDs[0]]
 		view["simulationId"], view["simulationName"], view["tickRate"] = string(profile.ID), profile.Name, fmt.Sprint(profile.TickRate)
+		view["simulationAvailable"] = true
 	}
 	retargetIDs := sortedMapIDs(document.RetargetMaps)
 	if len(retargetIDs) > 0 {
 		mapping := document.RetargetMaps[retargetIDs[0]]
 		view["retargetMapId"], view["retargetName"] = string(mapping.ID), mapping.Name
+		view["retargetAvailable"] = len(clipIDs) > 0
 	}
 	machineIDs := sortedMapIDs(document.AnimationMachines)
 	if len(machineIDs) > 0 {
 		machine := document.AnimationMachines[machineIDs[0]]
 		view["machineId"], view["machineName"], view["machineState"] = string(machine.ID), machine.Name, string(machine.Current)
+		view["machineAvailable"] = true
 		parameterNames := make([]string, 0, len(machine.Parameters))
 		for name := range machine.Parameters {
 			parameterNames = append(parameterNames, name)
@@ -156,6 +172,8 @@ func timelineView(document studio.Document) map[string]any {
 		sort.Strings(parameterNames)
 		if len(parameterNames) > 0 {
 			view["machineParameter"], view["machineValue"] = parameterNames[0], number(machine.Parameters[parameterNames[0]])
+			view["machineParameterLabel"] = parameterNames[0]
+			view["machineParameterAvailable"] = true
 		}
 	}
 	return view
@@ -197,13 +215,26 @@ func hierarchyView(document studio.Document, selected studio.ID) []map[string]an
 		} else if entity.Light != nil {
 			kind = "light"
 		}
-		items = append(items, map[string]any{"id": string(id), "name": entity.Name, "class": class, "kind": kind, "code": shortID(id)})
+		items = append(items, map[string]any{
+			"id": string(id), "name": entity.Name, "class": class, "kind": kind, "code": shortID(id),
+			"selected": fmt.Sprint(id == selected), "tabIndex": "-1", "level": fmt.Sprint(depth + 1),
+		})
 		for _, child := range entity.Children {
 			walk(child, depth+1)
 		}
 	}
 	for _, root := range document.RootIDs {
 		walk(root, 0)
+	}
+	active := 0
+	for index := range items {
+		if items[index]["selected"] == "true" {
+			active = index
+			break
+		}
+	}
+	if len(items) > 0 {
+		items[active]["tabIndex"] = "0"
 	}
 	return items
 }
@@ -232,6 +263,9 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 	clearcoat := "0"
 	emissive := "0"
 	selenaSource := ""
+	textureColor := ""
+	textureNormal := ""
+	textureRoughness := ""
 	if entity.Mesh != nil {
 		materialID = string(entity.Mesh.Material)
 		geometry = entity.Mesh.Geometry.Kind
@@ -263,6 +297,15 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 			metalness = number(material.Metalness)
 			clearcoat = number(material.Clearcoat)
 			emissive = number(material.Emissive)
+			if slot, ok := material.Textures["color"]; ok {
+				textureColor = string(slot.Asset)
+			}
+			if slot, ok := material.Textures["normal"]; ok {
+				textureNormal = string(slot.Asset)
+			}
+			if slot, ok := material.Textures["roughness"]; ok {
+				textureRoughness = string(slot.Asset)
+			}
 			if material.Selena != nil {
 				shader = "Selena · " + material.Selena.Material
 				selenaSource = material.Selena.Source
@@ -277,7 +320,7 @@ func inspectorView(document studio.Document, selected studio.ID) map[string]any 
 	} else if entity.Light != nil {
 		geometry = capitalizeASCII(entity.Light.Kind) + " light"
 	}
-	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Euler.X), "ry": number(entity.Transform.Euler.Y), "rz": number(entity.Transform.Euler.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName, "materialColor": materialColor, "metalness": metalness, "clearcoat": clearcoat, "emissive": emissive, "selenaSource": selenaSource}
+	return map[string]any{"id": string(entity.ID), "name": entity.Name, "kind": geometry, "x": number(entity.Transform.Position.X), "y": number(entity.Transform.Position.Y), "z": number(entity.Transform.Position.Z), "rx": number(entity.Transform.Euler.X), "ry": number(entity.Transform.Euler.Y), "rz": number(entity.Transform.Euler.Z), "material": materialName, "materialId": materialID, "shader": shader, "roughness": roughness, "transmission": transmission, "visible": fmt.Sprint(entity.Visible), "locked": fmt.Sprint(entity.Locked), "modifierId": modifierID, "activeModifierId": activeModifierID, "thickness": thickness, "subdivisionId": subdivisionID, "subdivisionLevels": subdivisionLevels, "modifierStatus": modifierStatus, "assetId": assetID, "assetName": assetName, "materialColor": materialColor, "metalness": metalness, "clearcoat": clearcoat, "emissive": emissive, "selenaSource": selenaSource, "textureColor": textureColor, "textureNormal": textureNormal, "textureRoughness": textureRoughness}
 }
 
 func shortID(id studio.ID) string {
@@ -539,15 +582,15 @@ func modelingView(document studio.Document, workspace *studio.Workspace, selecte
 // bearer-token mutation surface is configured at all.
 func agentView(workspace *studio.Workspace, tokenConfigured bool) map[string]any {
 	view := map[string]any{
-		"tokenConfigured": fmt.Sprint(tokenConfigured),
-		"authority":       "read: open GET APIs · propose/direct: bearer token",
-		"proposalPresent": false,
-		"proposalSummary": "No proposals this session. POST /api/studio/actions/preview validates a transaction without mutating.",
+		"tokenConfigured":  fmt.Sprint(tokenConfigured),
+		"authority":        "Open inspection · session-owned proposals · human review · bearer automation enabled",
+		"proposalPresent":  false,
+		"proposalSummary":  "No staged WebMCP proposal is awaiting review.",
 		"proposalRevision": "—", "proposalAffected": "—", "proposalFingerprint": "—", "proposalActor": "—",
 		"agentCount": "0", "humanCount": "0",
 	}
 	if !tokenConfigured {
-		view["authority"] = "read: open GET APIs · propose/direct: DISABLED (set STUDIO_ACTION_TOKEN)"
+		view["authority"] = "Open inspection · session-owned proposals · human review · automation API disabled"
 	}
 	if workspace == nil {
 		return view
@@ -590,8 +633,8 @@ func prefabsView(document studio.Document) []map[string]any {
 // playView reports the play-mode session for the transport controls.
 func playView(workspace *studio.Workspace) map[string]any {
 	if workspace == nil {
-		return map[string]any{"active": "false", "tick": "0", "simulation": ""}
+		return map[string]any{"active": "false", "isActive": false, "tick": "0", "simulation": "", "diffs": "0"}
 	}
 	state := workspace.PlayState()
-	return map[string]any{"active": fmt.Sprint(state.Active), "tick": fmt.Sprint(state.Tick), "simulation": string(state.Simulation), "diffs": fmt.Sprint(len(workspace.PlayDiff()))}
+	return map[string]any{"active": fmt.Sprint(state.Active), "isActive": state.Active, "tick": fmt.Sprint(state.Tick), "simulation": string(state.Simulation), "diffs": fmt.Sprint(len(workspace.PlayDiff()))}
 }

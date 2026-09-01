@@ -128,8 +128,8 @@ func CompileIR(document Document) (SceneIR, error) {
 
 func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scene.Node, error)) (scene.Node, error) {
 	entity := document.Entities[id]
-	if !unitScale(entity.Transform.Scale) && entity.Mesh == nil && entity.Model == nil {
-		return nil, fmt.Errorf("entity %q is a group/light with scale %+v; engine group transforms are scale-free by design", id, entity.Transform.Scale)
+	if entity.Light != nil && !unitScale(entity.Transform.Scale) {
+		return nil, fmt.Errorf("light entity %q has scale %+v; light scale has no render meaning", id, entity.Transform.Scale)
 	}
 	children := make([]scene.Node, 0, len(entity.Children))
 	for _, childID := range entity.Children {
@@ -149,7 +149,10 @@ func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scen
 			return nil, fmt.Errorf("entity %q prefab %q: %w", id, definition.ID, err)
 		}
 		children = append([]scene.Node{prefabRoot}, children...)
-		return scene.Group{ID: string(entity.ID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneRotation(entity.Transform.Rotation), Children: children}, nil
+		return scene.Group{
+			ID: string(entity.ID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneRotation(entity.Transform.Rotation),
+			Scale: toSceneVec(entity.Transform.Scale), Children: children,
+		}, nil
 	}
 	return compileEntityValue(document, entity, entity.ID, selected == id, children)
 }
@@ -190,14 +193,17 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 			return nil, fmt.Errorf("nested prefab %q: %w", localID, err)
 		}
 		children = append([]scene.Node{nestedRoot}, children...)
-		return scene.Group{ID: string(runtimeID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneRotation(entity.Transform.Rotation), Children: children}, nil
+		return scene.Group{
+			ID: string(runtimeID), Position: toSceneVec(entity.Transform.Position), Rotation: toSceneRotation(entity.Transform.Rotation),
+			Scale: toSceneVec(entity.Transform.Scale), Children: children,
+		}, nil
 	}
 	return compileEntityValue(document, entity, runtimeID, selected == runtimeID, children)
 }
 
 func compileEntityValue(document Document, entity Entity, runtimeID ID, selected bool, children []scene.Node) (scene.Node, error) {
-	if !unitScale(entity.Transform.Scale) && entity.Mesh == nil && entity.Model == nil {
-		return nil, fmt.Errorf("entity %q is a group/light with scale %+v; engine group transforms are scale-free by design", runtimeID, entity.Transform.Scale)
+	if entity.Light != nil && !unitScale(entity.Transform.Scale) {
+		return nil, fmt.Errorf("light entity %q has scale %+v; light scale has no render meaning", runtimeID, entity.Transform.Scale)
 	}
 	position := toSceneVec(entity.Transform.Position)
 	rotation := toSceneRotation(entity.Transform.Rotation)
@@ -286,7 +292,7 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 			return nil, fmt.Errorf("entity %q uses unsupported light %q", runtimeID, light.Kind)
 		}
 	}
-	return scene.Group{ID: string(runtimeID), Position: position, Rotation: rotation, Children: children}, nil
+	return scene.Group{ID: string(runtimeID), Position: position, Rotation: rotation, Scale: toSceneVec(entity.Transform.Scale), Children: children}, nil
 }
 
 func compileGeometry(geometry Geometry) (scene.Geometry, error) {

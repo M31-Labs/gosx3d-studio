@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"m31labs.dev/gosx/desktop"
+	"m31labs.dev/gosx/server"
 	"m31labs.dev/gosx/session"
 	"m31labs.dev/gosx3d-studio/internal/studio"
 )
@@ -18,7 +20,7 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"gosx:scene3d:input", "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", "__gosx_page_nav"} {
+	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "__gosx_page_nav"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("selection bridge missing %q", required)
 		}
@@ -30,7 +32,7 @@ func TestGizmoBridgeDrivesSharedModeSignal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"studio.viewport.gizmoMode", "__gosx_set_shared_signal", "data-gizmo-mode", "gizmo-commit", "/api/studio/gizmo-commit", "input.phase", "__gosx_page_nav"} {
+	for _, required := range []string{"studio.viewport.gizmoMode", "studio.viewport.selectedID", "data-selection-id", "gosx:ready", "__gosx_runtime_api", "setSharedSignalValue", "__gosx_notify_shared_signal", "data-gizmo-mode", "gizmo-commit", "/api/studio/gizmo-commit", `headers["X-CSRF-Token"]`, "input.phase", "__gosx_page_nav"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("gizmo bridge missing %q", required)
 		}
@@ -201,12 +203,26 @@ func TestStudioBearerBypassesCSRFButOtherPostsDoNot(t *testing.T) {
 	if authorizedResult.Code != http.StatusNoContent {
 		t.Fatalf("authorized status = %d", authorizedResult.Code)
 	}
+	sessionRoute := httptest.NewRequest(http.MethodPost, "/api/studio/webmcp/proposals", nil)
+	sessionRoute.Header.Set("Accept", "application/json")
+	sessionRoute.Header.Set("Authorization", "Bearer token")
+	sessionResult := httptest.NewRecorder()
+	handler.ServeHTTP(sessionResult, sessionRoute)
+	if sessionResult.Code != http.StatusForbidden {
+		t.Fatalf("bearer-only session route status = %d, want 403", sessionResult.Code)
+	}
 	unauthorized := httptest.NewRequest(http.MethodPost, "/api/studio/transactions/call", nil)
 	unauthorized.Header.Set("Accept", "application/json")
 	unauthorizedResult := httptest.NewRecorder()
 	handler.ServeHTTP(unauthorizedResult, unauthorized)
 	if unauthorizedResult.Code != http.StatusForbidden {
 		t.Fatalf("unauthorized status = %d", unauthorizedResult.Code)
+	}
+	telemetry := httptest.NewRequest(http.MethodPost, server.ClientEventsRoute, strings.NewReader(`{"events":[]}`))
+	telemetryResult := httptest.NewRecorder()
+	handler.ServeHTTP(telemetryResult, telemetry)
+	if telemetryResult.Code != http.StatusNoContent {
+		t.Fatalf("telemetry status = %d, want CSRF-exempt append-only route", telemetryResult.Code)
 	}
 }
 
@@ -215,7 +231,7 @@ func TestCameraRigBridgeDrivesCameraSignals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"studio.viewport.cameraIn", "studio.viewport.cameraOut", "orthographic", "data-camera-view", "data-camera-focus-x"} {
+	for _, required := range []string{"studio.viewport.cameraIn", "studio.viewport.cameraOut", "__gosx_runtime_api", "setSharedSignalValue", "__gosx_subscribe_shared_signal", "orthographic", "rotationX", "data-camera-view", "data-camera-focus-x"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("camera rig missing %q", required)
 		}
@@ -227,6 +243,118 @@ func TestCameraRigBridgeDrivesCameraSignals(t *testing.T) {
 	for _, required := range []string{`data-camera-view="perspective"`, `data-camera-view="top"`, "data-camera-home", "/studio-camera.js"} {
 		if !strings.Contains(string(page), required) {
 			t.Fatalf("page camera controls missing %q", required)
+		}
+	}
+}
+
+func TestStudioRuntimeRootUsesBundledManifestWhenPresent(t *testing.T) {
+	root := t.TempDir()
+	dist := filepath.Join(root, "dist")
+	if err := os.MkdirAll(filepath.Join(dist, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dist, "build.json"), []byte(`{"runtime":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := studioRuntimeRoot(root); got != dist {
+		t.Fatalf("runtime root = %q, want bundled dist %q", got, dist)
+	}
+	if got := studioRuntimeRoot(dist); got != dist {
+		t.Fatalf("production runtime root = %q, want %q", got, dist)
+	}
+}
+
+func TestRenderBlueprintBuildsAndRunsThePackagedGoSXArtifact(t *testing.T) {
+	blueprint, err := os.ReadFile("render.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := string(blueprint)
+	for _, required := range []string{
+		"runtime: go",
+		"numInstances: 1",
+		"buildCommand: ./scripts/render-build.sh",
+		"startCommand: ./dist/run.sh",
+		"healthCheckPath: /api/health",
+		"key: GOSX_ENV\n        value: production",
+		"key: STUDIO_SERVER_ONLY\n        value: \"1\"",
+		"key: STUDIO_DEMO_MODE\n        value: \"1\"",
+		"key: SESSION_SECRET\n        generateValue: true",
+		"key: STUDIO_ACTION_TOKEN\n        generateValue: true",
+	} {
+		if !strings.Contains(contents, required) {
+			t.Fatalf("Render Blueprint is missing production contract %q", required)
+		}
+	}
+	if strings.Contains(contents, "buildCommand: go build") {
+		t.Fatal("Render Blueprint must use the GoSX packager so Scene3D runtime assets are deployed")
+	}
+
+	buildScript, err := os.ReadFile("scripts/render-build.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildScriptInfo, err := os.Stat("scripts/render-build.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buildScriptInfo.Mode().Perm()&0o111 == 0 {
+		t.Fatal("Render build script must be executable")
+	}
+	buildContents := string(buildScript)
+	for _, required := range []string{
+		`studio_tinygo_version="0.41.1"`,
+		"sha256sum --check --status",
+		`tinygo${studio_tinygo_version}.linux-${studio_tinygo_arch}.tar.gz`,
+		"go run m31labs.dev/gosx/cmd/gosx@v0.54.0 build --prod .",
+	} {
+		if !strings.Contains(buildContents, required) {
+			t.Fatalf("Render build script is missing reproducibility contract %q", required)
+		}
+	}
+	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.54.0 build ."} {
+		if strings.Contains(buildContents, forbidden) {
+			t.Fatalf("Render build script contains non-production fallback %q", forbidden)
+		}
+	}
+
+	routeConfig, err := os.ReadFile("app/route.config.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dynamicRoute struct {
+		Prerender *bool `json:"prerender"`
+		Cache     struct {
+			NoStore *bool `json:"noStore"`
+		} `json:"cache"`
+	}
+	if err := json.Unmarshal(routeConfig, &dynamicRoute); err != nil {
+		t.Fatalf("decode app/route.config.json: %v", err)
+	}
+	if dynamicRoute.Prerender == nil || *dynamicRoute.Prerender {
+		t.Fatal("stateful Studio page must not be prerendered with a session-bound CSRF token")
+	}
+	if dynamicRoute.Cache.NoStore == nil || !*dynamicRoute.Cache.NoStore {
+		t.Fatal("stateful Studio page must remain no-store")
+	}
+}
+
+func TestWindowsProductionPackagingProvisionsPinnedTinyGo(t *testing.T) {
+	workflow, err := os.ReadFile(".github/workflows/windows.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := string(workflow)
+	for _, required := range []string{
+		`$version = "0.41.1"`,
+		"tinygo$version.windows-amd64.zip",
+		"56b8ccf2c705b6a5da14b319ecffc73db2850cd5d09681d65022e604311276b5",
+		"Get-FileHash -Path $archive -Algorithm SHA256",
+		"$env:GITHUB_PATH",
+		`..\gosx-cli.exe build --prod --offline .`,
+	} {
+		if !strings.Contains(contents, required) {
+			t.Fatalf("Windows production packaging is missing TinyGo contract %q", required)
 		}
 	}
 }

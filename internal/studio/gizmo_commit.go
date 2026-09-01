@@ -22,8 +22,9 @@ type GizmoCommit struct {
 // safe transaction (spec: continuous drags commit one undo step). The gizmo
 // reports anchor-space values, which equal local values while parent chains
 // compose to identity; rotation deltas compose onto the authoritative
-// quaternion; scale commits fail explicitly while SceneDoc scale compilation
-// remains an honesty gate.
+// quaternion; scale commits apply to mesh, model, group, and prefab-group
+// entities. Light scale remains an explicit error because it has no render
+// meaning.
 func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 	// A drag needs one entity's transform and the current revision. Reading
 	// them under the read lock avoids deep-cloning the whole SceneDoc on
@@ -32,7 +33,7 @@ func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 	var (
 		revision  uint64
 		transform Transform
-		hasMesh   bool
+		canScale  bool
 		found     bool
 	)
 	if err := w.Read(func(document *Document) error {
@@ -43,7 +44,7 @@ func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 		}
 		found = true
 		transform = entity.Transform.canonical()
-		hasMesh = entity.Mesh != nil || entity.Model != nil
+		canScale = entity.Light == nil
 		return nil
 	}); err != nil {
 		return Receipt{}, err
@@ -68,8 +69,8 @@ func ApplyGizmoCommit(w *Workspace, commit GizmoCommit) (Receipt, error) {
 		if commit.ScaleFactor == nil {
 			return Receipt{}, fmt.Errorf("scale commit requires scaleFactor")
 		}
-		if !hasMesh {
-			return Receipt{}, fmt.Errorf("scale commits require a mesh or model entity; engine group transforms are scale-free by design")
+		if !canScale {
+			return Receipt{}, fmt.Errorf("scale commits are not meaningful for light entities")
 		}
 		scale := scaleOrUnit(transform.Scale)
 		factor := *commit.ScaleFactor

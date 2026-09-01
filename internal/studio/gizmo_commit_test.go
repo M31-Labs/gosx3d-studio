@@ -2,6 +2,7 @@ package studio
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -53,7 +54,7 @@ func TestApplyGizmoCommitRotateComposesQuaternionDelta(t *testing.T) {
 	}
 }
 
-func TestApplyGizmoCommitScalePerAxisOnMeshes(t *testing.T) {
+func TestApplyGizmoCommitScalePerAxisOnMeshesAndGroups(t *testing.T) {
 	document := SampleDocument()
 	workspace, err := NewWorkspace(document)
 	if err != nil {
@@ -72,7 +73,17 @@ func TestApplyGizmoCommitScalePerAxisOnMeshes(t *testing.T) {
 	if _, err := Compile(changed); err != nil {
 		t.Fatalf("scaled document must compile: %v", err)
 	}
-	if _, err := ApplyGizmoCommit(workspace, GizmoCommit{Target: "scene-root", Mode: "scale", Axis: "x", ScaleFactor: &factor}); err == nil {
-		t.Fatal("group scale commits must stay rejected")
+	if _, err := ApplyGizmoCommit(workspace, GizmoCommit{Target: "scene-root", Mode: "scale", Axis: "y", ScaleFactor: &factor}); err != nil {
+		t.Fatalf("v0.54 group scale commit must succeed: %v", err)
+	}
+	changed, _ = workspace.Snapshot()
+	if scale := changed.Entities["scene-root"].Transform.Scale; scale.X != 1 || scale.Y != 2 || scale.Z != 1 {
+		t.Fatalf("group scale = %+v, want y doubled only", scale)
+	}
+	if _, err := Compile(changed); err != nil {
+		t.Fatalf("gizmo-scaled group must compile: %v", err)
+	}
+	if _, err := ApplyGizmoCommit(workspace, GizmoCommit{Target: "key-light", Mode: "scale", Axis: "x", ScaleFactor: &factor}); err == nil || !strings.Contains(err.Error(), "not meaningful for light") {
+		t.Fatalf("light scale commit must remain an explicit error, got %v", err)
 	}
 }

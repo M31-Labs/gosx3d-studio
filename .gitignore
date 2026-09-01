@@ -10,3 +10,6 @@
 .DS_Store
 .canopy/
 .studio/
+/.devpost-hackathon-state.json
+/docs/plans/
+/studio-server

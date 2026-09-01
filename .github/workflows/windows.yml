@@ -5,17 +5,14 @@
 # attached evidence.
 #
 # Dependencies come from the versions go.mod pins and go.sum checksums, so this
-# builds exactly what Linux CI and a release build. Fetching the private
-# m31labs.dev modules needs the SIBLING_REPO_TOKEN secret (repo read scope).
+# builds exactly what Linux CI and a release build. The released GoSX and
+# Arbiter modules resolve through the public Go module proxy.
 name: windows-evidence
 
 on:
   push:
     branches: [main, codex/deep-implementation-foundation]
   workflow_dispatch: {}
-
-env:
-  GOPRIVATE: m31labs.dev/*,github.com/odvcencio/*,github.com/M31-Labs/*
 
 jobs:
   evidence:
@@ -32,8 +29,6 @@ jobs:
         with:
           go-version-file: gosx3d-studio/go.mod
           cache-dependency-path: gosx3d-studio/go.sum
-      - name: Authenticate private module fetches
-        run: git config --global url."https://x-access-token:${{ secrets.SIBLING_REPO_TOKEN || github.token }}@github.com/".insteadOf "https://github.com/"
       - name: Module pins are current
         run: go mod verify; if ($LASTEXITCODE -ne 0) { exit 1 }; go mod tidy -diff
       - name: Unit and integration tests
@@ -48,8 +43,28 @@ jobs:
       # the bundler and the runtime can never be different versions.
       - name: Build the pinned gosx CLI
         run: go build -o ../gosx-cli.exe m31labs.dev/gosx/cmd/gosx
+      - name: Install pinned TinyGo for production WASM
+        run: |
+          $version = "0.41.1"
+          $archive = Join-Path $env:RUNNER_TEMP "tinygo-$version-windows-amd64.zip"
+          $destination = Join-Path $env:RUNNER_TEMP "tinygo-$version"
+          $url = "https://github.com/tinygo-org/tinygo/releases/download/v$version/tinygo$version.windows-amd64.zip"
+          $expectedSHA256 = "56b8ccf2c705b6a5da14b319ecffc73db2850cd5d09681d65022e604311276b5"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $actualSHA256 = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSHA256 -ne $expectedSHA256) {
+            throw "TinyGo archive checksum mismatch: $actualSHA256"
+          }
+          Expand-Archive -Path $archive -DestinationPath $destination
+          $tinyGoBin = Join-Path $destination "tinygo\bin"
+          $tinyGoExecutable = Join-Path $tinyGoBin "tinygo.exe"
+          if (-not (Test-Path $tinyGoExecutable -PathType Leaf)) {
+            throw "TinyGo archive did not contain $tinyGoExecutable"
+          }
+          $tinyGoBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & $tinyGoExecutable version
       - name: Offline bundle + MSIX staging
-        run: ..\gosx-cli.exe build --offline .
+        run: ..\gosx-cli.exe build --prod --offline .
       - name: MSIX pack (best effort until signing identity lands)
         continue-on-error: true
         run: |

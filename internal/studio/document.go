@@ -420,8 +420,17 @@ func (d Document) Validate() error {
 		return err
 	}
 	for id := range d.Prefabs {
-		if _, err := resolvePrefabDefinition(d.Prefabs, id); err != nil {
+		resolved, err := resolvePrefabDefinition(d.Prefabs, id)
+		if err != nil {
 			return fmt.Errorf("prefab %q does not resolve: %w", id, err)
+		}
+		for localID, entity := range resolved.Entities {
+			if !finiteTransform(entity.Transform) {
+				return fmt.Errorf("prefab %q entity %q transform must be finite with a normalized rotation", id, localID)
+			}
+			if entity.Light != nil && !unitScale(entity.Transform.Scale) {
+				return fmt.Errorf("prefab %q light entity %q has scale %+v; light scale has no render meaning", id, localID, entity.Transform.Scale)
+			}
 		}
 	}
 	for key, asset := range d.Assets {
@@ -505,8 +514,8 @@ func (d Document) Validate() error {
 		if !finiteTransform(entity.Transform) {
 			return fmt.Errorf("entity %q transform must be finite with a normalized rotation", key)
 		}
-		if !unitScale(entity.Transform.Scale) && entity.Mesh == nil && entity.Model == nil {
-			return fmt.Errorf("entity %q is a group/light with scale %+v; engine group transforms are scale-free by design", key, entity.Transform.Scale)
+		if entity.Light != nil && !unitScale(entity.Transform.Scale) {
+			return fmt.Errorf("light entity %q has scale %+v; light scale has no render meaning", key, entity.Transform.Scale)
 		}
 		if entity.Parent == "" && !rootSet[key] {
 			return fmt.Errorf("unlisted root entity %q", key)
@@ -556,12 +565,16 @@ func (d Document) Validate() error {
 			if entity.Mesh != nil || entity.Light != nil || entity.Model != nil {
 				return fmt.Errorf("prefab instance %q cannot also carry mesh, model, or light", key)
 			}
-			definition, ok := d.Prefabs[entity.Prefab.Prefab]
-			if !ok {
+			if _, ok := d.Prefabs[entity.Prefab.Prefab]; !ok {
 				return fmt.Errorf("entity %q references missing prefab %q", key, entity.Prefab.Prefab)
 			}
+			definition, err := resolvePrefabDefinition(d.Prefabs, entity.Prefab.Prefab)
+			if err != nil {
+				return fmt.Errorf("entity %q prefab %q does not resolve: %w", key, entity.Prefab.Prefab, err)
+			}
 			for localID, override := range entity.Prefab.Overrides {
-				if _, ok := definition.Entities[localID]; !ok {
+				prefabEntity, ok := definition.Entities[localID]
+				if !ok {
 					return fmt.Errorf("entity %q overrides missing prefab entity %q", key, localID)
 				}
 				if override.Material != "" {
@@ -572,8 +585,8 @@ func (d Document) Validate() error {
 				if override.Transform != nil && !finiteTransform(*override.Transform) {
 					return fmt.Errorf("entity %q prefab override %q has non-finite transform", key, localID)
 				}
-				if override.Transform != nil && !unitScale(override.Transform.Scale) {
-					return fmt.Errorf("entity %q prefab override %q has scale %+v; SceneDoc scale compilation is not implemented", key, localID, override.Transform.Scale)
+				if override.Transform != nil && prefabEntity.Light != nil && !unitScale(override.Transform.Scale) {
+					return fmt.Errorf("entity %q prefab light override %q has scale %+v; light scale has no render meaning", key, localID, override.Transform.Scale)
 				}
 			}
 		}
@@ -729,7 +742,7 @@ func validatePrefabDefinition(prefab PrefabDefinition, materials map[ID]Material
 					return fmt.Errorf("variant addition %q geometry: %w", key, err)
 				}
 			}
-			if !finiteTransform(entity.Transform) || !unitScale(entity.Transform.Scale) {
+			if !finiteTransform(entity.Transform) {
 				return fmt.Errorf("variant addition %q transform is invalid", key)
 			}
 		}

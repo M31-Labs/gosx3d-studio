@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: gosx3d-studio
+    runtime: go
+    plan: 0.5c-512mb
+    numInstances: 1
+    # The tracked build script provisions pinned TinyGo, then GoSX packages the
+    # server and hashed runtime feature bundle together. A plain `go build`
+    # would omit Scene3D's browser runtime assets on a fresh host.
+    buildCommand: ./scripts/render-build.sh
+    startCommand: ./dist/run.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_NAME
+        value: GoSX 3D Studio
+      - key: GOSX_ENV
+        value: production
+      - key: STUDIO_PROJECT_DIR
+        value: /tmp/studio
+      - key: STUDIO_SERVER_ONLY
+        value: "1"
+      - key: STUDIO_DEMO_MODE
+        value: "1"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: STUDIO_ACTION_TOKEN
+        generateValue: true

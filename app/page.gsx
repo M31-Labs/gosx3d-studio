@@ -1,7 +1,8 @@
 package app
 
 func Page() Node {
-	return <main class="studio-shell" aria-label="GoSX 3D Studio M1 foundation workbench">
+	return <main class="studio-shell" aria-label="GoSX 3D Studio shared scene workbench">
+		<a class="skip-link" href="#inspector-panel">Skip to Inspector</a>
 		<header class="menu-bar">
 			<a href="/" data-gosx-link class="brand" aria-label="GoSX 3D Studio home">
 				<span class="brand-mark">GoSX</span>
@@ -26,71 +27,71 @@ func Page() Node {
 					<input type="hidden" name="expectedRevision" value={data.revision}></input>
 					<button type="submit" title="Redo the last undone command">Redo</button>
 				</form>
-				<button type="button">Assets</button>
-				<button type="button">Scene</button>
-				<button type="button">Model</button>
-				<button type="button">Rig</button>
-				<button type="button">Animate</button>
-				<button type="button">Simulate</button>
-				<button type="button">Render</button>
-				<button type="button">Agent</button>
-				<button type="button">Window</button>
-				<button type="button">Help</button>
+				<button type="button" data-project-panel-toggle aria-controls="project-panel" aria-expanded="true" title="Hide Project / Assets panel">Assets</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Scene</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Model</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Rig</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Animate</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Simulate</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Render</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Agent</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Window</button>
+				<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Help</button>
 			</nav>
 			<div class="build-badge">
 				<span class="status-dot"></span>
-				M1 foundation · {data.project.state}
+				Scene rev {data.revision} · {data.project.state}
 			</div>
 		</header>
 		<nav class="workspace-tabs" aria-label="Studio workspaces">
 			<button type="button" class="active" aria-current="page">Layout</button>
-			<button type="button">Modeling</button>
-			<button type="button" disabled>Sculpt</button>
-			<button type="button" disabled>Rigging</button>
-			<button type="button" disabled>Animation</button>
-			<button type="button" disabled>Simulation</button>
-			<button type="button" disabled>Shading</button>
-			<button type="button" disabled>Rendering</button>
-			<button type="button">Automation</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Modeling</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Sculpt</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Rigging</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Animation</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Simulation</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Shading</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Rendering</button>
+			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Automation</button>
 		</nav>
-		<div class="tool-bar" aria-label="Viewport tools">
-			<div class="tool-group">
-				<button type="button" class="tool active" aria-label="Select" data-gizmo-mode="">↖</button>
-				<button type="button" class="tool" aria-label="Move" data-gizmo-mode="translate">✣</button>
-				<button type="button" class="tool" aria-label="Rotate" data-gizmo-mode="rotate">↻</button>
-				<button type="button" class="tool" aria-label="Scale" data-gizmo-mode="scale">↗</button>
+		<div class="tool-bar" role="toolbar" aria-label="Viewport tools">
+			<div class="tool-group" role="group" aria-label="Transform tools">
+				<button type="button" class="tool active" aria-label="Select" title="Select" aria-pressed="true" data-gizmo-mode="select">↖</button>
+				<button type="button" class="tool" aria-label="Move" title="Move selected object" aria-pressed="false" data-gizmo-mode="translate">✣</button>
+				<button type="button" class="tool" aria-label="Rotate" title="Rotate selected object" aria-pressed="false" data-gizmo-mode="rotate">↻</button>
+				<button type="button" class="tool" aria-label="Scale" title="Scale selected object" aria-pressed="false" data-gizmo-mode="scale">↗</button>
 			</div>
-			<div class="tool-group segmented" aria-label="Transform orientation">
-				<button type="button" class="active">Global</button>
-				<button type="button">Pivot</button>
+			<div class="tool-group segmented" role="group" aria-label="Transform orientation">
+				<button type="button" class="active" aria-pressed="true">Global</button>
+				<button type="button" disabled aria-disabled="true" aria-pressed="false" title="Pivot orientation is unavailable in this public build">Pivot</button>
 			</div>
 			<div class="tool-spacer"></div>
-			<div class="tool-group transport" aria-label="Playback">
+			<div class="tool-group transport" role="group" aria-label="Playback">
 				<form data-gosx-form method="post" action={actionPath("playOp")} class="menu-save-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
 					<input type="hidden" name="op" value="enter"></input>
 					<input type="hidden" name="simulationId" value={data.timeline.simulationId}></input>
-					<button type="submit" title="Enter play mode (clones the document)">▶</button>
+					<button type="submit" aria-label="Enter play mode" title="Enter play mode (clones the document)" disabled={data.play.isActive}>▶</button>
 				</form>
 				<form data-gosx-form method="post" action={actionPath("playOp")} class="menu-save-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
 					<input type="hidden" name="op" value="step"></input>
 					<input type="hidden" name="ticks" value="60"></input>
-					<button type="submit" title="Step 60 fixed ticks">⏭</button>
+					<button type="submit" aria-label="Step 60 fixed ticks" title="Enter play mode before stepping fixed ticks" disabled={!data.play.isActive}>⏭</button>
 				</form>
 				<form data-gosx-form method="post" action={actionPath("playOp")} class="menu-save-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
 					<input type="hidden" name="op" value="exit"></input>
-					<button type="submit" title="Exit play mode (discards runtime state)">■</button>
+					<button type="submit" aria-label="Exit play mode" title="Enter play mode before exiting" disabled={!data.play.isActive}>■</button>
 				</form>
 			</div>
 			<span class="frame-readout">play={data.play.active} · tick {data.play.tick} · {data.play.diffs} runtime diffs</span>
 		</div>
 		<div class="workbench">
-			<aside class="panel project-panel" aria-labelledby="project-title">
+			<aside id="project-panel" class="panel project-panel" aria-labelledby="project-title">
 				<header class="panel-heading">
 					<h2 id="project-title">Project / Assets</h2>
 					<span class="panel-count">{data.assetCount}</span>
@@ -112,7 +113,7 @@ func Page() Node {
 				</form>
 				<label class="search-field">
 					<span class="sr-only">Search assets</span>
-					<input type="search" placeholder="Search assets…"></input>
+					<input type="search" placeholder="Asset search unavailable" disabled aria-disabled="true" title="Asset search is unavailable in this public build"></input>
 				</label>
 				<ul class="tree asset-tree">
 					<li class="expanded">
@@ -148,22 +149,24 @@ func Page() Node {
 			<aside class="panel hierarchy-panel" aria-labelledby="hierarchy-title">
 				<header class="panel-heading">
 					<h2 id="hierarchy-title">Scene Hierarchy</h2>
-					<span class="panel-count">{data.entityCount}</span>
+					<span class="panel-count" data-hierarchy-filter-count>{data.entityCount}</span>
 				</header>
 				<label class="search-field">
 					<span class="sr-only">Search hierarchy</span>
-					<input type="search" placeholder="Search hierarchy…"></input>
+					<input id="studio-hierarchy-search" type="search" placeholder="Search name, ID, or type…" autocomplete="off" data-hierarchy-filter aria-controls="studio-hierarchy-tree" aria-describedby="studio-hierarchy-search-status"></input>
 				</label>
-				<ul class="tree hierarchy-tree">
+				<span id="studio-hierarchy-search-status" class="sr-only" aria-live="polite">{data.entityCount} scene entities</span>
+				<ul id="studio-hierarchy-tree" class="tree hierarchy-tree" role="tree" aria-label="Scene entities">
 					<Each of={data.hierarchy} as="item">
-						<li class={item.class}>
-							<a href={"/?selection=" + item.id} data-gosx-link aria-label={"Select " + item.name}>
+						<li class={item.class} data-hierarchy-row data-entity-name={item.name} data-hierarchy-id={item.id} data-entity-type={item.kind}>
+							<a href={"/?selection=" + item.id} data-gosx-link data-entity-id={item.id} role="treeitem" aria-level={item.level} aria-selected={item.selected} tabindex={item.tabIndex} aria-label={"Select " + item.name} title={item.name + " · " + item.id}>
 								<code>{item.code}</code>
 								<span class="entity-kind">{item.kind}</span>
-								<span>{item.name}</span>
+								<span title={item.name}>{item.name}</span>
 							</a>
 						</li>
 					</Each>
+					<li data-hierarchy-empty role="status" hidden>No scene entities match this search.</li>
 				</ul>
 				<form data-gosx-form method="post" action={actionPath("entityOp")} class="inspector-form hierarchy-ops-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
@@ -198,19 +201,19 @@ func Page() Node {
 			<section class="viewport-panel" aria-labelledby="viewport-title">
 				<header class="viewport-header">
 					<h2 id="viewport-title">Viewport</h2>
-					<div>
-						<button type="button" data-camera-view="perspective">Perspective</button>
-						<button type="button" data-camera-view="front">Front</button>
-						<button type="button" data-camera-view="top">Top</button>
-						<button type="button" data-camera-view="right">Right</button>
+					<div role="toolbar" aria-label="Camera views">
+						<button type="button" class="active" aria-pressed="true" data-camera-view="perspective">Perspective</button>
+						<button type="button" aria-pressed="false" data-camera-view="front">Front</button>
+						<button type="button" aria-pressed="false" data-camera-view="top">Top</button>
+						<button type="button" aria-pressed="false" data-camera-view="right">Right</button>
 					</div>
 				</header>
-				<div class="scene-stage" data-camera-home={data.cameraHome} data-camera-focus-x={data.inspector.x} data-camera-focus-y={data.inspector.y} data-camera-focus-z={data.inspector.z}>
+				<div class="scene-stage" data-selection-id={data.inspector.id} data-camera-home={data.cameraHome} data-camera-focus-x={data.inspector.x} data-camera-focus-y={data.inspector.y} data-camera-focus-z={data.inspector.z}>
 					<div class="runtime-readout" aria-label="Observed runtime telemetry">
 						<span>SCENE IR</span>
 						<strong>mounted</strong>
 						<span>BACKEND</span>
-						<strong>negotiated</strong>
+						<strong data-scene-runtime-backend>negotiating</strong>
 						<span>REVISION</span>
 						<strong>{data.revision}</strong>
 					</div>
@@ -228,10 +231,10 @@ func Page() Node {
 					</div>
 				</div>
 			</section>
-			<aside class="panel inspector-panel" aria-labelledby="inspector-title">
+			<aside id="inspector-panel" class="panel inspector-panel" aria-labelledby="inspector-title" tabindex="-1">
 				<header class="panel-heading">
 					<h2 id="inspector-title">Inspector</h2>
-					<span class="selection-id">{data.inspector.name} · {data.inspector.id}</span>
+					<span class="selection-id" title={data.inspector.name + " · " + data.inspector.id}>{data.inspector.name} · {data.inspector.id}</span>
 				</header>
 				<details open>
 					<summary>Transform</summary>
@@ -306,7 +309,7 @@ func Page() Node {
 							Assign material
 							<select name="materialId">
 								<Each of={data.materials} as="material">
-									<option value={material.id}>{material.name}</option>
+									<option value={material.id} selected={material.id == data.inspector.materialId}>{material.name}</option>
 								</Each>
 							</select>
 						</label>
@@ -349,27 +352,27 @@ func Page() Node {
 						<label>
 							Base color texture (image assets)
 							<select name="texture-color">
-								<option value="">none</option>
+								<option value="" selected={data.inspector.textureColor == ""}>none</option>
 								<Each of={data.imageAssets} as="image">
-									<option value={image.id}>{image.name}</option>
+									<option value={image.id} selected={image.id == data.inspector.textureColor}>{image.name}</option>
 								</Each>
 							</select>
 						</label>
 						<label>
 							Normal map
 							<select name="texture-normal">
-								<option value="">none</option>
+								<option value="" selected={data.inspector.textureNormal == ""}>none</option>
 								<Each of={data.imageAssets} as="image">
-									<option value={image.id}>{image.name}</option>
+									<option value={image.id} selected={image.id == data.inspector.textureNormal}>{image.name}</option>
 								</Each>
 							</select>
 						</label>
 						<label>
 							Roughness map
 							<select name="texture-roughness">
-								<option value="">none</option>
+								<option value="" selected={data.inspector.textureRoughness == ""}>none</option>
 								<Each of={data.imageAssets} as="image">
-									<option value={image.id}>{image.name}</option>
+									<option value={image.id} selected={image.id == data.inspector.textureRoughness}>{image.name}</option>
 								</Each>
 							</select>
 						</label>
@@ -693,108 +696,134 @@ func Page() Node {
 					<span>rev {data.revision}</span>
 				</div>
 				<div class="timeline-tools">
-					<form data-gosx-form method="post" action={actionPath("setBonePose")} class="timeline-form">
+					<form data-gosx-form method="post" action={actionPath("setBonePose")} class="timeline-form" title="Requires an armature with at least one bone">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="armatureId" value={data.timeline.armatureId}></input>
 						<input type="hidden" name="boneId" value={data.timeline.boneId}></input>
 						<strong>Pose · {data.timeline.boneName}</strong>
-						<label>RX <input name="rx" value={data.timeline.rx} inputmode="decimal"></input></label>
-						<label>RY <input name="ry" value={data.timeline.ry} inputmode="decimal"></input></label>
-						<label>RZ <input name="rz" value={data.timeline.rz} inputmode="decimal"></input></label>
-						<button type="submit">Set pose</button>
+						<label>RX <input name="rx" value={data.timeline.rx} inputmode="decimal" disabled={!data.timeline.boneAvailable}></input></label>
+						<label>RY <input name="ry" value={data.timeline.ry} inputmode="decimal" disabled={!data.timeline.boneAvailable}></input></label>
+						<label>RZ <input name="rz" value={data.timeline.rz} inputmode="decimal" disabled={!data.timeline.boneAvailable}></input></label>
+						<button type="submit" disabled={!data.timeline.boneAvailable}>Set pose</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("setAnimationKey")} class="timeline-form">
+					<form data-gosx-form method="post" action={actionPath("setAnimationKey")} class="timeline-form" title="Requires an animation clip with a track">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="clipId" value={data.timeline.clipId}></input>
 						<input type="hidden" name="trackId" value={data.timeline.trackId}></input>
 						<strong>Key · {data.timeline.clipName}</strong>
-						<label>Time <input name="time" value={data.timeline.keyTime} inputmode="decimal"></input></label>
-						<label>RX <input name="rx" value={data.timeline.rx} inputmode="decimal"></input></label>
-						<label>RY <input name="ry" value={data.timeline.ry} inputmode="decimal"></input></label>
-						<label>RZ <input name="rz" value={data.timeline.rz} inputmode="decimal"></input></label>
-						<button type="submit">Insert key</button>
+						<label>Time <input name="time" value={data.timeline.keyTime} inputmode="decimal" disabled={!data.timeline.clipAvailable}></input></label>
+						<label>RX <input name="rx" value={data.timeline.rx} inputmode="decimal" disabled={!data.timeline.clipAvailable}></input></label>
+						<label>RY <input name="ry" value={data.timeline.ry} inputmode="decimal" disabled={!data.timeline.clipAvailable}></input></label>
+						<label>RZ <input name="rz" value={data.timeline.rz} inputmode="decimal" disabled={!data.timeline.clipAvailable}></input></label>
+						<button type="submit" disabled={!data.timeline.clipAvailable}>Insert key</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("solveIK")} class="timeline-form compact">
+					<form data-gosx-form method="post" action={actionPath("solveIK")} class="timeline-form compact" title="Requires an armature IK constraint">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="armatureId" value={data.timeline.armatureId}></input>
 						<input type="hidden" name="constraintId" value={data.timeline.constraintId}></input>
 						<strong>IK · {data.timeline.constraintId}</strong>
-						<button type="submit">Solve deterministically</button>
+						<button type="submit" disabled={!data.timeline.ikAvailable}>Solve deterministically</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("simulateTicks")} class="timeline-form compact">
+					<form data-gosx-form method="post" action={actionPath("simulateTicks")} class="timeline-form compact" title="Requires a simulation profile">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="simulationId" value={data.timeline.simulationId}></input>
 						<strong>Sim · {data.timeline.simulationName}</strong>
-						<label>Ticks <input name="ticks" value={data.timeline.ticks} inputmode="numeric"></input></label>
-						<button type="submit">Advance fixed ticks</button>
+						<label>Ticks <input name="ticks" value={data.timeline.ticks} inputmode="numeric" disabled={!data.timeline.simulationAvailable}></input></label>
+						<button type="submit" disabled={!data.timeline.simulationAvailable}>Advance fixed ticks</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("retargetAnimation")} class="timeline-form">
+					<form data-gosx-form method="post" action={actionPath("retargetAnimation")} class="timeline-form" title="Requires both a retarget map and source clip">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="retargetMapId" value={data.timeline.retargetMapId}></input>
 						<input type="hidden" name="sourceClipId" value={data.timeline.clipId}></input>
 						<strong>Retarget · {data.timeline.retargetName}</strong>
-						<label>Stable ID <input name="newId" value={data.timeline.retargetClipId}></input></label>
-						<label>Name <input name="name" value="Retargeted Clip"></input></label>
-						<button type="submit">Retarget clip</button>
+						<label>Stable ID <input name="newId" value={data.timeline.retargetClipId} disabled={!data.timeline.retargetAvailable}></input></label>
+						<label>Name <input name="name" value="Retargeted Clip" disabled={!data.timeline.retargetAvailable}></input></label>
+						<button type="submit" disabled={!data.timeline.retargetAvailable}>Retarget clip</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("setAnimationParameter")} class="timeline-form compact">
+					<form data-gosx-form method="post" action={actionPath("setAnimationParameter")} class="timeline-form compact" title="Requires a state machine parameter">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="machineId" value={data.timeline.machineId}></input>
 						<input type="hidden" name="parameter" value={data.timeline.machineParameter}></input>
 						<strong>{data.timeline.machineName} · {data.timeline.machineState}</strong>
-						<label>{data.timeline.machineParameter} <input name="number" value={data.timeline.machineValue} inputmode="decimal"></input></label>
-						<button type="submit">Set parameter</button>
+						<label>{data.timeline.machineParameterLabel} <input name="number" value={data.timeline.machineValue} inputmode="decimal" disabled={!data.timeline.machineParameterAvailable}></input></label>
+						<button type="submit" disabled={!data.timeline.machineParameterAvailable}>Set parameter</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("stepAnimationMachine")} class="timeline-form compact">
+					<form data-gosx-form method="post" action={actionPath("stepAnimationMachine")} class="timeline-form compact" title="Requires an animation state machine">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="machineId" value={data.timeline.machineId}></input>
 						<strong>Governed transition · Arbiter</strong>
-						<label>Δ seconds <input name="deltaTime" value={data.timeline.deltaTime} inputmode="decimal"></input></label>
-						<button type="submit">Evaluate + sample</button>
+						<label>Δ seconds <input name="deltaTime" value={data.timeline.deltaTime} inputmode="decimal" disabled={!data.timeline.machineAvailable}></input></label>
+						<button type="submit" disabled={!data.timeline.machineAvailable}>Evaluate + sample</button>
 					</form>
 				</div>
 			</section>
 			<aside class="agent-panel" aria-labelledby="agent-title">
 				<header class="panel-heading">
-					<h2 id="agent-title">Agent Actions</h2>
+					<h2 id="agent-title">Agent Collaboration</h2>
 					<span class="runtime-label">typed surface</span>
 				</header>
+				<div class="webmcp-status-banner" data-webmcp-status-panel data-state="detecting" role="status" aria-live="polite">
+					<span class="webmcp-status-dot" aria-hidden="true"></span>
+					<span>
+						<strong>WebMCP</strong>
+						<small data-webmcp-status-label>Detecting browser support</small>
+					</span>
+					<code data-webmcp-tool-count>0 tools</code>
+				</div>
+				<p class="webmcp-status-copy" data-webmcp-status-message>The complete human editing surface remains available while WebMCP initializes.</p>
+				<div class="studio-demo-reset" data-studio-demo-panel hidden>
+					<span>
+						<strong>Shared public demo</strong>
+						<small>One ephemeral scene for every visitor. Reset clears edits and staged proposals.</small>
+					</span>
+					<button type="button" data-studio-demo-reset data-revision={data.revision}>Reset shared scene</button>
+				</div>
 				<p class="placeholder-copy">{data.agent.authority}</p>
-				<div class="proposal">
-					<span class="overline">Latest agent proposal</span>
-					<p>{data.agent.proposalSummary}</p>
+				<div class="proposal" data-webmcp-proposal data-revision={data.revision}>
+					<span class="overline">Latest staged proposal</span>
+					<p data-webmcp-proposal-summary>{data.agent.proposalSummary}</p>
+					<p data-webmcp-proposal-rationale hidden></p>
+					<ul class="webmcp-change-list" data-webmcp-proposal-changes hidden></ul>
 					<dl>
 						<div>
 							<dt>Actor</dt>
-							<dd>{data.agent.proposalActor}</dd>
+							<dd data-webmcp-proposal-actor>{data.agent.proposalActor}</dd>
+						</div>
+						<div>
+							<dt>Policy</dt>
+							<dd data-webmcp-proposal-policy>Arbiter · awaiting proposal</dd>
 						</div>
 						<div>
 							<dt>Revision</dt>
-							<dd>{data.agent.proposalRevision}</dd>
+							<dd data-webmcp-proposal-revision>{data.agent.proposalRevision}</dd>
 						</div>
 						<div>
 							<dt>Affected</dt>
-							<dd>{data.agent.proposalAffected}</dd>
+							<dd data-webmcp-proposal-affected>{data.agent.proposalAffected}</dd>
 						</div>
 						<div>
 							<dt>Result fingerprint</dt>
-							<dd class="pending">{data.agent.proposalFingerprint}</dd>
+							<dd class="pending" data-webmcp-proposal-fingerprint>{data.agent.proposalFingerprint}</dd>
 						</div>
 					</dl>
+					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
+						<button type="button" data-webmcp-discard>Discard</button>
+						<button type="button" class="primary" data-webmcp-commit>Apply staged changes</button>
+					</div>
 				</div>
 				<div class="proposal">
 					<span class="overline">Session activity</span>
@@ -808,7 +837,7 @@ func Page() Node {
 							<dd class="authored">{data.agent.humanCount}</dd>
 						</div>
 					</dl>
-					<p class="placeholder-copy">Proposals commit by resubmitting the same operations to /api/studio/transactions/call with the expected revision.</p>
+					<p class="placeholder-copy">Agents stage revision-safe previews; a human applies the exact reviewed operations through the session-protected commit path.</p>
 				</div>
 				<div class="agent-actions">
 					<a class="primary" href="/api/studio/actions">Action catalog ↗</a>
@@ -817,16 +846,16 @@ func Page() Node {
 			</aside>
 		</div>
 		<section class="telemetry-dock" aria-label="Diagnostics and telemetry">
-			<nav aria-label="Diagnostic tabs">
-				<button type="button">Console</button>
-				<button type="button">Render Graph</button>
-				<button type="button">Harness</button>
-				<button type="button">Ray Trace</button>
-				<button type="button">Selena</button>
-				<button type="button">Performance</button>
-				<button type="button" class="active">Agent Activity</button>
+			<nav role="tablist" aria-label="Diagnostic tabs">
+				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Console</button>
+				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Render Graph</button>
+				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Harness</button>
+				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Ray Trace</button>
+				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Selena</button>
+				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Performance</button>
+				<button id="agent-activity-tab" type="button" class="active" role="tab" aria-selected="true" aria-controls="agent-activity-panel">Agent Activity</button>
 			</nav>
-			<div class="telemetry-content">
+			<div id="agent-activity-panel" class="telemetry-content" role="tabpanel" aria-labelledby="agent-activity-tab">
 				<div class="console-lines">
 					<p>
 						<time>rev {data.revision}</time>
@@ -847,14 +876,17 @@ func Page() Node {
 					<small>{data.certification.available} / {data.certification.total} editor dimensions available</small>
 					<small>{data.certification.liveChecksPass} / {data.certification.liveChecksTotal} live evidence checks pass · release {data.certification.releaseStatus}</small>
 					<small class={"certification-state certification-state-" + data.certification.certState}>evidence {data.certification.certState} · revision {data.certification.certRevision}</small>
-					<ul class="certification-dimensions">
-						<Each of={data.certification.dimensions} as="dimension">
-							<li title={dimension.evidence}>
-								<span>{dimension.id}</span>
-								<strong>{dimension.status}</strong>
-							</li>
-						</Each>
-					</ul>
+					<details class="certification-details">
+						<summary>Evidence details · {data.certification.available}/{data.certification.total}</summary>
+						<ul class="certification-dimensions">
+							<Each of={data.certification.dimensions} as="dimension">
+								<li title={dimension.evidence}>
+									<span>{dimension.id}</span>
+									<strong>{dimension.status}</strong>
+								</li>
+							</Each>
+						</ul>
+					</details>
 				</div>
 				<div class="manifest-link">
 					<span>Agent-readable contract</span>
@@ -868,15 +900,18 @@ func Page() Node {
 		<script src="/studio-certification.js" defer></script>
 		<script src="/studio-gizmo.js" defer></script>
 		<script src="/studio-camera.js" defer></script>
+		<script src="/studio-interactions.js" defer></script>
+		<script src="/studio-webmcp-ui.js" defer></script>
+		<script src="/studio-webmcp.js" defer></script>
 		<footer class="status-bar">
 			<span class="runtime-label">GoSX server</span>
 			<span>Scene revision {data.revision}</span>
 			<span>Saved revision {data.project.savedRevision}</span>
 			<span class="author-label">Project {data.project.state}</span>
-			<span>Scene3D mounted</span>
-			<span>GPU telemetry unavailable</span>
+			<span data-scene-runtime-status>Scene3D initializing</span>
+			<span>{data.entityCount} scene entities</span>
 			<span class="status-spacer"></span>
-			<strong class="pending">CERTIFICATION {data.certification.status}</strong>
+			<strong class="runtime-label">REV {data.revision} CURRENT</strong>
 			<span>Industrial Void</span>
 		</footer>
 	</main>
