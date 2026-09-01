@@ -73,10 +73,14 @@ kubectl -n m31labs get ingress gosx3d-studio
 kubectl -n m31labs get certificate gosx3d-studio-tls
 curl -fsS https://gosx3d.m31labs.dev/api/health
 curl -fsS https://gosx3d.m31labs.dev/api/studio/demo/status
+curl -fsSI http://gosx3d.m31labs.dev/
 curl -fsSI https://gosx3d.m31labs.dev/
 ```
 
 The pod must be ready on `ns1007492`; health must report `ok`; demo status must
-report a shared ephemeral scene; and the root response must remain dynamic and
-`no-store`. Complete the native WebMCP inspect, find, focus, preview, discard,
-and human-apply browser flow before treating the deployment as submission-ready.
+report a shared ephemeral scene; the root response must remain dynamic and
+`no-store`; plain HTTP must return a permanent HTTPS redirect; and HTTPS must
+include HSTS, `nosniff`, referrer, and permissions-policy headers. The origin
+ingress must also reject TLS below 1.2. Complete the native WebMCP inspect,
+find, focus, preview, discard, and human-apply browser flow before treating the
+deployment as submission-ready.

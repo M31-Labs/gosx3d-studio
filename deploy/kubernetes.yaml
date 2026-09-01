@@ -118,6 +118,49 @@ spec:
       targetPort: http
       protocol: TCP
 ---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gosx3d-studio-redirect-https
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gosx3d-studio-security-headers
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+spec:
+  headers:
+    contentTypeNosniff: true
+    forceSTSHeader: true
+    referrerPolicy: strict-origin-when-cross-origin
+    stsIncludeSubdomains: false
+    stsPreload: false
+    stsSeconds: 31536000
+    customResponseHeaders:
+      Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+---
+apiVersion: traefik.io/v1alpha1
+kind: TLSOption
+metadata:
+  name: gosx3d-studio-modern-tls
+  namespace: m31labs
+  labels:
+    app.kubernetes.io/name: gosx3d-studio
+    app.kubernetes.io/part-of: m31labs
+spec:
+  minVersion: VersionTLS12
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -128,6 +171,8 @@ metadata:
     app.kubernetes.io/part-of: m31labs
   annotations:
     cert-manager.io/cluster-issuer: cloudflare-issuer
+    traefik.ingress.kubernetes.io/router.middlewares: m31labs-gosx3d-studio-redirect-https@kubernetescrd,m31labs-gosx3d-studio-security-headers@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls.options: m31labs-gosx3d-studio-modern-tls@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:
@@ -145,4 +190,3 @@ spec:
                 name: gosx3d-studio
                 port:
                   name: http
-
