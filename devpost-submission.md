@@ -278,9 +278,10 @@ IDs, cross-session rejection, CSRF/session authority, and production cookie
 attributes. Demo tests cover reset revision monotonicity, stale and concurrent
 requests, path ownership, cross-browser behavior, proposal invalidation, and
 non-demo denial. The final source tree passed the complete verification sequence
-listed above. The packaged production/TLS artifact also passed native four-tool
-discovery, inspect/search/focus, a governed non-mutating preview, visible-UI
-Discard, secure session/CSRF transport, and a clean real-WebGL browser smoke.
+listed above. The deployed HTTPS origin also passed native four-tool discovery,
+inspect/search/focus, a governed non-mutating two-operation preview, full-reload
+proposal restoration, visible-UI Apply, exactly one canonical revision advance,
+secure session/CSRF transport, reset, and a clean real-WebGL browser smoke.
 
 ## Public Demo Link
 

@@ -1,7 +1,7 @@
 # Native WebMCP verification
 
-Verified September 1, 2026 against the local demo server and the current source
-tree.
+Verified September 1, 2026 against the current source tree, the immutable
+release image, and the deployed [public demo](https://gosx3d.m31labs.dev).
 
 ## Client
 
@@ -11,8 +11,8 @@ tree.
   `ModelContext.registerTool`; no injected compatibility object
 - GoSX `v0.54.0`
 
-This verifies the local Chrome path accepted by the Challenge. Production-URL
-and ChatGPT in-app-browser verification remain separate release gates.
+This verifies the public Google Chrome path accepted by the Challenge. A final
+manual replay in ChatGPT's in-app browser remains a separate submission gate.
 
 ## WebMCP result
 
@@ -96,10 +96,12 @@ or network errors. The live root was dynamic and `no-store`, issued a
 CSRF-protected canvas selection without a reload. No session-bound page is
 included in the static export.
 
-A second production/TLS run used Chrome's native WebMCP surface with no
-injected compatibility object. It discovered exactly four tools, completed
-state/search/focus, staged a governed rename preview through the secure
-session/CSRF boundary, and discarded it with a real coordinate click. The
-proposal POST returned 200, Arbiter reported Allow, canonical revision 1 and
-`Board` remained unchanged, and runtime, page, console, and HTTP-error lists
-were empty.
+A second production/TLS run exercised the deployed
+`https://gosx3d.m31labs.dev` origin through Chrome's native WebMCP surface with
+no injected compatibility object. It discovered exactly four tools, completed
+inspect/search/focus, and staged a governed two-operation preview through the
+secure session/CSRF boundary. The same proposal and visible Apply control
+survived a full reload. Apply changed `Board` to `Launch Board`, assigned
+`Cobalt Pieces`, and advanced the canonical revision exactly once. The run then
+reset the shared scene, and its runtime, page, console, network-failure, and
+HTTP-error lists were empty.
