@@ -88,6 +88,14 @@ jobs:
           "WASMOPT=$($wasmOpt.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $wasmOpt.Directory.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           & $wasmOpt.FullName --version
+      - name: Locate Windows SDK MakeAppx
+        run: |
+          $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter MakeAppx.exe -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
+          if (-not $makeappx) {
+            throw "Windows SDK MakeAppx.exe was not found"
+          }
+          "GOSX_MAKEAPPX=$($makeappx.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       # GoSX builds its capability-linked WASM variants concurrently. On a
       # fresh Windows runner, parallel TinyGo processes can race while creating
       # the shared WASI libc archive and one loses the final rename with
@@ -115,13 +123,13 @@ jobs:
           }
       - name: Offline bundle + MSIX staging
         run: ..\gosx-cli.exe build --prod --offline --msix .
-      - name: MSIX pack (best effort until signing identity lands)
-        continue-on-error: true
+      - name: Verify unsigned MSIX package
         run: |
-          $makeappx = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter MakeAppx.exe |
-            Where-Object { $_.FullName -match "x64" } | Select-Object -Last 1
-          if (-not $makeappx) { Write-Host "MakeAppx not found; staging only"; exit 0 }
-          & $makeappx.FullName pack /d dist\msix\package /p dist\gosx3d-studio-unsigned.msix /o
+          foreach ($required in @("dist\app.msix", "dist\msix\package\AppxManifest.xml", "dist\msix\package\app.exe")) {
+            if (-not (Test-Path $required -PathType Leaf)) {
+              throw "MSIX build is missing $required"
+            }
+          }
       - name: Upload evidence artifacts
         uses: actions/upload-artifact@v7
         with:
