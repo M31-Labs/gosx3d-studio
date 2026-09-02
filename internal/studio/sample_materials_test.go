@@ -34,14 +34,17 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		t.Fatalf("socket rises %.3f above the face, want at most a thin highlight crescent", socketTop-boardTop)
 	}
 
-	for _, id := range []ID{"board-material", "board-jade-material", "board-steel-material", "board-lacquer-material", "board-porcelain-material"} {
+	for _, id := range []ID{"board-material", "board-jade-material", "board-lacquer-material", "board-porcelain-material"} {
 		material, ok := document.Materials[id]
 		if !ok {
 			t.Fatalf("board finish %q missing", id)
 		}
-		if material.Selena != nil {
-			t.Fatalf("board finish %q uses a custom shader; built-in PBR lighting and shadows must remain active", id)
+		if material.Selena == nil {
+			t.Fatalf("board finish %q is missing its portable Selena surface program", id)
 		}
+	}
+	if material := document.Materials["board-steel-material"]; material.Selena != nil {
+		t.Fatal("Brushed Steel must retain Standard PBR lighting under the Studio rig")
 	}
 
 	props, err := Compile(document)
@@ -61,7 +64,7 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		}{object.Kind, object.ScaleY, object.Tube, object.Sheen, object.Iridescence, object.Anisotropy, object.Wireframe}
 	}
 	if got := objects["board"]; got.kind != "cylinder" || got.sheen != 0.08 || got.wireframe == nil || *got.wireframe {
-		t.Fatalf("compiled board = %+v, want solid sheen-bearing PBR cylinder", got)
+		t.Fatalf("compiled board = %+v, want solid sheen-bearing Selena cylinder", got)
 	}
 	if got := objects["board-pedestal"]; got.anisotropy != 0.22 {
 		t.Fatalf("compiled chassis anisotropy = %.2f, want 0.22", got.anisotropy)
@@ -90,7 +93,7 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	for _, object := range props.SceneIR().Objects {
 		if object.ID == "board" {
 			foundSteel = true
-			if object.MaterialKind != "standard" || object.Color != "#7d898f" || object.Metalness != 0.84 || object.Anisotropy != 0.58 || object.Wireframe == nil || *object.Wireframe {
+			if object.MaterialKind != "standard" || object.Color != "#68767c" || object.Metalness != 0.92 || object.Anisotropy != 0.72 || object.Wireframe == nil || *object.Wireframe {
 				t.Fatalf("compiled Brushed Steel board = %+v", object)
 			}
 		}

@@ -100,6 +100,7 @@ func (compiler *IncrementalCompiler) Compile(document Document, selected ID) (sc
 
 	next := make(map[ID]cachedEntity, len(document.Entities))
 	stats := IncrementalStats{}
+	materials := newMaterialCompileCache()
 	var resolve func(ID) (scene.Node, error)
 	resolve = func(id ID) (scene.Node, error) {
 		value, err := fingerprint(id)
@@ -111,7 +112,7 @@ func (compiler *IncrementalCompiler) Compile(document Document, selected ID) (sc
 			stats.ReusedSubtrees++
 			return cached.node, nil
 		}
-		node, err := compileEntity(document, id, selected, resolve)
+		node, err := compileEntity(document, id, selected, resolve, materials)
 		if err != nil {
 			return nil, err
 		}

@@ -16,9 +16,10 @@ func CompileSelected(document Document, selected ID) (scene.Props, error) {
 	if err := document.Validate(); err != nil {
 		return scene.Props{}, err
 	}
+	materials := newMaterialCompileCache()
 	var resolve func(ID) (scene.Node, error)
 	resolve = func(id ID) (scene.Node, error) {
-		return compileEntity(document, id, selected, resolve)
+		return compileEntity(document, id, selected, resolve, materials)
 	}
 	nodes := make([]scene.Node, 0, len(document.RootIDs))
 	for _, id := range document.RootIDs {
@@ -70,12 +71,17 @@ func worldPosition(document Document, id ID) Vec3 {
 
 func compileProps(document Document, nodes []scene.Node) scene.Props {
 	return scene.Props{
-		Label:                document.Name,
-		AriaLabel:            document.Name + " Scene3D viewport",
-		Background:           document.Environment.Background,
-		Controls:             scene.ControlOrbit,
-		Responsive:           scene.Bool(true),
-		FillHeight:           scene.Bool(true),
+		Label:      document.Name,
+		AriaLabel:  document.Name + " Scene3D viewport",
+		Background: document.Environment.Background,
+		Controls:   scene.ControlOrbit,
+		Responsive: scene.Bool(true),
+		FillHeight: scene.Bool(true),
+		// The Studio is a review surface, so visual parity across the clean,
+		// staged, and applied states matters more than opportunistic backend
+		// switching. GoSX's WebGL path currently gives the physical board
+		// finishes and authored lights their most consistent presentation.
+		ForceWebGL:           scene.Bool(true),
 		PickSignalNamespace:  "studio.viewport",
 		SelectionInputSignal: "studio.viewport.selectedID",
 		GizmoInputSignal:     "studio.viewport.gizmoMode",
@@ -126,7 +132,7 @@ func CompileIR(document Document) (SceneIR, error) {
 	return ir, nil
 }
 
-func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scene.Node, error)) (scene.Node, error) {
+func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scene.Node, error), materials *materialCompileCache) (scene.Node, error) {
 	entity := document.Entities[id]
 	if entity.Light != nil && !unitScale(entity.Transform.Scale) {
 		return nil, fmt.Errorf("light entity %q has scale %+v; light scale has no render meaning", id, entity.Transform.Scale)
@@ -144,7 +150,7 @@ func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scen
 		if err != nil {
 			return nil, fmt.Errorf("entity %q prefab: %w", id, err)
 		}
-		prefabRoot, err := compilePrefabEntity(document, definition, definition.Root, entity.ID, entity.Prefab.Overrides, selected)
+		prefabRoot, err := compilePrefabEntity(document, definition, definition.Root, entity.ID, entity.Prefab.Overrides, selected, materials)
 		if err != nil {
 			return nil, fmt.Errorf("entity %q prefab %q: %w", id, definition.ID, err)
 		}
@@ -154,10 +160,10 @@ func compileEntity(document Document, id ID, selected ID, resolve func(ID) (scen
 			Scale: toSceneVec(entity.Transform.Scale), Children: children,
 		}, nil
 	}
-	return compileEntityValue(document, entity, entity.ID, selected == id, children)
+	return compileEntityValue(document, entity, entity.ID, selected == id, children, materials)
 }
 
-func compilePrefabEntity(document Document, definition PrefabDefinition, localID, instanceID ID, overrides map[ID]PrefabEntityOverride, selected ID) (scene.Node, error) {
+func compilePrefabEntity(document Document, definition PrefabDefinition, localID, instanceID ID, overrides map[ID]PrefabEntityOverride, selected ID, materials *materialCompileCache) (scene.Node, error) {
 	entity := definition.Entities[localID]
 	if override, ok := overrides[localID]; ok {
 		if override.Transform != nil {
@@ -174,7 +180,7 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 	}
 	children := make([]scene.Node, 0, len(entity.Children))
 	for _, childID := range entity.Children {
-		child, err := compilePrefabEntity(document, definition, childID, instanceID, overrides, selected)
+		child, err := compilePrefabEntity(document, definition, childID, instanceID, overrides, selected, materials)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +194,7 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 		if err != nil {
 			return nil, fmt.Errorf("nested prefab %q: %w", localID, err)
 		}
-		nestedRoot, err := compilePrefabEntity(document, nested, nested.Root, runtimeID, entity.Prefab.Overrides, selected)
+		nestedRoot, err := compilePrefabEntity(document, nested, nested.Root, runtimeID, entity.Prefab.Overrides, selected, materials)
 		if err != nil {
 			return nil, fmt.Errorf("nested prefab %q: %w", localID, err)
 		}
@@ -198,10 +204,55 @@ func compilePrefabEntity(document Document, definition PrefabDefinition, localID
 			Scale: toSceneVec(entity.Transform.Scale), Children: children,
 		}, nil
 	}
-	return compileEntityValue(document, entity, runtimeID, selected == runtimeID, children)
+	return compileEntityValue(document, entity, runtimeID, selected == runtimeID, children, materials)
 }
 
-func compileEntityValue(document Document, entity Entity, runtimeID ID, selected bool, children []scene.Node) (scene.Node, error) {
+type materialCompileCache struct {
+	values map[ID]scene.Material
+}
+
+func newMaterialCompileCache() *materialCompileCache {
+	return &materialCompileCache{values: make(map[ID]scene.Material)}
+}
+
+func (cache *materialCompileCache) compile(document Document, id ID) (scene.Material, error) {
+	if compiled, ok := cache.values[id]; ok {
+		return compiled, nil
+	}
+	material := document.Materials[id]
+	standard := scene.StandardMaterial{
+		Color: material.Color, Roughness: material.Roughness, Metalness: material.Metalness,
+		Clearcoat: material.Clearcoat, Sheen: material.Sheen, Transmission: material.Transmission,
+		Iridescence: material.Iridescence, Anisotropy: material.Anisotropy, Emissive: material.Emissive,
+	}
+	for channel, slot := range material.Textures {
+		uri := document.Assets[slot.Asset].URI
+		switch channel {
+		case "color":
+			standard.Texture = uri
+		case "normal":
+			standard.NormalMap = uri
+		case "roughness":
+			standard.RoughnessMap = uri
+		case "metalness":
+			standard.MetalnessMap = uri
+		case "emissive":
+			standard.EmissiveMap = uri
+		}
+	}
+	var compiled scene.Material = standard
+	if material.Selena != nil {
+		value, _, err := scene.CompileSelenaMaterial([]byte(material.Selena.Source), scene.SelenaMaterialOptions{Material: material.Selena.Material, Standard: standard})
+		if err != nil {
+			return nil, fmt.Errorf("material %q Selena compile: %w", material.ID, err)
+		}
+		compiled = value
+	}
+	cache.values[id] = compiled
+	return compiled, nil
+}
+
+func compileEntityValue(document Document, entity Entity, runtimeID ID, selected bool, children []scene.Node, materials *materialCompileCache) (scene.Node, error) {
 	if entity.Light != nil && !unitScale(entity.Transform.Scale) {
 		return nil, fmt.Errorf("light entity %q has scale %+v; light scale has no render meaning", runtimeID, entity.Transform.Scale)
 	}
@@ -224,34 +275,9 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 		if err != nil {
 			return nil, fmt.Errorf("entity %q: %w", runtimeID, err)
 		}
-		material := document.Materials[entity.Mesh.Material]
-		standard := scene.StandardMaterial{
-			Color: material.Color, Roughness: material.Roughness, Metalness: material.Metalness,
-			Clearcoat: material.Clearcoat, Sheen: material.Sheen, Transmission: material.Transmission,
-			Iridescence: material.Iridescence, Anisotropy: material.Anisotropy, Emissive: material.Emissive,
-		}
-		for channel, slot := range material.Textures {
-			uri := document.Assets[slot.Asset].URI
-			switch channel {
-			case "color":
-				standard.Texture = uri
-			case "normal":
-				standard.NormalMap = uri
-			case "roughness":
-				standard.RoughnessMap = uri
-			case "metalness":
-				standard.MetalnessMap = uri
-			case "emissive":
-				standard.EmissiveMap = uri
-			}
-		}
-		var compiledMaterial scene.Material = standard
-		if material.Selena != nil {
-			compiled, _, err := scene.CompileSelenaMaterial([]byte(material.Selena.Source), scene.SelenaMaterialOptions{Material: material.Selena.Material, Standard: standard})
-			if err != nil {
-				return nil, fmt.Errorf("entity %q material %q Selena compile: %w", runtimeID, material.ID, err)
-			}
-			compiledMaterial = compiled
+		compiledMaterial, err := materials.compile(document, entity.Mesh.Material)
+		if err != nil {
+			return nil, fmt.Errorf("entity %q: %w", runtimeID, err)
 		}
 		visible := entity.Visible
 		pickable := entity.Mesh.Pickable

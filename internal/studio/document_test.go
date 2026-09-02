@@ -22,6 +22,9 @@ func TestSampleDocumentCompilesToSharedSceneIR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
+	if props.ForceWebGL == nil || !*props.ForceWebGL {
+		t.Fatal("Studio scene must keep one visually stable WebGL review path")
+	}
 	ir := props.SceneIR()
 	if len(ir.Objects) != 145 {
 		t.Fatalf("objects = %d, want 145", len(ir.Objects))
