@@ -477,5 +477,8 @@ reflection walk over both seed documents holds that implication.
 `studio-certify` emits the deterministic M0/M1/M2-foundation evidence envelope.
 A valid envelope proves its named checks only; it embeds the broader certification
 matrix and keeps `releaseStatus: partial` until the complete public-v1 ledger is
-closed. The Chinese Checkers SceneDoc owns a Selena source record that compiles
-through the same WGSL/GLSL artifact transport inspected by the harness.
+closed. The Chinese Checkers SceneDoc owns portable Selena source records for
+Carved Wood, Imperial Jade, Midnight Lacquer, and Moon Porcelain; each compiles
+through the WGSL/GLSL artifact transport inspected by the harness and retains
+physical fallback metadata. Brushed Steel and the board's rim, chassis, and
+sockets remain on the Standard PBR path.

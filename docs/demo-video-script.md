@@ -1,9 +1,10 @@
 # WebMCP Challenge demo video script
 
-Target runtime: **2:16**. Keep the final public YouTube upload below three
-minutes. Record the Studio and its WebMCP-capable browser agent in one readable
-frame. Bracketed revision values such as `[R]` are production cues, not words
-to read literally.
+Target runtime: **2:10**. Keep the final public YouTube upload below three
+minutes. Record one continuous Studio/WebMCP session, then use editorial
+punch-ins from that same capture so the trace and proposal survive YouTube
+compression. Bracketed revision values such as `[R]` are production cues, not
+words to read literally.
 
 This demo makes one precise collaboration claim: a person and a browser agent
 work against the same canonical SceneDoc through a shared, revision-safe
@@ -17,15 +18,20 @@ For the operator's compact timeline and recording settings, keep
 
 - Use the exact hosted build and browser that will appear in the video. Wait
   until **Agent Collaboration** reads **Agent tools ready** and **4 tools**.
+- Wait for the viewport to show the live WebGL scene and for the compact
+  **Evidence 31/31 · current · rev [R]** status in the Agent Activity bar. Do
+  not open on a negotiating renderer or stale/recomputing evidence state.
 - Reset the shared scene before capture, write down the resulting baseline
   revision `[R]`, and confirm no proposal is staged. Do not record the reset.
-- Leave `Board` unselected. The agent must find it through WebMCP and create the
-  first visible focus on camera.
+- Confirm reset removed the `selection` query and left a non-Board object
+  selected. The agent must find `Board` through WebMCP and create the first
+  visible Board focus on camera.
 - Confirm no one else is testing the shared deployment. A reset or edit affects
   the one canonical demo workspace for every visitor.
-- Keep the hierarchy, viewport revision, four-step WebMCP rail, persistent
-  typed-call trace, proposal card, and Agent Activity readable at the same
-  browser zoom.
+- Keep the hierarchy, viewport revision, four-step WebMCP rail, and Agent
+  Activity readable at the recording zoom. Plan a 150% trace punch-in and a
+  165% proposal-card punch-in rather than asking every proof surface to be
+  readable in one wide frame.
 - Turn on Do Not Disturb. Hide bookmarks, credentials, account menus,
   developer tools, unrelated tabs, and the recording controls.
 - Record a ten-second audio and screen test before the real take. Check that
@@ -41,7 +47,7 @@ Use **Copy demo prompt** in the Studio, then paste the copied text unchanged:
 
 > Inspect the current scene, find and focus the object named Board, then
 > stage—without committing—a proposal that renames it Launch Board and
-> assigns the Cobalt Pieces material. Explain the revision boundary.
+> assigns the Brushed Steel material. Explain the revision boundary.
 
 The expected tool sequence is `scene_get_state`, `scene_find_objects`,
 `scene_focus_object`, then `scene_preview_actions`. There is deliberately no
@@ -49,86 +55,87 @@ agent-callable commit tool.
 
 ## Four-step run of show
 
-### 1. 0:00-0:22 - Establish the boundary
+### 1. 0:00-0:15 - Start with the problem and boundary
 
-**On screen:** Begin on the clean Studio prepared before capture, with a
-non-Board selection.
-Show canonical revision `[R]`, **Agent tools ready**, **4 tools**, and the
-shared ephemeral demo note. Hold on the authority cue that the agent may stage
-while only a person may apply. Do not point to or select `Board`.
+**On screen:** Begin on the clean Studio prepared before capture, with the
+non-Board selection created by reset. Show canonical revision `[R]`, **Agent
+tools ready**, **4 tools**, and the authority cue. Add a two-line editorial
+caption: **Shared ephemeral demo workspace** and **150 entities · 145 meshes ·
+4 typed tools · 0 agent commit tools**. Do not point to or select `Board`.
 
 **Voiceover:**
 
-> GoSX 3D Studio turns this 148-object scene into a shared workspace for a
-> person and a browser agent. The page registers four live WebMCP tools:
-> inspect, find, focus, and stage. The agent can prepare work, but it has no
-> commit tool. We begin at canonical revision [R], with a clean scene and no
-> staged proposal.
+> GoSX 3D Studio is a 150-entity scene with 145 compiled meshes where a browser
+> agent uses scene truth, not pixels. It can inspect, find, focus, and stage.
+> Only I can apply.
 
-### 2. 0:22-0:58 - Inspect, find, focus, and stage
+### 2. 0:15-0:48 - Inspect, find, focus, and stage
 
 **On screen:** Click **Copy demo prompt**, paste the exact prompt into the
 browser agent, and send it. Let the **Inspect -> Find -> Focus -> Stage** rail
-and persistent typed-call trace fill from real tool results. Hold briefly when
-the agent finds stable ID `board` and the hierarchy plus Inspector converge on
-that object.
+and persistent typed-call trace fill from real tool results. Hold when stable
+ID `board` appears and the hierarchy plus Inspector visibly move from the
+non-Board selection to Board. Use a 150% punch-in on the completed trace and
+caption it **Found stable ID board among 150 entities**.
 
 **Voiceover:**
 
-> I'll paste one creative brief. The agent reads revision [R]; Board is not
-> selected for it. It searches the canonical SceneDoc, resolves Board to stable
-> ID `board`, and asks the visible Studio to focus it. Then it stages a rename
-> to Launch Board and a material change to Cobalt Pieces. The typed-call trace
-> records each result.
+> I haven't selected Board. From one brief, the agent reads revision [R],
+> searches the canonical SceneDoc, resolves Board to stable ID `board`, and
+> moves the Studio's focus. Then it stages a rename and material assignment.
+> These are real WebMCP calls; the trace records every result.
 
-### 3. 0:58-1:42 - Review the proof, then reload it
+### 3. 0:48-1:27 - Review the proof, then reload it
 
-**On screen:** In **Latest staged proposal**, point deliberately to:
+**On screen:** Use a 165% punch-in on **Latest staged proposal**. Point
+deliberately to:
 
 1. `Board -> Launch Board`;
-2. `board-material -> player-4-material`, the stable material ID the agent
-   resolved from `Cobalt Pieces`;
+2. `board-material -> board-steel-material`, the stable material ID the agent
+   resolved from `Brushed Steel`;
 3. `agent://webmcp`;
-4. **Arbiter - Allow - 2/2** and its evidence tooltip;
+4. **Arbiter - Allow - 2/2**, then click **Why Arbiter allowed this proposal**
+   so the policy reasons are visible without depending on a native tooltip;
 5. the affected stable ID and result fingerprint; and
 6. **canonical [R] unchanged - approval [R+1]**.
 
-Point back to the viewport's still-unchanged revision `[R]`. Then perform a
-full browser reload in the same tab. Show that the typed-call trace, proposal,
-and human review controls return while the viewport remains at `[R]`.
+Show two short editorial captions in sequence: **Canonical rev [R] stays
+unchanged**, then **Only visible human Apply creates rev [R+1]**. Point back to
+the viewport's still-unchanged revision `[R]`. Perform a full browser reload in
+the same tab and compress the settled reload proof to about six seconds. Show
+that the trace, proposal, and review controls return while the viewport remains
+at `[R]`.
 
 **Voiceover:**
 
-> Nothing canonical has changed. The review card shows human-readable
-> before-and-after values, `board`, the agent actor, policy approval for both
-> operations, and a deterministic fingerprint. The boundary is explicit:
-> canonical [R] is unchanged; approval creates [R+1]. I'll reload this tab. The
-> server-owned proposal, review controls, and typed-call trace return in the
-> same session.
+> The card shows both edits, the agent actor, and Arbiter's reasons. Revision
+> [R] hasn't changed; only approval creates [R+1]. The fingerprint binds that
+> review to one result. Reloaded: same session, same proposal, no canonical
+> change.
 
-### 4. 1:42-2:16 - Human apply, one revision, and why WebMCP fits
+### 4. 1:27-2:10 - Human apply, one revision, and why the handoff matters
 
 **On screen:** Move the cursor from the agent into the Studio and click
 **Apply staged changes** yourself. After the managed refresh, show all of the
 following in one deliberate sweep:
 
 - `Launch Board` in the hierarchy or Inspector;
-- `Cobalt Pieces` as the applied material;
+- `Brushed Steel` as the applied material;
 - canonical revision `[R+1]`, exactly one above the baseline; and
-- the `agent://webmcp` preview and `human://webmcp-review` apply entries in
-  **Agent Activity**.
+- the `agent://webmcp` preview and `human://webmcp-review` apply entries on the
+  same short plan token in **Agent Activity**.
 
-End on the Studio with the viewport and collaboration surface together.
+End on the full Studio with the viewport and collaboration surface together.
+Add the closing caption: **1 intent -> 4 page tools -> 2 exact edits -> 1 human
+approval**.
 
 **Voiceover:**
 
-> Now the decision returns to me. I review the diff, then click Apply staged
-> changes—the only commit in this flow. The server executes the exact
-> stored transaction through the Studio's revision-safe command path. Board
-> becomes Launch Board, its material becomes Cobalt Pieces, and revision
-> advances once to [R+1]. Activity separates the agent proposal from my
-> approval. One intent, four typed calls, two exact edits, one human decision:
-> structured scene access without giving away authorship.
+> Now the decision returns to me. I click Apply—the only commit in this flow.
+> The stored transaction runs through the Studio's revision-safe command path.
+> Launch Board and Brushed Steel appear together; revision advances once.
+> Activity pairs the agent proposal with my approval on one plan. Simple edits,
+> hard handoff: useful automation without surrendering authorship.
 
 ## Recovery rules
 
@@ -150,24 +157,29 @@ End on the Studio with the viewport and collaboration surface together.
 
 ## Final content checklist
 
-- [ ] The spoken edit is between 2:10 and 2:20; the upload is below 3:00.
+- [ ] The spoken edit is between 2:05 and 2:15; the upload is below 3:00.
 - [ ] The public video and hosted URL both work while signed out.
 - [ ] The opening visibly identifies the hosted sample as one shared ephemeral
       workspace and does not claim realtime multiplayer.
 - [ ] **Agent tools ready**, **4 tools**, and all four completed flow steps are
       visible.
+- [ ] The opening and closing show the live WebGL scene plus compact
+      **Evidence 31/31 · current** status for the visible revision.
 - [ ] The persistent typed-call trace shows concise real results for all four
       steps and survives the same-session reload.
 - [ ] The exact prompt, stable ID `board`, and baseline `[R]` are shown; Board
       is found and focused by the agent rather than selected in advance.
 - [ ] Both staged operations are visible: `Board -> Launch Board` and
-      `Carved Wood (board-material) -> Cobalt Pieces (player-4-material)`.
+      `Carved Wood (board-material) -> Brushed Steel (board-steel-material)`.
 - [ ] Arbiter Allow evidence, the fingerprint, and
       **canonical [R] unchanged - approval [R+1]** are readable.
 - [ ] A full same-session reload restores the proposal before approval.
 - [ ] A visible human click applies the proposal, and canonical state advances
       exactly once to `[R+1]`.
 - [ ] Agent Activity labels `agent://webmcp` as **PROPOSED** and
-      `human://webmcp-review` as **APPROVED**.
+      `human://webmcp-review` as **APPROVED**, shows both operation kinds, and
+      gives both entries the same short plan token.
+- [ ] Trace and proposal punch-ins come from this one continuous browser
+      session; no different revision or take is substituted.
 - [ ] No credentials, notifications, unsupported capability claims, or private
       information appear.

@@ -2,7 +2,7 @@
 
 ## What exists
 
-- A standalone GoSX v0.54 application with a dense desktop workbench shell,
+- A standalone GoSX v0.54.2 application with a dense desktop workbench shell,
   typed `SceneDoc`, shared `SceneIR`, and Scene3D rendering.
 - Live hierarchy selection, transform and material editing, modeling operators,
   timeline controls, diagnostics, and command receipts backed by canonical
@@ -31,8 +31,8 @@
 
 ## Next product slices
 
-1. Deploy and verify the HTTPS judge instance in an external compatible
-   browser, including ChatGPT's in-app browser when available.
+1. Repeat external compatible-browser verification for every HTTPS judge
+   release, including ChatGPT's in-app browser when available.
 2. Add durable private workspaces, identity, backups, and revision history
    without moving scene truth into the presentation layer.
 3. Add presence, soft claims, and conflict-free collaboration over the stable

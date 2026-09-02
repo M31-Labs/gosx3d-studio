@@ -11,8 +11,8 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 | Agent work cannot silently commit | Proposal card says canonical revision is unchanged; Apply and Discard follow the exact diff | Preview returns `applied:false`; no WebMCP commit or reset tool exists; only the CSRF-protected human UI calls commit |
 | Review is governed and revision-safe | Arbiter decision, reasons, canonical/approval revision, fingerprint, affected IDs, and expiry are visible | Stale revisions fail; proposals are session-owned, one-shot, expiring, and one-active-per-browser |
 | A human decision is unambiguous | Apply and Discard are mutually disabled while either request is pending | Concurrent commit/discard attempts allow only one terminal operation |
-| The showcase is reproducible | Clean/dirty baseline gate and human-only Prepare clean demo control | Exact prompt cannot be copied while the shared canonical scene differs from the baseline |
-| The result is visible | Board selection, Inspector name/material, material swatch, viewport, and activity history converge after approval | Reload shows the committed canonical document and no stale proposal resurrects |
+| The showcase is reproducible | Clean/dirty baseline gate and human-only Prepare clean demo control; reset returns to a query-free, non-Board selection | Exact prompt cannot be copied while the shared canonical scene differs from the baseline |
+| The result is visible | Board selection, Inspector name/material, material swatch, viewport, and activity history converge after approval | Reload shows the committed canonical document and no stale proposal resurrects; activity retains both operation kinds and one matching plan token across proposal/approval |
 
 ## Controls
 
@@ -47,7 +47,7 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 
 - Clean baseline screenshot at each target viewport.
 - Staged proposal screenshot showing exact diffs and unchanged canonical revision.
-- Applied screenshot showing Launch Board, Cobalt Pieces, matching blue swatch, and applied activity.
+- Applied screenshot showing Launch Board, Brushed Steel, matching steel swatch, and applied activity.
 - Native WebMCP registry/tool-call transcript.
 - Console/network error check.
 - Unit, race, smoke, build, and public-health command output recorded in the release notes.

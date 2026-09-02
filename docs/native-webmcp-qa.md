@@ -6,12 +6,12 @@ separate deployed [public demo](https://gosx3d.m31labs.dev) run.
 
 ## Client
 
-- Google Chrome stable `152.0.7977.65`
+- Google Chrome stable `152.0.7977.65` on Windows
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
-- GoSX `v0.54.1` for the post-release local run; the earlier deployed-origin
-  pass used `v0.54.0` before the public app rollout
+- Public GoSX `v0.54.2` for the current local verification run; the earlier
+  deployed-origin pass used `v0.54.0` before the public app rollout
 
 This verifies the public Google Chrome path accepted by the Challenge. A final
 manual replay in ChatGPT's in-app browser remains a separate submission gate.
@@ -28,17 +28,21 @@ Chrome discovered and invoked exactly these four webpage tools:
 The preview tool schema exposed exactly three operation kinds:
 `rename-entity`, `set-transform`, and `assign-material`.
 
-The latest release-candidate run proved:
+The latest current-source, public-module run proved:
 
 - native state inspection, stable-ID search, and visible focus;
-- a two-operation `Board` to `Launch Board` rename plus `Cobalt Pieces`
-  material preview;
+- a two-operation `Board` to `Launch Board` rename plus dedicated `Brushed
+  Steel` (`board-steel-material`) board-finish preview;
 - all four visible tool-flow steps completing;
 - unchanged canonical name, material, and revision before approval;
 - restoration of the same session-owned proposal and Apply/Discard controls
   after a full page reload;
 - a visible Apply action outside the registered tool surface that advanced the
   canonical revision exactly once and applied both reviewed changes;
+- a query-free reset that cleared the browser focus and left a deterministic
+  non-Board selection, so the recorded agent must genuinely find Board;
+- matching short plan tokens for the staged and approved activity entries,
+  with both operation kinds retained in their summaries;
 - zero runtime exceptions, console errors, failed requests, or HTTP error
   responses during the complete flow;
 - non-mutating affine group-scale previews in the broader native QA suite;
@@ -74,30 +78,49 @@ Three best-effort client-event telemetry requests were canceled by managed DOM
 morphs. They produced no HTTP error response and did not affect the application
 or the verification result.
 
-### GoSX v0.54.1 solid-material regression proof
+### GoSX v0.54.2 hybrid-board and solid-selection proof
 
-After the governed `v0.54.1` release, the canonical local server was restarted
-against the public module and reloaded with `ignoreCache: true` in native
-Windows Chrome 152. Browser-side health reported `0.54.1`, Scene3D was
-ready/revealed on WebGPU, all four WebMCP tools registered, and Runtime, Log,
+The public `v0.54.2`-backed build was reloaded with `ignoreCache: true` in
+native Windows Chrome 152.0.7977.65. Browser-side health reported `0.54.2`;
+Scene3D completed renderer negotiation and settled on its live WebGL path for
+the final board finish. All four WebMCP tools registered, and Runtime, Log,
 Network, and HTTP error collections were empty.
 
-The exact runtime census proved that all 133 typed standard-material objects
-carried `wireframe: false` and triangle geometry: the board had 576 vertices,
-all 121 sockets were filled cylinders, and all ten Player 4 pieces were filled
-spheres. The ten custom Selena Player 1 pieces remained valid and solid. The
-same run completed Inspect, Find, and Focus, staged the atomic `Launch Board`
-plus `Cobalt Pieces` proposal without mutating revision 1, displayed
-`Arbiter · Allow · 2/2`, and committed once through a real pointer click on the
-visible Apply button. The human-attributed receipt advanced revision 1 to 2;
-the final board remained a solid 576-vertex PBR surface.
+The September 2 rerun exercised the final 150-entity sample and its 145 compiled
+mesh objects. Its assignable face has a hybrid finish library: Carved Wood,
+Imperial Jade, Midnight Lacquer, and Moon Porcelain use portable Selena surface
+programs with physical fallback metadata, while Brushed Steel remains Standard
+PBR. The machined rim, blackened-steel chassis, inner shadow fillet, and all 121
+countersunk sockets also remain Standard PBR. The face is isolated from the
+chassis; two authored, solid torus layers form its rim and fillet, and each
+socket is a solid sphere mesh flattened to a `0.28` Y scale so only a thin
+crescent rises above the face.
+
+GoSX v0.54.2 keeps a selected Standard PBR surface solid and uses a restrained
+selection lift instead of generated triangle-edge overlays. The Brushed Steel
+face and PBR rim, chassis, and sockets therefore avoid cap-fan and triangulation
+spokes. Explicit `outlineColor` / positive `outlineWidth` styling and
+`wireframe: true` remain supported opt-ins; the Selena finishes continue to own
+their selection treatment without generated topology lines.
+
+The same native Windows Chrome 152.0.7977.65 run completed Inspect, Find, Focus,
+and Stage, resolved stable ID `board` among 150 entities, and staged the atomic
+`Launch Board` plus `Brushed Steel` proposal. Canonical revision 3, name
+`Board`, and material `board-material` remained unchanged during review. The
+proposal and visible Apply control survived a full same-session reload,
+displayed `Arbiter · Allow · 2/2`, and committed once through the visible human
+Apply button. The human-attributed receipt advanced revision 3 to 4 and
+assigned `board-steel-material`; the smooth machined rim, dark fillet, chassis,
+and sockets remained independent. The run then restored a clean scene at
+revision 5. Runtime exceptions, console errors, failed requests, and HTTP error
+responses were all empty.
 
 ## Repository evidence floor
 
 The final source tree also passes:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.1 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go mod verify
@@ -116,7 +139,7 @@ or network errors. The live root was dynamic and `no-store`, issued a
 CSRF-protected canvas selection without a reload. No session-bound page is
 included in the static export.
 
-A second production/TLS run exercised the deployed
+A separate earlier production/TLS run exercised the deployed
 `https://gosx3d.m31labs.dev` origin through Chrome's native WebMCP surface with
 no injected compatibility object. It discovered exactly four tools, completed
 inspect/search/focus, and staged a governed two-operation preview through the

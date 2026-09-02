@@ -50,10 +50,10 @@ changes**. There is intentionally no WebMCP commit tool.
 
 A persistent typed-call trace shows what the browser agent accomplished at each
 step: the inspected revision and entity count, the stable object it found, the
-non-mutating focus request, and the number of operations staged. A 148-object
-scene becomes one intent, four typed calls, two exact edits, and one human
-approval. Technical artists can delegate hierarchy search and batch preparation
-without surrendering scene authority.
+non-mutating focus request, and the number of operations staged. The final
+150-entity scene compiles to 145 meshes; one intent becomes four typed calls,
+two exact edits, and one human approval. Technical artists can delegate
+hierarchy search and batch preparation without surrendering scene authority.
 
 When a person approves, the browser submits only an opaque proposal ID. The
 server commits the exact operations it previously previewed through the same
@@ -71,8 +71,12 @@ as new. During the submission period, the project added the four-tool WebMCP
 adapter, session-scoped proposal and review boundary, visible browser-agent
 focus and review experience, bounded proposal storage, WebMCP-specific tests,
 an executable Arbiter policy, a safe shared-demo reset, documentation, and
-deployment configuration. The Studio was also updated to GoSX v0.54.0 and its
-new affine group-scale path is exercised through SceneDoc, nested prefabs,
+deployment configuration. On September 2, the Studio also completed its hybrid
+board finish library—four portable Selena surface programs with physical
+fallback metadata, plus Standard PBR Brushed Steel, rim, chassis, and sockets—
+and moved its pin to GoSX v0.54.2 so selected PBR surfaces stay solid while
+explicit outlines and wireframes remain available. The affine group-scale path
+introduced in GoSX v0.54.0 is exercised through SceneDoc, nested prefabs,
 preview evidence, exact picking, and gizmo commits.
 
 ## Why This Matters
@@ -84,12 +88,12 @@ preview evidence, exact picking, and gizmo commits.
   its real SceneDoc, hierarchy, Inspector, proposal card, command history, and
   transaction engine. The browser integration does not maintain a second demo
   scene or return canned edits.
-- **Potential Impact:** In the hosted 148-object scene, one intent becomes four
-  typed calls, two exact edits, and one human approval. Technical artists can
-  delegate hierarchy search and batch preparation without surrendering the
-  moment of spatial judgment. The same proposal boundary could help other
-  high-context web tools where agents prepare consequential work and people
-  approve it in place.
+- **Potential Impact:** In the hosted 150-entity, 145-mesh scene, one intent
+  becomes four typed calls, two exact edits, and one human approval. Technical
+  artists can delegate hierarchy search and batch preparation without
+  surrendering the moment of spatial judgment. The same proposal boundary
+  could help other high-context web tools where agents prepare consequential
+  work and people approve it in place.
 - **Creativity & Ambition:** The agent is not a chatbot bolted beside a canvas.
   The webpage becomes the shared protocol surface. Human and agent point at the
   same stable object, reason from the same revision, and create an auditable
@@ -106,12 +110,13 @@ fingerprints, authority, and canonical state—outside the model.
 
 In the prepared demo flow, the agent reads the scene revision, finds the mesh
 named `Board`, focuses stable ID `board`, and stages two changes: rename it
-`Launch Board` and assign the `Cobalt Pieces` material. The same browser
+`Launch Board` and assign the `Brushed Steel` material. The same browser
 session recovers the persistent typed-call trace and exact proposal after a full
 reload, then the person uses the visible Apply action. No registered WebMCP tool
 can commit a proposal.
 
-Native browser QA used Google Chrome 152.0.7977.64 with
+Native browser QA of the final 150-entity, 145-mesh sample used Google Chrome
+152.0.7977.65 on Windows with
 `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome's native
 `document.modelContext` discovered and invoked exactly the four declared tools.
 The complete inspect, find, focus, two-operation preview, reload recovery, and
@@ -121,6 +126,13 @@ material, and revision were unchanged. Apply advanced the revision exactly once
 and kept agent-preview/UI-approval attribution distinct. The test suite also
 covers discard, stale-proposal rejection, policy behavior, and clean shared
 reset. ChatGPT's in-app browser has not yet been tested.
+
+Carved Wood, Imperial Jade, Midnight Lacquer, and Moon Porcelain use portable
+Selena surface programs with physical fallback metadata. Brushed Steel, the
+machined rim, blackened-steel chassis, and countersunk sockets remain Standard
+PBR. With GoSX v0.54.2, selecting those PBR surfaces keeps them solid instead
+of exposing generated triangulation spokes; explicit outline and wireframe
+authoring remains supported.
 
 ## How We Used Codex
 
@@ -138,7 +150,7 @@ turn that direction into a bounded implementation by:
   preview, exact stored commit, session ownership, expiry, and authority split;
 - running repository checks during iteration and tightening error handling,
   browser status reporting, and documentation; and
-- drafting the architecture notes, one-take demo script, and this submission
+- drafting the architecture notes, single-session demo script, and this submission
   packet while keeping unverified claims and missing assets explicit.
 
 Codex did not submit or update the project on Devpost in this drafting pass.
@@ -231,7 +243,8 @@ for it.
 
 ### Hosted judge flow
 
-The same flow has passed locally through native Chrome 152 WebMCP. Reset first
+The same flow has passed locally through native Windows Chrome 152.0.7977.65
+WebMCP. Reset first
 because the public deployment is one shared ephemeral workspace.
 
 1. Open the [live GoSX 3D Studio](https://gosx3d.m31labs.dev) in ChatGPT's in-app browser or Chrome
@@ -241,7 +254,7 @@ because the public deployment is one shared ephemeral workspace.
 3. Click **Copy demo prompt** and give the copied text to the browser agent:
    “Inspect the current scene, find and focus the object named Board, then
    stage—without committing—a proposal that renames it Launch Board and
-   assigns the Cobalt Pieces material. Explain the revision boundary.” Record
+   assigns the Brushed Steel material. Explain the revision boundary.” Record
    the baseline revision `R`.
 4. Confirm the **Inspect → Find → Focus → Stage** rail completes, the
    persistent typed-call trace records the real result of each step, and **Scene
@@ -253,8 +266,8 @@ because the public deployment is one shared ephemeral workspace.
 6. Reload the same browser tab. Confirm the typed-call trace, proposal, and
    Apply/Discard controls return while the canonical scene still reads `R`.
 7. Click **Apply staged changes** yourself.
-8. Confirm the hierarchy reads `Launch Board`, the Inspector reads `Cobalt
-   Pieces`, canonical revision is `R+1`, and
+8. Confirm the hierarchy reads `Launch Board`, the Inspector reads `Brushed
+   Steel`, canonical revision is `R+1`, and
    **Agent Activity** separately shows `agent://webmcp` and
    `human://webmcp-review`.
 
@@ -272,7 +285,7 @@ Open `http://localhost:8080` in a compatible browser and follow the same flow.
 Run the final clean diff through the repository's evidence floor:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.1 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...
@@ -310,8 +323,8 @@ instructions, WebMCP implementation, and a repository-root MIT License.
 
 `[TODO: PUBLIC YOUTUBE URL, UNDER 3 MINUTES, WITH AUDIO]`
 
-The recording plan is in `docs/demo-video-script.md`. It targets a 2:16
-one-take demo: problem, four-tool discovery, inspect/find/focus, persistent
+The recording plan is in `docs/demo-video-script.md`. It targets a 2:10
+single-session demo: problem, four-tool discovery, inspect/find/focus, persistent
 typed-call evidence, a two-operation non-mutating preview, same-session reload
 recovery, visible-UI Apply, one canonical revision advance, and distinct
 proposal/approval attribution. The shared scene is reset before recording so
@@ -319,8 +332,8 @@ the opening belongs to the agent's object discovery rather than demo setup.
 
 ## Screenshot Shot List
 
-Final 1440px public-deployment frames are ready in `docs/assets/` for the clean
-workbench, staged review, and human-applied result.
+Final high-resolution Windows Chrome frames are ready in `docs/assets/` for
+the clean workbench, staged review, and human-applied result.
 
 1. **Full workbench and tool readiness** — Scene Hierarchy, 3D viewport,
    Inspector, current **REVISION**, and **Agent Collaboration** showing
@@ -334,13 +347,13 @@ workbench, staged review, and human-applied result.
    viewport. Caption: “A WebMCP focus request gives the person and agent the
    same visible referent without mutating the scene.”
 4. **Reviewable proposal** — **Latest staged proposal** with rationale,
-   `Board → Launch Board` and `Carved Wood (board-material) → Cobalt Pieces
-   (player-4-material)` semantic changes, `agent://webmcp`, affected ID,
+   `Board → Launch Board` and `Carved Wood (board-material) → Brushed Steel
+   (board-steel-material)` semantic changes, `agent://webmcp`, affected ID,
    Arbiter Allow evidence, revision boundary, fingerprint, **Discard**, and
    **Apply staged changes**.
    Caption: “The agent proposes; Apply stays in the visible Studio UI, outside
    the WebMCP tool surface.”
-5. **Auditable handoff** — `Launch Board`, `Cobalt Pieces`, revision `R+1`, and
+5. **Auditable handoff** — `Launch Board`, `Brushed Steel`, revision `R+1`, and
    **Agent Activity** showing both `agent://webmcp` propose and
    `human://webmcp-review` direct entries. Caption: “One reviewed proposal
    becomes one attributed canonical change.”
@@ -362,10 +375,10 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
 - [x] Implement and exercise the visible shared-demo reset outside the WebMCP
       tool surface, including revision monotonicity and staged-proposal
       invalidation.
-- [x] Complete native WebMCP QA in Google Chrome 152.0.7977.64 with the WebMCP
-      testing experiment enabled; exact four-tool discovery and the complete
-      inspect/find/focus/two-operation-preview/reload/apply flow passed with no
-      browser or HTTP errors.
+- [x] Complete native WebMCP QA in Google Chrome 152.0.7977.65 on Windows with
+      the WebMCP testing experiment enabled; exact four-tool discovery and the
+      complete inspect/find/focus/two-operation-preview/reload/apply flow passed
+      with no browser or HTTP errors.
 - [x] Run the full clean verification sequence, including GoSX and Arbiter
       checks, module verification, vet, tests, race tests, deterministic smoke
       and certification evidence, production build, and packaged-server browser
@@ -375,7 +388,7 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
 - [x] Publish the final source repository, verify anonymous access and license
       detection, and fill the repository URL.
 - [x] Capture final clean, staged-review, and human-applied screenshots from the
-      public deployment.
+      verified GoSX v0.54.2 Windows Chrome run.
 - [ ] Record the under-three-minute video with audio, publish it on YouTube,
       and fill the video URL.
 - [ ] Fill every required official form answer and update the existing Devpost
@@ -389,8 +402,8 @@ material above.
 
 ## Known Limitations
 
-- Native WebMCP behavior is verified in Google Chrome 152.0.7977.64. ChatGPT's
-  in-app browser remains a separate manual submission check.
+- Native WebMCP behavior is verified in Google Chrome 152.0.7977.65 on Windows.
+  ChatGPT's in-app browser remains a separate manual submission check.
 - Canonical scene and pending proposal state are process-local. The Render
   configuration intentionally uses one instance; a restart loses that state.
 - The hosted demo is a single-instance shared canonical workspace with
@@ -421,11 +434,11 @@ Challenge. Values in brackets require the submitter's confirmation.
 | **Country of residence of yourself and team members if applicable** (required) | `[TODO: select every applicable country exactly as listed in the form]` |
 | **If submitting on behalf of an organization, what is the organization name?** (optional) | `[TODO if applicable; otherwise leave blank]` |
 | **App Status** (required) | `Existing` |
-| **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; a visible review and exact-commit UI outside the WebMCP tool surface; a visible shared-demo reset that is not a WebMCP tool; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; a GoSX v0.54.0 upgrade with affine group-scale integration; Challenge documentation; and deployment configuration. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
+| **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; a visible review and exact-commit UI outside the WebMCP tool surface; a visible shared-demo reset that is not a WebMCP tool; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; the affine group-scale path introduced in GoSX v0.54.0; Challenge documentation; and deployment configuration. On September 2 we completed four portable Selena board surfaces with physical fallback metadata plus Standard PBR Brushed Steel, rim, chassis, and sockets, then moved the current pin to GoSX v0.54.2 for solid selected-PBR behavior with explicit outline and wireframe opt-ins preserved. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
 | **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev) |
 | **If applicable, testing instructions for application** (private to Devpost and judges) | `No credentials are required. Open the live URL in a compatible browser, click Reset shared scene and confirm the warning, confirm Agent Collaboration reports four tools, then use Copy demo prompt and follow the Hosted judge flow in this draft.` |
 | **URL to your PUBLIC Code Repo** (required) | [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) |
-| **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome 152.0.7977.64 with WebMCPTesting and DevToolsWebMCPSupport enabled. Chrome exposed its native document.modelContext implementation, discovered all four webpage tools, and completed inspect, search, focus, a two-operation preview, same-session reload recovery, and visible-UI Apply with exactly one canonical revision advance. Separate automated coverage exercises discard, conflict rejection, client validation, policy behavior, and reset. We have not yet tested ChatGPT's in-app browser.` |
+| **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome 152.0.7977.65 on Windows with WebMCPTesting and DevToolsWebMCPSupport enabled. Chrome exposed its native document.modelContext implementation, discovered all four webpage tools, and completed inspect, search, focus, a two-operation preview, same-session reload recovery, and visible-UI Apply with exactly one canonical revision advance. Separate automated coverage exercises discard, conflict rejection, client validation, policy behavior, and reset. We have not yet tested ChatGPT's in-app browser.` |
 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification support, documentation, and submission preparation. [TODO: add any other AI tools actually used; do not list planned tools.]` |
 | **Describe the level of learning you/your team derived from the project** (required) | `[TODO: choose None, Moderate, or Significant]` |
 | **Did you gain AI value that you can use in your career?** (required) | `[TODO: choose Yes or No]` |

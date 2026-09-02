@@ -163,7 +163,7 @@ with the integer returned by `scene_get_state`:
     {
       "kind": "assign-material",
       "target": "board",
-      "material": "player-4-material"
+      "material": "board-steel-material"
     }
   ]
 }
@@ -244,7 +244,7 @@ or copy agent output between tools.
 
 ## Local compatible-browser test
 
-The project pins the current GoSX release, `v0.54.1`. From the repository root:
+The project pins the current GoSX release, `v0.54.2`. From the repository root:
 
 ```bash
 cp .env.example .env
@@ -272,22 +272,23 @@ reachable without local network access.
 
 ### Verified compatible client
 
-The complete local release-candidate flow passed in Google Chrome
-152.0.7977.64 with `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome exposed
-its native `Document.modelContext` getter and `ModelContext.registerTool`,
-discovered exactly the four Studio tools, and completed inspect, find, focus, a
-two-operation non-mutating preview, full same-session reload recovery, and
-visible-UI Apply. Canonical name, material, and revision stayed unchanged before
-approval; Apply advanced the revision exactly once; and runtime exception,
-console-error, failed-request, and HTTP-error lists were empty. Broader tests
-cover discard, stale rejection, group-scale preview, client-side light-scale
-validation, and shared reset. This is native Chrome WebMCP evidence; it is not
-a claim that ChatGPT's in-app browser has already been tested.
+The complete public-module flow passed locally in Google Chrome
+152.0.7977.65 on Windows with `WebMCPTesting,DevToolsWebMCPSupport` enabled.
+Chrome exposed its native `Document.modelContext` getter and
+`ModelContext.registerTool`, discovered exactly the four Studio tools, and
+completed inspect, find, focus, a two-operation non-mutating preview, full
+same-session reload recovery, and visible-UI Apply. Canonical name, material,
+and revision stayed unchanged before approval; Apply advanced the revision
+exactly once; and runtime exception, console-error, failed-request, and
+HTTP-error lists were empty. Broader tests cover discard, stale rejection,
+group-scale preview, client-side light-scale validation, and shared reset. This
+is native Chrome WebMCP evidence; it is not a claim that ChatGPT's in-app
+browser has already been tested.
 
 Browser-free verification remains part of the repository's evidence floor:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.1 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...

@@ -16,7 +16,8 @@ viewport selection and revision-safe human/agent commands, and exposes its
 collaboration surface through four browser-native WebMCP tools. A visible reset
 restores the sample at a newer canonical revision.
 
-A 148-object scene becomes one intent, four typed calls, two exact edits, and
+The final hosted sample contains 150 entities and compiles to 145 meshes.
+Against that scene, one intent becomes four typed calls, two exact edits, and
 one human approval. Technical artists can delegate hierarchy search and batch
 preparation without surrendering scene authority.
 
@@ -85,9 +86,9 @@ To exercise the WebMCP tools, use ChatGPT's in-app browser or Chrome 149+ with
 `chrome://flags/#enable-webmcp-testing` enabled. The Agent Collaboration panel
 reports whether the browser registered all four tools.
 
-The full local workflow is verified against Google Chrome 152.0.7977.64 with
-its native WebMCP testing experiment enabled. ChatGPT's in-app browser remains
-a separate pre-submission check. See
+The full local workflow is verified against Google Chrome 152.0.7977.65 on
+Windows with its native WebMCP testing experiment enabled. ChatGPT's in-app
+browser remains a separate pre-submission check. See
 [Native WebMCP verification](docs/native-webmcp-qa.md) for the exact evidence
 boundary and exercised workflow.
 
@@ -147,12 +148,19 @@ session-bound CSRF token.
 
 ## Dependencies
 
-`go.mod` pins GoSX `v0.54.1` and Arbiter `v1.9.0`, and `go.sum` checksums the
-complete dependency graph. The Studio adopts GoSX v0.54's affine group scale
-through SceneDoc compilation, nested prefab lowering, exact picking, preview
-evidence, and gizmo commits; non-unit light scale remains rejected because it
-has no render meaning. CI, releases, and fresh clones all build those pinned
-versions rather than an ambient local checkout.
+`go.mod` pins GoSX `v0.54.2` and Arbiter `v1.9.0`, and `go.sum` checksums the
+complete dependency graph. The Studio exercises the affine group-scale path
+introduced in GoSX v0.54.0 through SceneDoc compilation, nested prefab lowering,
+exact picking, preview evidence, and gizmo commits; non-unit light scale remains
+rejected because it has no render meaning. CI, releases, and fresh clones all
+build those pinned versions rather than an ambient local checkout.
+
+The sample's Carved Wood, Imperial Jade, Midnight Lacquer, and Moon Porcelain
+finishes use portable Selena surface programs with physical fallback metadata.
+Brushed Steel and the machined rim, blackened-steel chassis, and countersunk
+sockets remain Standard PBR. GoSX v0.54.2 keeps selected PBR surfaces solid
+without generated triangulation spokes; explicit outline styling and
+`wireframe: true` remain supported authoring choices.
 
 To edit GoSX or Arbiter next to the Studio, use a workspace:
 
@@ -225,7 +233,7 @@ return to the pinned versions.
 ## Verify
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.1 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...
