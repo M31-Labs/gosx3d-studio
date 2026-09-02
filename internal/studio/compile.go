@@ -96,15 +96,14 @@ func compileProps(document Document, nodes []scene.Node) scene.Props {
 		FillHeight: scene.Bool(true),
 		// Prefer the modern GPU path on capable browsers while retaining GoSX's
 		// honest WebGL fallback for unsupported or lost devices. Interactive
-		// camera work targets one frame per 60 Hz refresh; the adaptive governor
-		// can trade DPR before input cadence degrades.
+		// camera work follows the display's native refresh instead of quantizing
+		// 100/144 Hz panels through a 60 fps cap; the adaptive governor uses the
+		// 16.7 ms interaction budget and can trade DPR before cadence degrades.
 		PreferWebGPU:          scene.Bool(true),
-		MaxFrameRate:          60,
 		AdaptiveQuality:       scene.Bool(true),
 		AdaptiveTargetFrameMS: 16.7,
 		AdaptiveWarmupFrames:  12,
 		AdaptivePostFX:        scene.Bool(true),
-		WebGPUPowerPreference: "high-performance",
 		PickSignalNamespace:   "studio.viewport",
 		SelectionInputSignal:  "studio.viewport.selectedID",
 		GizmoInputSignal:      "studio.viewport.gizmoMode",
