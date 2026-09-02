@@ -16,7 +16,11 @@ func applySetMaterial(document *Document, operation Operation) ([]ID, error) {
 		return nil, err
 	}
 	if material.Selena != nil {
-		standard := scene.StandardMaterial{Color: material.Color, Roughness: material.Roughness, Metalness: material.Metalness, Clearcoat: material.Clearcoat, Transmission: material.Transmission, Emissive: material.Emissive}
+		standard := scene.StandardMaterial{
+			Color: material.Color, Roughness: material.Roughness, Metalness: material.Metalness,
+			Clearcoat: material.Clearcoat, Sheen: material.Sheen, Transmission: material.Transmission,
+			Iridescence: material.Iridescence, Anisotropy: material.Anisotropy, Emissive: material.Emissive,
+		}
 		if _, _, err := scene.CompileSelenaMaterial([]byte(material.Selena.Source), scene.SelenaMaterialOptions{Material: material.Selena.Material, Standard: standard}); err != nil {
 			return nil, fmt.Errorf("material %q Selena validation: %w", material.ID, err)
 		}
@@ -50,11 +54,14 @@ func validateMaterialRecord(material Material, assets map[ID]AssetRecord) error 
 	values := []struct {
 		name  string
 		value float64
-	}{{"roughness", material.Roughness}, {"metalness", material.Metalness}, {"clearcoat", material.Clearcoat}, {"transmission", material.Transmission}}
+	}{{"roughness", material.Roughness}, {"metalness", material.Metalness}, {"clearcoat", material.Clearcoat}, {"sheen", material.Sheen}, {"transmission", material.Transmission}, {"iridescence", material.Iridescence}}
 	for _, field := range values {
 		if !finite(field.value) || field.value < 0 || field.value > 1 {
 			return fmt.Errorf("material %q %s must be within [0,1]", material.ID, field.name)
 		}
+	}
+	if !finite(material.Anisotropy) || material.Anisotropy < -1 || material.Anisotropy > 1 {
+		return fmt.Errorf("material %q anisotropy must be within [-1,1]", material.ID)
 	}
 	if !finite(material.Emissive) || material.Emissive < 0 {
 		return fmt.Errorf("material %q emissive must be finite and non-negative", material.ID)

@@ -227,7 +227,8 @@ func compileEntityValue(document Document, entity Entity, runtimeID ID, selected
 		material := document.Materials[entity.Mesh.Material]
 		standard := scene.StandardMaterial{
 			Color: material.Color, Roughness: material.Roughness, Metalness: material.Metalness,
-			Clearcoat: material.Clearcoat, Transmission: material.Transmission, Emissive: material.Emissive,
+			Clearcoat: material.Clearcoat, Sheen: material.Sheen, Transmission: material.Transmission,
+			Iridescence: material.Iridescence, Anisotropy: material.Anisotropy, Emissive: material.Emissive,
 		}
 		for channel, slot := range material.Textures {
 			uri := document.Assets[slot.Asset].URI
@@ -305,6 +306,8 @@ func compileGeometry(geometry Geometry) (scene.Geometry, error) {
 		return scene.SphereGeometry{Radius: geometry.Radius, Segments: geometry.Segments}, nil
 	case "cylinder":
 		return scene.CylinderGeometry{RadiusTop: geometry.RadiusTop, RadiusBottom: geometry.RadiusBottom, Height: geometry.Height, Segments: geometry.RadialSegments}, nil
+	case "torus":
+		return scene.TorusGeometry{Radius: geometry.Radius, Tube: geometry.Tube, RadialSegments: geometry.RadialSegments, TubularSegments: geometry.TubularSegments}, nil
 	case "indexed-mesh":
 		return compileIndexedGeometry(geometry)
 	case "nurbs-curve":

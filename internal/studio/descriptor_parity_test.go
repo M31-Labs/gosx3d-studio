@@ -14,15 +14,16 @@ func TestComponentCatalogCoversEverydSerializedStructField(t *testing.T) {
 	aliases := map[string]map[string]string{
 		"material": {
 			"id": "pbr", "name": "pbr", "color": "pbr", "roughness": "pbr", "metalness": "pbr",
-			"clearcoat": "pbr", "transmission": "pbr", "emissive": "pbr", "selena": "selena",
+			"clearcoat": "pbr", "sheen": "pbr", "transmission": "pbr", "iridescence": "pbr",
+			"anisotropy": "pbr", "emissive": "pbr", "selena": "selena",
 		},
-		"armature": {"id": "bones", "name": "bones", "rootBones": "bones"},
-		"animation": {"id": "tracks", "name": "tracks", "loop": "tracks"},
-		"simulation": {"id": "tickRate", "name": "tickRate"},
-		"retarget-map": {"id": "bones", "name": "bones", "scale": "bones"},
+		"armature":                {"id": "bones", "name": "bones", "rootBones": "bones"},
+		"animation":               {"id": "tracks", "name": "tracks", "loop": "tracks"},
+		"simulation":              {"id": "tickRate", "name": "tickRate"},
+		"retarget-map":            {"id": "bones", "name": "bones", "scale": "bones"},
 		"animation-state-machine": {"id": "states", "name": "states", "initial": "states", "current": "states", "stateTime": "states"},
-		"render-graph": {"id": "resources", "name": "resources"},
-		"physics": {"gravityScale": "kind", "restitution": "collider"},
+		"render-graph":            {"id": "resources", "name": "resources"},
+		"physics":                 {"gravityScale": "kind", "restitution": "collider"},
 	}
 	structs := map[string]reflect.Type{
 		"transform":               reflect.TypeOf(Transform{}),

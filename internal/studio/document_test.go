@@ -23,8 +23,8 @@ func TestSampleDocumentCompilesToSharedSceneIR(t *testing.T) {
 		t.Fatalf("compile: %v", err)
 	}
 	ir := props.SceneIR()
-	if len(ir.Objects) != 143 {
-		t.Fatalf("objects = %d, want 143", len(ir.Objects))
+	if len(ir.Objects) != 145 {
+		t.Fatalf("objects = %d, want 145", len(ir.Objects))
 	}
 	if len(ir.Lights) != 4 {
 		t.Fatalf("lights = %d, want 4", len(ir.Lights))

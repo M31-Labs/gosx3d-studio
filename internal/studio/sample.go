@@ -25,13 +25,24 @@ func SampleDocument() Document {
 	}
 	add(Entity{ID: "ambient-light", Name: "Ambient", Transform: IdentityTransform(), Visible: true, Light: &LightComponent{Kind: "ambient", Color: "#d8e7ef", Intensity: 0.42}})
 	add(Entity{ID: "key-light", Name: "Key", Transform: IdentityTransform(), Visible: true, Light: &LightComponent{Kind: "directional", Color: "#fff0d2", Intensity: 1.35, Direction: Vec3{X: -0.45, Y: -1, Z: -0.35}, CastShadow: true}})
-	add(Entity{ID: "rim-light", Name: "Rim", Transform: IdentityTransform(), Visible: true, Light: &LightComponent{Kind: "point", Color: "#8edbc4", Intensity: 0.75, Position: Vec3{X: 3.5, Y: 4.8, Z: -3}, Range: 16}})
+	add(Entity{ID: "rim-light", Name: "Rim", Transform: IdentityTransform(), Visible: true, Light: &LightComponent{Kind: "point", Color: "#7899a8", Intensity: 0.75, Position: Vec3{X: 3.5, Y: 4.8, Z: -3}, Range: 16}})
 	add(Entity{ID: "fill-light", Name: "Fill", Transform: IdentityTransform(), Visible: true, Light: &LightComponent{Kind: "point", Color: "#ffb66f", Intensity: 0.48, Position: Vec3{X: -4.5, Y: 2.6, Z: 3.2}, Range: 13}})
-	add(meshEntity("board", "Board", Vec3{Y: -0.22}, Geometry{Kind: "cylinder", RadiusTop: 4.15, RadiusBottom: 4.25, Height: 0.32, RadialSegments: 48}, "board-material", true))
-	add(meshEntity("board-pedestal", "Pedestal", Vec3{Y: -0.52}, Geometry{Kind: "cylinder", RadiusTop: 3.76, RadiusBottom: 3.98, Height: 0.42, RadialSegments: 48}, "pedestal-material", false))
+	// The assignable board is a raised face plate. The larger pedestal remains
+	// a neutral gunmetal chassis, so material experiments preserve the board's
+	// silhouette instead of recoloring the entire object.
+	add(meshEntity("board", "Board", Vec3{Y: -0.11}, Geometry{Kind: "cylinder", RadiusTop: 3.96, RadiusBottom: 3.98, Height: 0.16, RadialSegments: 64}, "board-material", true))
+	add(meshEntity("board-pedestal", "Pedestal", Vec3{Y: -0.37}, Geometry{Kind: "cylinder", RadiusTop: 4.18, RadiusBottom: 4.26, Height: 0.42, RadialSegments: 64}, "pedestal-material", false))
+	// These two typed torus layers consume the same GoSX geometry path as the
+	// latest checkers showcase. The outer rim catches a restrained metal
+	// highlight; the dark inner fillet separates that fixed chassis detail from
+	// the assignable face without introducing another interaction target.
+	add(meshEntity("board-outer-rim", "Machined Outer Rim", Vec3{Y: -0.025}, Geometry{Kind: "torus", Radius: 4.035, Tube: 0.075, RadialSegments: 96, TubularSegments: 20}, "board-rim-material", false))
+	add(meshEntity("board-inner-fillet", "Inner Shadow Fillet", Vec3{Y: -0.013}, Geometry{Kind: "torus", Radius: 3.87, Tube: 0.018, RadialSegments: 96, TubularSegments: 12}, "socket-material", false))
 	holes := checkerHoles()
 	for _, hole := range holes {
-		add(meshEntity(ID(fmt.Sprintf("socket-%03d", hole.index)), fmt.Sprintf("Socket %03d", hole.index), Vec3{X: hole.position.X, Y: -0.015, Z: hole.position.Z}, Geometry{Kind: "cylinder", RadiusTop: 0.145, RadiusBottom: 0.145, Height: 0.07, RadialSegments: 16}, "socket-material", false))
+		socket := meshEntity(ID(fmt.Sprintf("socket-%03d", hole.index)), fmt.Sprintf("Socket %03d", hole.index), Vec3{X: hole.position.X, Y: -0.057, Z: hole.position.Z}, Geometry{Kind: "sphere", Radius: 0.145, Segments: 20}, "socket-material", false)
+		socket.Transform.Scale = Vec3{X: 1, Y: 0.28, Z: 1}
+		add(socket)
 	}
 	camps := initialCamps(holes)
 	for _, player := range []int{0, 3} {
@@ -41,24 +52,11 @@ func SampleDocument() Document {
 		}
 	}
 	entities[root.ID] = root
-	return Document{Schema: SceneDocSchema, ID: "chinese-checkers-showcase", Name: "Chinese Checkers Showcase", Revision: 1, RootIDs: []ID{root.ID}, Entities: entities, Materials: checkerMaterials(), Camera: Camera{Position: Vec3{Y: 8.2, Z: 10.4}, FOV: 45, Near: 0.1, Far: 80}, Environment: Environment{Background: "#080b0f", AmbientColor: "#ffffff", AmbientIntensity: 0.16, Exposure: 1.05, ToneMapping: "aces"}, Metadata: map[string]string{"proof": "m0-chinese-checkers", "source": "gosx/examples/gosx-docs/app/demos/checkers"}}
+	return Document{Schema: SceneDocSchema, ID: "chinese-checkers-showcase", Name: "Chinese Checkers Showcase", Revision: 1, RootIDs: []ID{root.ID}, Entities: entities, Materials: checkerMaterials(), Camera: Camera{Position: Vec3{Y: 8.8, Z: 11.3}, FOV: 45, Near: 0.1, Far: 80}, Environment: Environment{Background: "#080b0f", AmbientColor: "#ffffff", AmbientIntensity: 0.16, Exposure: 1.05, ToneMapping: "aces"}, Metadata: map[string]string{"proof": "m0-chinese-checkers", "source": "gosx/examples/gosx-docs/app/demos/checkers"}}
 }
 
 func meshEntity(id ID, name string, position Vec3, geometry Geometry, material ID, pickable bool) Entity {
 	return Entity{ID: id, Name: name, Transform: TransformFromEuler(position, Vec3{}, Vec3{X: 1, Y: 1, Z: 1}), Visible: true, Mesh: &MeshComponent{Geometry: geometry, Material: material, Pickable: pickable, CastShadow: true, ReceiveShadow: true}}
-}
-func checkerMaterials() map[ID]Material {
-	return map[ID]Material{
-		"board-material":    {ID: "board-material", Name: "Carved Wood", Color: "#49301f", Roughness: 0.72, Metalness: 0.03, Clearcoat: 0.16},
-		"pedestal-material": {ID: "pedestal-material", Name: "Dark Pedestal", Color: "#111518", Roughness: 0.3, Metalness: 0.78, Clearcoat: 0.38},
-		"socket-material":   {ID: "socket-material", Name: "Socket", Color: "#121719", Roughness: 0.34, Metalness: 0.42, Clearcoat: 0.48},
-		"player-1-material": {ID: "player-1-material", Name: "Coral Pieces", Color: "#e66b62", Roughness: 0.2, Metalness: 0.08, Clearcoat: 0.68, Transmission: 0.04, Emissive: 0.025, Selena: &SelenaShader{Material: "CoralPiece", Source: `
-material CoralPiece {
-  param tint : color = rgb(0.902, 0.420, 0.384)
-  surface(geo) -> color { return vec4f(tint.rgb, 1.0) }
-}`}},
-		"player-4-material": {ID: "player-4-material", Name: "Cobalt Pieces", Color: "#60a8dc", Roughness: 0.2, Metalness: 0.08, Clearcoat: 0.68, Transmission: 0.04, Emissive: 0.025},
-	}
 }
 func checkerHoles() []boardHole {
 	counts := [...]int{1, 2, 3, 4, 13, 12, 11, 10, 9, 10, 11, 12, 13, 4, 3, 2, 1}

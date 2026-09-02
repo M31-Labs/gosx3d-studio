@@ -438,7 +438,7 @@ func TestWebMCPProposalIncludesMaterialDisplayNames(t *testing.T) {
 	result, err := store.Stage(webMCPProposalRequest{
 		ExpectedRevision: document.Revision,
 		Title:            "Repaint the board",
-		Operations:       []studio.Operation{{Kind: studio.OpAssignMaterial, Target: "board", Material: "player-4-material"}},
+		Operations:       []studio.Operation{{Kind: studio.OpAssignMaterial, Target: "board", Material: "board-steel-material"}},
 	}, "session-a")
 	if err != nil {
 		t.Fatal(err)
@@ -447,14 +447,14 @@ func TestWebMCPProposalIncludesMaterialDisplayNames(t *testing.T) {
 	if !ok {
 		t.Fatalf("materials = %#v", result["materials"])
 	}
-	if materials["board-material"] != "Carved Wood" || materials["player-4-material"] != "Cobalt Pieces" {
+	if materials["board-material"] != "Carved Wood" || materials["board-steel-material"] != "Brushed Steel" {
 		t.Fatalf("material display names = %#v", materials)
 	}
 	encoded, err := json.Marshal(result)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"Carved Wood", "Cobalt Pieces"} {
+	for _, name := range []string{"Carved Wood", "Brushed Steel"} {
 		if !bytes.Contains(encoded, []byte(name)) {
 			t.Fatalf("proposal JSON omits material name %q: %s", name, encoded)
 		}

@@ -246,18 +246,20 @@ type Modifier struct {
 }
 
 type Geometry struct {
-	Kind           string         `json:"kind"`
-	Width          float64        `json:"width,omitempty"`
-	Height         float64        `json:"height,omitempty"`
-	Depth          float64        `json:"depth,omitempty"`
-	Radius         float64        `json:"radius,omitempty"`
-	Segments       int            `json:"segments,omitempty"`
-	RadiusTop      float64        `json:"radiusTop,omitempty"`
-	RadiusBottom   float64        `json:"radiusBottom,omitempty"`
-	RadialSegments int            `json:"radialSegments,omitempty"`
-	Vertices       []Vertex       `json:"vertices,omitempty"`
-	Faces          []Face         `json:"faces,omitempty"`
-	Curve          *CurveGeometry `json:"curve,omitempty"`
+	Kind            string         `json:"kind"`
+	Width           float64        `json:"width,omitempty"`
+	Height          float64        `json:"height,omitempty"`
+	Depth           float64        `json:"depth,omitempty"`
+	Radius          float64        `json:"radius,omitempty"`
+	Tube            float64        `json:"tube,omitempty"`
+	Segments        int            `json:"segments,omitempty"`
+	RadiusTop       float64        `json:"radiusTop,omitempty"`
+	RadiusBottom    float64        `json:"radiusBottom,omitempty"`
+	RadialSegments  int            `json:"radialSegments,omitempty"`
+	TubularSegments int            `json:"tubularSegments,omitempty"`
+	Vertices        []Vertex       `json:"vertices,omitempty"`
+	Faces           []Face         `json:"faces,omitempty"`
+	Curve           *CurveGeometry `json:"curve,omitempty"`
 }
 
 type CurveGeometry struct {
@@ -304,7 +306,10 @@ type Material struct {
 	Roughness    float64                `json:"roughness"`
 	Metalness    float64                `json:"metalness"`
 	Clearcoat    float64                `json:"clearcoat,omitempty"`
+	Sheen        float64                `json:"sheen,omitempty"`
 	Transmission float64                `json:"transmission,omitempty"`
+	Iridescence  float64                `json:"iridescence,omitempty"`
+	Anisotropy   float64                `json:"anisotropy,omitempty"`
 	Emissive     float64                `json:"emissive,omitempty"`
 	Selena       *SelenaShader          `json:"selena,omitempty"`
 	Textures     map[string]TextureSlot `json:"textures,omitempty"`
@@ -951,7 +956,7 @@ func containsID(values []ID, target ID) bool {
 
 func supportedGeometry(kind string) bool {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
-	case "box", "plane", "sphere", "cylinder", "indexed-mesh", "nurbs-curve":
+	case "box", "plane", "sphere", "cylinder", "torus", "indexed-mesh", "nurbs-curve":
 		return true
 	default:
 		return false
@@ -968,7 +973,7 @@ func validateGeometry(geometry Geometry) error {
 	// path assigns a computed float here today, and JSON cannot express NaN,
 	// so this closes the gap for symmetry with the camera, environment, and
 	// light records rather than against a live trigger.
-	for _, value := range []float64{geometry.Width, geometry.Height, geometry.Depth, geometry.Radius, geometry.RadiusTop, geometry.RadiusBottom} {
+	for _, value := range []float64{geometry.Width, geometry.Height, geometry.Depth, geometry.Radius, geometry.Tube, geometry.RadiusTop, geometry.RadiusBottom} {
 		if !finite(value) {
 			return fmt.Errorf("geometry %q has a non-finite dimension", kind)
 		}

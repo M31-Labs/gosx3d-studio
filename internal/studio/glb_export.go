@@ -47,8 +47,8 @@ func ExportGLB(document Document) ([]byte, ExportReport, error) {
 		if record.Selena != nil {
 			addLoss("selenaShaders", "Selena shader sources are not representable in core glTF")
 		}
-		if record.Clearcoat != 0 || record.Transmission != 0 || record.Emissive != 0 {
-			addLoss("extendedPBR", "clearcoat, transmission, and scalar emissive need glTF extensions not emitted by the floor exporter")
+		if record.Clearcoat != 0 || record.Sheen != 0 || record.Transmission != 0 || record.Iridescence != 0 || record.Anisotropy != 0 || record.Emissive != 0 {
+			addLoss("extendedPBR", "clearcoat, sheen, transmission, iridescence, anisotropy, and scalar emissive need glTF extensions not emitted by the floor exporter")
 		}
 	}
 	ensureMaterial := func(id ID) int {
