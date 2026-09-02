@@ -272,7 +272,7 @@ Open `http://localhost:8080` in a compatible browser and follow the same flow.
 Run the final clean diff through the repository's evidence floor:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.0 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.54.1 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...

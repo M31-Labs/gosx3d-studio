@@ -1,15 +1,17 @@
 # Native WebMCP verification
 
-Verified September 1, 2026 against the current source tree, the immutable
-release image, and the deployed [public demo](https://gosx3d.m31labs.dev).
+Verified September 2, 2026 across the current source tree, the immutable
+release image, the canonical local server in native Windows Chrome, and a
+separate deployed [public demo](https://gosx3d.m31labs.dev) run.
 
 ## Client
 
-- Google Chrome stable `152.0.7977.64`
+- Google Chrome stable `152.0.7977.65`
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
-- GoSX `v0.54.0`
+- GoSX `v0.54.1` for the post-release local run; the earlier deployed-origin
+  pass used `v0.54.0` before the public app rollout
 
 This verifies the public Google Chrome path accepted by the Challenge. A final
 manual replay in ChatGPT's in-app browser remains a separate submission gate.
@@ -72,12 +74,30 @@ Three best-effort client-event telemetry requests were canceled by managed DOM
 morphs. They produced no HTTP error response and did not affect the application
 or the verification result.
 
+### GoSX v0.54.1 solid-material regression proof
+
+After the governed `v0.54.1` release, the canonical local server was restarted
+against the public module and reloaded with `ignoreCache: true` in native
+Windows Chrome 152. Browser-side health reported `0.54.1`, Scene3D was
+ready/revealed on WebGPU, all four WebMCP tools registered, and Runtime, Log,
+Network, and HTTP error collections were empty.
+
+The exact runtime census proved that all 133 typed standard-material objects
+carried `wireframe: false` and triangle geometry: the board had 576 vertices,
+all 121 sockets were filled cylinders, and all ten Player 4 pieces were filled
+spheres. The ten custom Selena Player 1 pieces remained valid and solid. The
+same run completed Inspect, Find, and Focus, staged the atomic `Launch Board`
+plus `Cobalt Pieces` proposal without mutating revision 1, displayed
+`Arbiter · Allow · 2/2`, and committed once through a real pointer click on the
+visible Apply button. The human-attributed receipt advanced revision 1 to 2;
+the final board remained a solid 576-vertex PBR surface.
+
 ## Repository evidence floor
 
 The final source tree also passes:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.0 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.54.1 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go mod verify
