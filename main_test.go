@@ -308,13 +308,13 @@ func TestRenderBlueprintBuildsAndRunsThePackagedGoSXArtifact(t *testing.T) {
 		`studio_tinygo_version="0.41.1"`,
 		"sha256sum --check --status",
 		`tinygo${studio_tinygo_version}.linux-${studio_tinygo_arch}.tar.gz`,
-		"go run m31labs.dev/gosx/cmd/gosx@v0.54.0 build --prod .",
+		"go run m31labs.dev/gosx/cmd/gosx@v0.54.1 build --prod .",
 	} {
 		if !strings.Contains(buildContents, required) {
 			t.Fatalf("Render build script is missing reproducibility contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.54.0 build ."} {
+	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.54.1 build ."} {
 		if strings.Contains(buildContents, forbidden) {
 			t.Fatalf("Render build script contains non-production fallback %q", forbidden)
 		}
