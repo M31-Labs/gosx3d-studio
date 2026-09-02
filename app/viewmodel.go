@@ -341,18 +341,57 @@ func historyView(workspace *studio.Workspace) []map[string]any {
 	receipts := workspace.RecentReceipts(8)
 	out := make([]map[string]any, 0, len(receipts))
 	for _, receipt := range receipts {
-		kind := "transaction"
-		if len(receipt.Changes) > 0 {
-			kind = string(receipt.Changes[0].Kind)
+		kind := historyOperationKinds(receipt)
+		operationLabel := "ops"
+		if receipt.Operations == 1 {
+			operationLabel = "op"
 		}
 		actorLabel := historyActorLabel(receipt.Actor)
 		out = append(out, map[string]any{
 			"afterRevision": fmt.Sprintf("%04d", receipt.AfterRevision),
 			"actorLabel":    actorLabel,
-			"summary":       fmt.Sprintf("%s %s (%s, %d op) %s", receipt.Actor, kind, receipt.Mode, receipt.Operations, receipt.TransactionID),
+			"transactionID": receipt.TransactionID,
+			"summary":       fmt.Sprintf("%s · %s · %s · %d %s · %s", receipt.Actor, kind, receipt.Mode, receipt.Operations, operationLabel, historyTransactionLabel(receipt.TransactionID)),
 		})
 	}
 	return out
+}
+
+func historyOperationKinds(receipt studio.Receipt) string {
+	seen := map[studio.OperationKind]bool{}
+	kinds := make([]string, 0, len(receipt.OperatorRecords))
+	appendKind := func(kind studio.OperationKind) {
+		if kind == "" || seen[kind] {
+			return
+		}
+		seen[kind] = true
+		kinds = append(kinds, string(kind))
+	}
+	for _, record := range receipt.OperatorRecords {
+		appendKind(record.Kind)
+	}
+	if len(kinds) == 0 {
+		for _, change := range receipt.Changes {
+			appendKind(change.Kind)
+		}
+	}
+	if len(kinds) == 0 {
+		return "transaction"
+	}
+	return strings.Join(kinds, " + ")
+}
+
+func historyTransactionLabel(transactionID string) string {
+	for _, prefix := range []string{"webmcp-proposal:", "webmcp-commit:"} {
+		if strings.HasPrefix(transactionID, prefix) {
+			plan := strings.TrimPrefix(transactionID, prefix)
+			if len(plan) > 12 {
+				plan = plan[:12]
+			}
+			return "plan " + plan
+		}
+	}
+	return transactionID
 }
 
 func historyActorLabel(actor string) string {

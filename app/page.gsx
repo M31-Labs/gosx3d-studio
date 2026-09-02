@@ -15,7 +15,7 @@ func Page() Node {
 				<form data-gosx-form method="post" action={actionPath("saveProject")} class="menu-save-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
 					<input type="hidden" name="selection" value={data.inspector.id}></input>
-					<button type="submit" title={"Save " + data.project.directory}>Save</button>
+					<button type="submit" title="Save current project">Save</button>
 				</form>
 				<form data-gosx-form method="post" action={actionPath("undoCommand")} class="menu-save-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
@@ -777,7 +777,7 @@ func Page() Node {
 			<aside id="agent-panel" class="agent-panel" aria-labelledby="agent-title" tabindex="-1">
 				<header class="panel-heading">
 					<h2 id="agent-title">Agent Collaboration</h2>
-					<span class="runtime-label">proposal-only</span>
+					<span class="runtime-label">stage only</span>
 				</header>
 				<div class="webmcp-status-region" role="status" aria-live="polite" aria-atomic="true">
 					<div class="webmcp-status-banner" data-webmcp-status-panel data-state="detecting">
@@ -795,7 +795,7 @@ func Page() Node {
 						<strong>Agent</strong>
 						<small>inspect · focus · stage</small>
 					</span>
-					<span class="webmcp-authority-boundary" aria-hidden="true">proposal only</span>
+					<span class="webmcp-authority-boundary" aria-hidden="true">stage only</span>
 					<span class="webmcp-human-authority">
 						<strong>Human</strong>
 						<small>review · apply</small>
@@ -826,7 +826,7 @@ func Page() Node {
 				</div>
 				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
 					<span class="overline" id="webmcp-mission-title">Try the collaboration loop</span>
-					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Cobalt Pieces material. Explain the revision boundary.</p>
+					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Brushed Steel material. Explain the revision boundary.</p>
 					<button type="button" data-webmcp-copy-prompt disabled>Copy demo prompt</button>
 					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
 				</section>
@@ -900,6 +900,7 @@ func Page() Node {
 				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Selena</button>
 				<button type="button" role="tab" disabled aria-disabled="true" aria-selected="false" title="Unavailable in this public build">Performance</button>
 				<button id="agent-activity-tab" type="button" class="active" role="tab" aria-selected="true" aria-controls="agent-activity-panel">Agent Activity</button>
+				<a class={"telemetry-proof certification-state certification-state-" + data.certification.certState} href="/api/studio/certification/evidence" title="Open current deterministic evidence">Evidence {data.certification.liveChecksPass}/{data.certification.liveChecksTotal} · {data.certification.certState} · rev {data.certification.certRevision} ↗</a>
 			</nav>
 			<div id="agent-activity-panel" class="telemetry-content" role="tabpanel" aria-labelledby="agent-activity-tab">
 				<div class="console-lines">
@@ -912,7 +913,7 @@ func Page() Node {
 						<p>
 							<time>rev {entry.afterRevision}</time>
 							<span class="author-label">{entry.actorLabel}</span>
-							{entry.summary}
+							<span title={entry.transactionID} data-transaction-id={entry.transactionID}>{entry.summary}</span>
 						</p>
 					</Each>
 				</div>

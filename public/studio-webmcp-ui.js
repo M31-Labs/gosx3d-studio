@@ -500,11 +500,13 @@
     }, 0);
   }
 
-  function refreshPage() {
+  function refreshPage(target) {
     var navigation = window.__gosx && window.__gosx.navigation
       ? window.__gosx.navigation
       : window.__gosx_page_nav;
-    if (navigation && typeof navigation.revalidate === "function") {
+    var hasTarget = typeof target === "string" && target !== "";
+    var destination = hasTarget ? target : window.location.href;
+    if (!hasTarget && navigation && typeof navigation.revalidate === "function") {
       try {
         return Promise.resolve(navigation.revalidate({ replace: true, preserveScroll: true })).catch(function () {
           window.location.reload();
@@ -516,15 +518,27 @@
     }
     if (navigation && typeof navigation.navigate === "function") {
       try {
-        return Promise.resolve(navigation.navigate(window.location.href, {
-          replace: true, preserveScroll: true, force: true, revalidate: true
+        return Promise.resolve(navigation.navigate(destination, {
+          replace: true, preserveScroll: !hasTarget, force: true, revalidate: true
         })).catch(function () {
+          if (hasTarget) {
+            window.location.assign(destination);
+            return;
+          }
           window.location.reload();
         });
       } catch (_) {
-        window.location.reload();
+        if (hasTarget) {
+          window.location.assign(destination);
+        } else {
+          window.location.reload();
+        }
         return Promise.resolve();
       }
+    }
+    if (hasTarget) {
+      window.location.assign(destination);
+      return Promise.resolve();
     }
     window.location.reload();
     return Promise.resolve();
@@ -566,11 +580,11 @@
         "[data-studio-demo-state]",
         demoClean
           ? "Clean baseline ready · the exact prompt is safe to run."
-          : "Scene differs from the showcase baseline · prepare a clean demo before copying the prompt."
+          : "Demo result preserved · reset when you are ready for another run."
       );
       setText(
         "[data-webmcp-copy-status]",
-        demoClean ? "Ready for the browser agent." : "Prepare a clean demo before copying."
+        demoClean ? "Ready for the browser agent." : "Current result preserved. Reset before another agent run."
       );
     }).catch(hideDemoPanel);
   }
@@ -595,6 +609,7 @@
       });
     }).then(function (payload) {
       proposalHydration++;
+      focusedEntityId = "";
       clearToolFlow();
       clearTrace();
       clearProposal("The shared demo was restored; no staged proposal is awaiting review.");
@@ -602,7 +617,7 @@
         state: "ready",
         message: "Shared demo restored at scene revision " + String(payload && payload.revision || "current") + "."
       });
-      return refreshPage();
+      return refreshPage(window.location.pathname);
     }).catch(function (error) {
       button.disabled = false;
       updateStatus({ state: "error", message: error && error.message ? error.message : "The shared demo could not be reset." });

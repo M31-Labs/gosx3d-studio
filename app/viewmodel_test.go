@@ -177,6 +177,57 @@ func TestHistoryActorLabelMakesTheWebMCPHandoffExplicit(t *testing.T) {
 	}
 }
 
+func TestHistoryViewSummarizesEveryOperationKind(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := workspace.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations := []studio.Operation{
+		{Kind: studio.OpRenameEntity, Target: "board", Name: "Launch Board"},
+		{Kind: studio.OpAssignMaterial, Target: "board", Material: "board-steel-material"},
+	}
+	_, _, err = workspace.Execute(studio.Transaction{
+		ID:               "webmcp-proposal:activity-proof",
+		Actor:            "agent://webmcp",
+		Mode:             studio.ModePropose,
+		ExpectedRevision: document.Revision,
+		Operations:       operations,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = workspace.Execute(studio.Transaction{
+		ID:               "webmcp-commit:activity-proof",
+		Actor:            "human://webmcp-review",
+		Mode:             studio.ModeDirect,
+		ExpectedRevision: document.Revision,
+		Operations:       operations,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	history := historyView(workspace)
+	if len(history) != 2 {
+		t.Fatalf("history = %#v, want proposal and approval receipts", history)
+	}
+	approvedSummary, _ := history[0]["summary"].(string)
+	proposedSummary, _ := history[1]["summary"].(string)
+	if history[0]["actorLabel"] != "APPROVED" || !strings.Contains(approvedSummary, "rename-entity + assign-material") || !strings.Contains(approvedSummary, "direct · 2 ops") || !strings.Contains(approvedSummary, "plan activity-pro") {
+		t.Fatalf("approval history entry = %#v", history[0])
+	}
+	if history[1]["actorLabel"] != "PROPOSED" || !strings.Contains(proposedSummary, "rename-entity + assign-material") || !strings.Contains(proposedSummary, "propose · 2 ops") || !strings.Contains(proposedSummary, "plan activity-pro") {
+		t.Fatalf("proposal history entry = %#v", history[1])
+	}
+	if history[0]["transactionID"] != "webmcp-commit:activity-proof" || history[1]["transactionID"] != "webmcp-proposal:activity-proof" {
+		t.Fatalf("full transaction identities were not retained: %#v", history)
+	}
+}
+
 // The card reads "recomputing" after every edit and had no way back to
 // "current" until something else caused a render. The state a client polls has
 // to answer honestly at each stage, and must never claim "current" for a

@@ -712,7 +712,7 @@ func init() {
 			}
 			return server.Metadata{
 				Title:       server.Title{Default: appName},
-				Description: "Standalone local-first GoSX 3D scene, asset, modeling, and deterministic evidence workbench.",
+				Description: "Agent-native 3D scene workbench where people and browser agents inspect, focus, and stage revision-safe changes while humans keep commit authority.",
 				Icons: &server.Icons{Icon: []server.IconAsset{
 					{URL: "/favicon.svg", Type: "image/svg+xml", Sizes: "any"},
 				}},

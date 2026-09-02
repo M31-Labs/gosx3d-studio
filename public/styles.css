@@ -481,6 +481,10 @@ time,
   white-space: nowrap;
 }
 
+.panel-heading .runtime-label {
+  white-space: nowrap;
+}
+
 .selection-id {
   min-width: 0;
   overflow: hidden;
@@ -544,6 +548,11 @@ time,
   color: var(--color-text);
   background: var(--color-author-soft);
   box-shadow: inset 2px 0 var(--color-author);
+}
+
+.tree li.selected code,
+.tree li.selected small {
+  color: var(--color-text-secondary);
 }
 
 .tree code {
@@ -1671,6 +1680,10 @@ time,
   border-bottom-color: var(--color-runtime);
 }
 
+.telemetry-proof {
+  display: none;
+}
+
 .telemetry-content {
   display: grid;
   grid-template-columns: minmax(24rem, 1fr) minmax(18rem, 20rem) 16rem;
@@ -1759,6 +1772,27 @@ time,
   grid-template-areas: "hierarchy viewport inspector agent";
 }
 
+.studio-shell[data-studio-demo="true"] .telemetry-content {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.studio-shell[data-studio-demo="true"] .certification-card,
+.studio-shell[data-studio-demo="true"] .manifest-link {
+  display: none;
+}
+
+.studio-shell[data-studio-demo="true"] .telemetry-proof {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0 var(--space-md);
+  border-left: 1px solid var(--color-border);
+  font-size: var(--type-xs);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .certification-card small {
   color: var(--color-text-secondary);
   font-size: var(--type-xs);
@@ -1835,7 +1869,7 @@ time,
     --panel-project: 10rem;
     --panel-hierarchy: 11rem;
     --panel-inspector: 14rem;
-    --panel-agent: 15rem;
+    --panel-agent: 17rem;
   }
 
   .workbench {
@@ -1911,14 +1945,6 @@ time,
 
   .studio-shell[data-studio-demo="true"] .project-panel,
   .studio-shell[data-studio-demo="true"] [data-project-panel-toggle] {
-    display: none;
-  }
-
-  .studio-shell[data-studio-demo="true"] .telemetry-content {
-    grid-template-columns: minmax(0, 1fr) minmax(13rem, 15rem);
-  }
-
-  .studio-shell[data-studio-demo="true"] .manifest-link {
     display: none;
   }
 

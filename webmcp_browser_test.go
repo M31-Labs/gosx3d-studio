@@ -285,6 +285,10 @@ func TestPublicDemoResetIsVisibleAndNeverAgentCallable(t *testing.T) {
 	if !strings.Contains(review, `"/api/studio/demo/reset"`) || !strings.Contains(review, "window.confirm") {
 		t.Fatal("human UI does not explicitly confirm and call the demo reset endpoint")
 	}
+	reset := javascriptFunctionSource(t, review, "resetDemo")
+	if !strings.Contains(reset, `focusedEntityId = ""`) || !strings.Contains(reset, "refreshPage(window.location.pathname)") {
+		t.Fatal("demo reset does not clear the prior agent focus and query-string selection")
+	}
 	if strings.Contains(adapter, "/api/studio/demo/reset") || strings.Contains(adapter, "data-studio-demo-reset") {
 		t.Fatal("WebMCP adapter must not expose the human-only demo reset")
 	}
