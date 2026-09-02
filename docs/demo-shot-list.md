@@ -45,7 +45,7 @@ Click **Copy demo prompt** in the Studio. The copied text must be:
 
 1. Confirm the deployed URL loads while signed out.
 2. Confirm the compatible browser reports **Agent tools ready** and **4 tools**;
-   wait for the live WebGL scene and compact **Evidence 31/31 · current** status
+   wait for the live WebGPU scene and compact **Evidence 31/31 · current** status
    for the visible revision.
 3. Make sure no teammate is using the single shared demo workspace.
 4. Reset the shared scene before recording, write down baseline `[R]`, confirm

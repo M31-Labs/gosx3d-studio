@@ -1,6 +1,7 @@
 package studio
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,10 +23,43 @@ func TestSampleDocumentCompilesToSharedSceneIR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
-	if props.ForceWebGL == nil || !*props.ForceWebGL {
-		t.Fatal("Studio scene must keep one visually stable WebGL review path")
+	if props.PreferWebGPU == nil || !*props.PreferWebGPU {
+		t.Fatal("Studio scene must prefer WebGPU on capable browsers")
+	}
+	if props.ForceWebGL != nil && *props.ForceWebGL {
+		t.Fatal("Studio scene must not force the WebGL fallback")
+	}
+	if props.MaxFrameRate != 60 || props.AdaptiveQuality == nil || !*props.AdaptiveQuality ||
+		props.AdaptiveTargetFrameMS != 16.7 || props.AdaptiveWarmupFrames != 12 ||
+		props.AdaptivePostFX == nil || !*props.AdaptivePostFX || props.WebGPUPowerPreference != "high-performance" {
+		t.Fatalf("Studio interactive frame policy = %+v", props)
+	}
+	encodedProps, err := json.Marshal(props)
+	if err != nil {
+		t.Fatalf("marshal Studio Scene3D props: %v", err)
+	}
+	for _, field := range []string{
+		`"preferWebGPU":true`, `"maxFrameRate":60`, `"adaptiveQuality":true`,
+		`"adaptiveTargetFrameMS":16.7`, `"webgpuPowerPreference":"high-performance"`,
+	} {
+		if !bytes.Contains(encodedProps, []byte(field)) {
+			t.Fatalf("Studio Scene3D props omit %s: %s", field, encodedProps)
+		}
 	}
 	ir := props.SceneIR()
+	if ir.BackendCaps == nil {
+		t.Fatal("Studio SceneIR is missing backend capability evidence")
+	}
+	webGPUCapable := false
+	for _, backend := range ir.BackendCaps.Capable {
+		if backend == "webgpu" {
+			webGPUCapable = true
+			break
+		}
+	}
+	if !webGPUCapable {
+		t.Fatalf("Studio SceneIR does not admit WebGPU: %+v", ir.BackendCaps)
+	}
 	if len(ir.Objects) != 145 {
 		t.Fatalf("objects = %d, want 145", len(ir.Objects))
 	}

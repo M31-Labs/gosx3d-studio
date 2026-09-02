@@ -94,16 +94,22 @@ func compileProps(document Document, nodes []scene.Node) scene.Props {
 		Controls:   scene.ControlOrbit,
 		Responsive: scene.Bool(true),
 		FillHeight: scene.Bool(true),
-		// The Studio is a review surface, so visual parity across the clean,
-		// staged, and applied states matters more than opportunistic backend
-		// switching. GoSX's WebGL path currently gives the physical board
-		// finishes and authored lights their most consistent presentation.
-		ForceWebGL:           scene.Bool(true),
-		PickSignalNamespace:  "studio.viewport",
-		SelectionInputSignal: "studio.viewport.selectedID",
-		GizmoInputSignal:     "studio.viewport.gizmoMode",
-		CameraInputSignal:    "studio.viewport.cameraIn",
-		CameraOutputSignal:   "studio.viewport.cameraOut",
+		// Prefer the modern GPU path on capable browsers while retaining GoSX's
+		// honest WebGL fallback for unsupported or lost devices. Interactive
+		// camera work targets one frame per 60 Hz refresh; the adaptive governor
+		// can trade DPR before input cadence degrades.
+		PreferWebGPU:          scene.Bool(true),
+		MaxFrameRate:          60,
+		AdaptiveQuality:       scene.Bool(true),
+		AdaptiveTargetFrameMS: 16.7,
+		AdaptiveWarmupFrames:  12,
+		AdaptivePostFX:        scene.Bool(true),
+		WebGPUPowerPreference: "high-performance",
+		PickSignalNamespace:   "studio.viewport",
+		SelectionInputSignal:  "studio.viewport.selectedID",
+		GizmoInputSignal:      "studio.viewport.gizmoMode",
+		CameraInputSignal:     "studio.viewport.cameraIn",
+		CameraOutputSignal:    "studio.viewport.cameraOut",
 		Camera: scene.PerspectiveCamera{
 			Position: toSceneVec(document.Camera.Position),
 			Rotation: toSceneEuler(document.Camera.Rotation),

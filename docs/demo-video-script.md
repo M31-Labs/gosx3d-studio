@@ -18,7 +18,7 @@ For the operator's compact timeline and recording settings, keep
 
 - Use the exact hosted build and browser that will appear in the video. Wait
   until **Agent Collaboration** reads **Agent tools ready** and **4 tools**.
-- Wait for the viewport to show the live WebGL scene and for the compact
+- Wait for the viewport to show the live WebGPU scene and for the compact
   **Evidence 31/31 · current · rev [R]** status in the Agent Activity bar. Do
   not open on a negotiating renderer or stale/recomputing evidence state.
 - Reset the shared scene before capture, write down the resulting baseline
@@ -161,7 +161,7 @@ approval**.
       workspace and does not claim realtime multiplayer.
 - [ ] **Agent tools ready**, **4 tools**, and all four completed flow steps are
       visible.
-- [ ] The opening and closing show the live WebGL scene plus compact
+- [ ] The opening and closing show the live WebGPU scene plus compact
       **Evidence 31/31 · current** status for the visible revision.
 - [ ] The persistent typed-call trace shows concise real results for all four
       steps without interrupting the flow for a reload.

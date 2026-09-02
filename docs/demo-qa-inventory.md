@@ -15,6 +15,7 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 | The result is visible | Board selection, Inspector name/material, material swatch, viewport, and activity history converge in place after approval | Managed navigation preserves the Scene3D canvas while reconciling committed canonical state; a separate recovery reload cannot resurrect a stale proposal; activity retains both operation kinds and one matching plan token across proposal/approval |
 | The workbench stays interactive | Hierarchy focus and viewport selection move immediately; camera orbit survives selection, material edits, Apply, and Discard | Same-origin links and forms reconcile in place; the live Scene3D canvas keeps object identity while safe SceneIR changes dispatch as commands |
 | Player one reads as coral | Ten player-one spheres are visibly saturated red-orange with rounded light response, not flat white-pink | The material uses a matte Standard PBR `#c8321f`; deterministic preview evidence enforces at least 600 deeply saturated coral pixels |
+| The viewport uses the modern GPU path | Native Windows Chrome reports `WEBGPU` in the status bar and remains responsive through an orbit drag | Studio prefers WebGPU with a 60 Hz cap, 16.7 ms adaptive target, high-performance adapter preference, and an explicit WebGL fallback only for unsupported or lost devices |
 
 ## Controls
 
@@ -36,6 +37,7 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 - Separate resilience sequence: stage → forced reload → proposal recovery → discard.
 - Dirty same-entity Inspector value survives a background reconciliation; switching entities replaces keyed forms so the old draft cannot target the new object.
 - Preview Apply and Discard each preserve camera pose and canvas identity; forced command failure remains visibly disclosed and recovers canonical state.
+- Native Windows Chrome reports WebGPU, no fallback reason or device loss, and an interaction-frame p95 at or below the 60 Hz target after warmup; idle is intentionally event-driven rather than continuously redrawn.
 - No-op rename, material assignment, transform, and canceling operation batch.
 - Double-action attempt: Apply/Discard and Discard/Apply.
 
