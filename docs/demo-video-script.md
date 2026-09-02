@@ -1,6 +1,6 @@
 # WebMCP Challenge demo video script
 
-Target runtime: **2:10**. Keep the final public YouTube upload below three
+Target runtime: **1:55**. Keep the final public YouTube upload below three
 minutes. Record one continuous Studio/WebMCP session, then use editorial
 punch-ins from that same capture so the trace and proposal survive YouTube
 compression. Bracketed revision values such as `[R]` are production cues, not
@@ -85,7 +85,7 @@ caption it **Found stable ID board among 150 entities**.
 > moves the Studio's focus. Then it stages a rename and material assignment.
 > These are real WebMCP calls; the trace records every result.
 
-### 3. 0:48-1:27 - Review the proof, then reload it
+### 3. 0:48-1:15 - Review the live, reversible proof
 
 **On screen:** Use a 165% punch-in on **Latest staged proposal**. Point
 deliberately to:
@@ -101,22 +101,22 @@ deliberately to:
 
 Show two short editorial captions in sequence: **Canonical rev [R] stays
 unchanged**, then **Only visible human Apply creates rev [R+1]**. Point back to
-the viewport's still-unchanged revision `[R]`. Perform a full browser reload in
-the same tab and compress the settled reload proof to about six seconds. Show
-that the trace, proposal, and review controls return while the viewport remains
-at `[R]`.
+the viewport's still-unchanged revision `[R]` while the board itself already
+shows the proposed Brushed Steel finish under the visible **Agent preview · not
+committed** badge. Orbit slightly to prove this is the live Scene3D surface, not
+a screenshot. Do not reload or leave the review flow.
 
 **Voiceover:**
 
 > The card shows both edits, the agent actor, and Arbiter's reasons. Revision
-> [R] hasn't changed; only approval creates [R+1]. The fingerprint binds that
-> review to one result. Reloaded: same session, same proposal, no canonical
-> change.
+> [R] hasn't changed; only approval creates [R+1]. The viewport can render the
+> reversible proposal immediately, but the fingerprint still binds approval to
+> one exact result.
 
-### 4. 1:27-2:10 - Human apply, one revision, and why the handoff matters
+### 4. 1:15-1:55 - Human apply, one revision, and why the handoff matters
 
 **On screen:** Move the cursor from the agent into the Studio and click
-**Apply staged changes** yourself. After the managed refresh, show all of the
+**Apply staged changes** yourself. After the managed in-place update, show all of the
 following in one deliberate sweep:
 
 - `Launch Board` in the hierarchy or Inspector;
@@ -147,8 +147,6 @@ approval**.
 - If another visitor changes or resets the scene, stop. Reset again, record a
   new `[R]` before recording, leave Board unselected, and restart the take; do
   not claim realtime multiplayer behavior.
-- If the proposal does not return after the full reload, stop. Do not claim
-  reload persistence from a different tab or browser session.
 - If Apply reports a revision conflict, the safety boundary worked. For the
   main demo, stop, reset, and record a clean take rather than editing around
   the conflict.
@@ -157,7 +155,7 @@ approval**.
 
 ## Final content checklist
 
-- [ ] The spoken edit is between 2:05 and 2:15; the upload is below 3:00.
+- [ ] The spoken edit is between 1:50 and 2:05; the upload is below 3:00.
 - [ ] The public video and hosted URL both work while signed out.
 - [ ] The opening visibly identifies the hosted sample as one shared ephemeral
       workspace and does not claim realtime multiplayer.
@@ -166,14 +164,15 @@ approval**.
 - [ ] The opening and closing show the live WebGL scene plus compact
       **Evidence 31/31 · current** status for the visible revision.
 - [ ] The persistent typed-call trace shows concise real results for all four
-      steps and survives the same-session reload.
+      steps without interrupting the flow for a reload.
 - [ ] The exact prompt, stable ID `board`, and baseline `[R]` are shown; Board
       is found and focused by the agent rather than selected in advance.
 - [ ] Both staged operations are visible: `Board -> Launch Board` and
       `Carved Wood (board-material) -> Brushed Steel (board-steel-material)`.
 - [ ] Arbiter Allow evidence, the fingerprint, and
       **canonical [R] unchanged - approval [R+1]** are readable.
-- [ ] A full same-session reload restores the proposal before approval.
+- [ ] The viewport visibly shows the reversible proposal under **Agent preview
+      · not committed** while canonical revision remains `[R]`.
 - [ ] A visible human click applies the proposal, and canonical state advances
       exactly once to `[R+1]`.
 - [ ] Agent Activity labels `agent://webmcp` as **PROPOSED** and

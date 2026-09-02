@@ -110,10 +110,11 @@ fingerprints, authority, and canonical state—outside the model.
 
 In the prepared demo flow, the agent reads the scene revision, finds the mesh
 named `Board`, focuses stable ID `board`, and stages two changes: rename it
-`Launch Board` and assign the `Brushed Steel` material. The same browser
-session recovers the persistent typed-call trace and exact proposal after a full
-reload, then the person uses the visible Apply action. No registered WebMCP tool
-can commit a proposal.
+`Launch Board` and assign the `Brushed Steel` material. The live viewport shows
+that proposal immediately under an explicit not-committed badge; the person can
+orbit it, then Apply or Discard without a page reload or canvas teardown. The
+server-owned proposal also survives a deliberate same-session reload as a
+separate recovery guarantee. No registered WebMCP tool can commit a proposal.
 
 Native browser QA of the final 150-entity, 145-mesh sample used Google Chrome
 152.0.7977.65 on Windows with
@@ -263,9 +264,11 @@ because the public deployment is one shared ephemeral workspace.
    `agent://webmcp` receipt, Arbiter Allow evidence, semantic diff, affected
    object, proposed revision, and result fingerprint while the canonical
    revision remains `R`.
-6. Reload the same browser tab. Confirm the typed-call trace, proposal, and
-   Apply/Discard controls return while the canonical scene still reads `R`.
-7. Click **Apply staged changes** yourself.
+6. Confirm the viewport shows the Brushed Steel proposal under **Agent preview
+   · not committed** while canonical revision remains `R`; orbit it slightly to
+   prove the live canvas stayed mounted.
+7. Click **Apply staged changes** yourself and confirm the Studio reconciles in
+   place without a page reload or canvas blink.
 8. Confirm the hierarchy reads `Launch Board`, the Inspector reads `Brushed
    Steel`, canonical revision is `R+1`, and
    **Agent Activity** separately shows `agent://webmcp` and
@@ -323,10 +326,10 @@ instructions, WebMCP implementation, and a repository-root MIT License.
 
 `[TODO: PUBLIC YOUTUBE URL, UNDER 3 MINUTES, WITH AUDIO]`
 
-The recording plan is in `docs/demo-video-script.md`. It targets a 2:10
+The recording plan is in `docs/demo-video-script.md`. It targets a 1:55
 single-session demo: problem, four-tool discovery, inspect/find/focus, persistent
-typed-call evidence, a two-operation non-mutating preview, same-session reload
-recovery, visible-UI Apply, one canonical revision advance, and distinct
+typed-call evidence, a live reversible two-operation preview, no-reload
+visible-UI Apply, one canonical revision advance, and distinct
 proposal/approval attribution. The shared scene is reset before recording so
 the opening belongs to the agent's object discovery rather than demo setup.
 
@@ -377,7 +380,7 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
       invalidation.
 - [x] Complete native WebMCP QA in Google Chrome 152.0.7977.65 on Windows with
       the WebMCP testing experiment enabled; exact four-tool discovery and the
-      complete inspect/find/focus/two-operation-preview/reload/apply flow passed
+      complete inspect/find/focus/live-preview/apply flow passed
       with no browser or HTTP errors.
 - [x] Run the full clean verification sequence, including GoSX and Arbiter
       checks, module verification, vet, tests, race tests, deterministic smoke

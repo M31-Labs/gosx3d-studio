@@ -21,10 +21,26 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "__gosx_page_nav"} {
+	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "__gosx_page_nav", "studio.viewport.selectedID", "applyLocalSelection", "a[data-entity-id]", "[data-hierarchy-row]", "markInspectorSelectionPending", "form[data-selection-bound]", "data-selection-pending-enabled", "gosx:navigate", "__gosxStudioSelection"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("selection bridge missing %q", required)
 		}
+	}
+	page, err := os.ReadFile("app/page.gsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := strings.Count(string(page), `data-selection-bound="true"`)
+	targets := strings.Count(string(page), `name="target"`)
+	keys := strings.Count(string(page), `data-gosx-key={`)
+	if bound != targets+1 {
+		t.Fatalf("selection-bound forms = %d, want %d target forms plus setMaterial", bound, targets+1)
+	}
+	if keys != bound {
+		t.Fatalf("selection-bound form keys = %d, want %d", keys, bound)
+	}
+	if !strings.Contains(string(page), `data-gosx-key={"material-" + data.inspector.id + "-" + data.inspector.materialId}`) {
+		t.Fatal("material editor key does not reset when either entity or bound material changes")
 	}
 }
 

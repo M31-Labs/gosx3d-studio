@@ -9,10 +9,9 @@ Use this as the recording-day operator sheet. The complete narration is in
 | --- | --- | --- |
 | 0:00-0:15 | Establish the clean scene prepared before capture without selecting Board | Baseline `[R]`, **Agent tools ready**, **4 tools**, captions: **Shared ephemeral demo workspace** and **150 entities · 145 meshes · 4 typed tools · 0 agent commit tools** |
 | 0:15-0:48 | Copy and send the exact in-product prompt; punch into the completed trace at 150% | Inspect/Find/Focus/Stage completion, stable ID `board`, visible focus moving from the reset selection |
-| 0:48-1:21 | Punch into the proposal at 165%; open **Why Arbiter allowed this proposal** | Exact rename/material diff, `agent://webmcp`, Arbiter Allow 2/2 plus reasons, fingerprint, canonical `[R]` unchanged |
-| 1:21-1:27 | Reload the same browser tab | Trace, proposal, and Apply/Discard return; canonical revision still `[R]` |
-| 1:27-1:55 | Human reviews, then visibly clicks **Apply staged changes** | `Launch Board`, `Brushed Steel`, revision `[R+1]` |
-| 1:55-2:10 | Show Agent Activity and finish on the full Studio | Both operation kinds, proposed/approved actors, matching plan token, compact current evidence status, closing 1→4→2→1 caption |
+| 0:48-1:15 | Punch into the proposal at 165%; open **Why Arbiter allowed this proposal**, then orbit the live preview slightly | Exact rename/material diff, `agent://webmcp`, Arbiter Allow 2/2 plus reasons, fingerprint, canonical `[R]` unchanged, **Agent preview · not committed** |
+| 1:15-1:42 | Human reviews, then visibly clicks **Apply staged changes** | `Launch Board`, `Brushed Steel`, revision `[R+1]`, no canvas blink |
+| 1:42-1:55 | Show Agent Activity and finish on the full Studio | Both operation kinds, proposed/approved actors, matching plan token, compact current evidence status, closing 1→4→2→1 caption |
 
 ## Exact prompt
 
@@ -57,15 +56,13 @@ Click **Copy demo prompt** in the Studio. The copied text must be:
 7. Follow the timeline without improvising object names, material names, or
    revision claims.
 8. Click the visible Arbiter disclosure rather than hovering for a tooltip.
-9. Reload only the current tab so the same session cookie restores the staged
-   proposal.
-10. Leave two seconds of stillness after the closing frame.
+9. Leave two seconds of stillness after the closing frame.
 
 ## Edit and upload
 
 - Trim dead tool-waiting time and verbal stumbles, but do not join footage from
   different sessions, resets, or canonical revisions.
-- Keep the final timeline between 2:05 and 2:15. Watch the exported MP4 from
+- Keep the final timeline between 1:50 and 2:05. Watch the exported MP4 from
   beginning to end with headphones.
 - Export 1080p H.264 with 48 kHz AAC audio. Confirm small text remains legible
   after YouTube processing.

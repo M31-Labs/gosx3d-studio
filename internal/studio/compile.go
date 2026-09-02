@@ -12,6 +12,23 @@ func Compile(document Document) (scene.Props, error) {
 	return CompileSelected(document, "")
 }
 
+// CompileViewport builds the long-lived interactive editor surface. Selection
+// is deliberately absent from its authored scene payload: the mounted engine
+// receives selection through SelectionInputSignal and repositions the stable
+// TransformControls helpers in place. A hierarchy click can therefore update
+// the Inspector without invalidating the GPU surface or resetting its camera.
+func CompileViewport(document Document) (scene.Props, error) {
+	props, err := CompileSelected(document, "")
+	if err != nil {
+		return scene.Props{}, err
+	}
+	props.Graph.Nodes = append(props.Graph.Nodes, scene.TransformControls{
+		ID:   "studio-gizmo",
+		Size: 1.2,
+	})
+	return props, nil
+}
+
 func CompileSelected(document Document, selected ID) (scene.Props, error) {
 	if err := document.Validate(); err != nil {
 		return scene.Props{}, err

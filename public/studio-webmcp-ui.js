@@ -10,6 +10,8 @@
   var demoClean = false;
   var reviewInFlight = false;
   var reviewFocusTarget = null;
+  var activeScenePreview = null;
+  var scenePreviewChain = Promise.resolve();
   var traceEntries = [];
   var toolStates = {
     scene_get_state: "idle",
@@ -237,6 +239,149 @@
     }).join(", ");
   }
 
+  function dispatchSceneCommands(commands) {
+    if (!Array.isArray(commands) || commands.length === 0) return Promise.resolve(false);
+    var mount = one("[data-gosx-scene3d]");
+    var api = window.__gosx && window.__gosx.scene3d;
+    if (api && typeof api.dispatchCommands === "function") {
+      return Promise.resolve(api.dispatchCommands(mount, commands, { timeoutMS: 10000 })).then(function () { return true; });
+    }
+    var bridge = window.__gosx_scene3d_command_bridge;
+    if (bridge && typeof bridge.dispatchCommands === "function") {
+      return Promise.resolve(bridge.dispatchCommands(mount, commands, { timeoutMS: 10000 })).then(function () { return true; });
+    }
+    if (mount && mount.__gosxScene3DHandle && typeof mount.__gosxScene3DHandle.applyCommands === "function") {
+      return Promise.resolve(mount.__gosxScene3DHandle.applyCommands(commands)).then(function () { return true; });
+    }
+    return Promise.reject(new Error("The live Scene3D command bridge is unavailable."));
+  }
+
+  function markScenePreview(active) {
+    var stage = one(".scene-stage");
+    var badge = one("[data-webmcp-preview-badge]");
+    if (stage) {
+      if (active) stage.setAttribute("data-webmcp-preview", "true");
+      else stage.removeAttribute("data-webmcp-preview");
+    }
+    if (badge) badge.hidden = !active;
+  }
+
+  function activateScenePreview(proposal) {
+    if (!proposal || !proposal.proposalId) return Promise.resolve(false);
+    var unchanged = false;
+    var phase = "queued";
+    var previousPreview = null;
+    var proposalMount = null;
+    scenePreviewChain = scenePreviewChain.then(function () {
+      phase = "inspect";
+      var previous = activeScenePreview;
+      previousPreview = previous;
+      var currentMount = one("[data-gosx-scene3d]");
+      if (previous && previous.__scenePreviewMount !== currentMount) {
+        // A remount already discarded the old imperative overlay. Do not send
+        // its reverse commands to the fresh canonical engine; just reapply the
+        // still-pending proposal below.
+        activeScenePreview = null;
+        previous = null;
+      }
+      if (previous && previous.proposalId === proposal.proposalId) {
+        unchanged = true;
+        // Navigation reconciliation restores the server-authored hidden badge
+        // even when it correctly reuses the live Scene3D mount. Reassert the
+        // disclosure for the imperative overlay that is still active.
+        markScenePreview(previous.__scenePreviewApplied === true || previous.__scenePreviewUncertain === true);
+        if (previous.__scenePreviewUncertain === true) {
+          updateStatus({
+            state: "error",
+            message: "The live preview could not be confirmed. Apply or discard the staged proposal to reconcile the canonical scene."
+          });
+        }
+        return false;
+      }
+      if (!previous || !Array.isArray(previous.reverseSceneCommands) || previous.reverseSceneCommands.length === 0) return false;
+      phase = "reverse-previous";
+      return dispatchSceneCommands(previous.reverseSceneCommands).then(function (reversed) {
+        activeScenePreview = null;
+        phase = "previous-reversed";
+        return reversed;
+      });
+    }).then(function () {
+      if (unchanged) return false;
+      proposalMount = one("[data-gosx-scene3d]");
+      phase = "apply-proposal";
+      return dispatchSceneCommands(proposal.sceneCommands || []);
+    }).then(function (applied) {
+      if (unchanged) return applied;
+      proposal.__scenePreviewMount = proposalMount || one("[data-gosx-scene3d]");
+      proposal.__scenePreviewApplied = applied === true;
+      proposal.__scenePreviewUncertain = false;
+      activeScenePreview = proposal;
+      markScenePreview(applied === true);
+      phase = "active";
+      return applied;
+    }).catch(function (error) {
+      if (phase === "reverse-previous" && previousPreview) {
+        // The old overlay may still be present (or partially reversed). Keep
+        // its exact reverse commands and disclosure until a hard remount
+        // restores canonical SceneIR; never pretend the superseding proposal
+        // is what the human is looking at.
+        activeScenePreview = previousPreview;
+        previousPreview.__scenePreviewApplied = true;
+        previousPreview.__scenePreviewUncertain = true;
+        markScenePreview(true);
+      } else if (phase === "apply-proposal") {
+        // applyCommands can fail after mutating part of a command batch. Retain
+        // the proposal and its full reverse diff so Discard can still restore
+        // canonical state. Hiding the badge here would turn an uncertain live
+        // overlay into an undisclosed apparent commit.
+        proposal.__scenePreviewMount = proposalMount || one("[data-gosx-scene3d]");
+        proposal.__scenePreviewApplied = false;
+        proposal.__scenePreviewUncertain = true;
+        activeScenePreview = proposal;
+        markScenePreview(true);
+        updateStatus({
+          state: "error",
+          message: "The live preview could not be confirmed. Apply or discard the staged proposal to reconcile the canonical scene."
+        });
+      }
+      if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
+        window.__gosx.reportFailure("WebMCP live scene preview", error, {
+          scope: "studio", type: "webmcp",
+          fallback: phase === "reverse-previous" ? "canonical-remount" : "human-review"
+        });
+      }
+      if (phase === "reverse-previous") {
+        return requireCanonicalReload("The previous agent preview could not be reversed safely; restoring canonical SceneIR before showing the next proposal.");
+      }
+      return false;
+    });
+    return scenePreviewChain;
+  }
+
+  function revertScenePreview(proposalId) {
+    var matchedPreview = null;
+    scenePreviewChain = scenePreviewChain.then(function () {
+      var preview = activeScenePreview;
+      if (!preview || proposalId && preview.proposalId !== proposalId) return true;
+      matchedPreview = preview;
+      activeScenePreview = null;
+      if (!Array.isArray(preview.reverseSceneCommands) || preview.reverseSceneCommands.length === 0) return true;
+      return dispatchSceneCommands(preview.reverseSceneCommands || []);
+    }).catch(function (error) {
+      if (matchedPreview) activeScenePreview = matchedPreview;
+      if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
+        window.__gosx.reportFailure("WebMCP live scene preview rollback", error, {
+          scope: "studio", type: "webmcp", fallback: "page-reconcile"
+        });
+      }
+      return false;
+    }).then(function (restored) {
+      if (matchedPreview) markScenePreview(restored ? false : true);
+      return restored;
+    });
+    return scenePreviewChain;
+  }
+
   function vectorsEqual(left, right) {
     if (!left || !right) return left === right;
     return ["x", "y", "z"].every(function (axis) {
@@ -319,6 +464,47 @@
     }
   }
 
+  function lockSceneMutationControls(locked) {
+    if (locked) {
+      var selectMode = one('[data-gizmo-mode="select"]');
+      if (selectMode && selectMode.getAttribute("aria-pressed") !== "true" && !selectMode.disabled) {
+        selectMode.click();
+      }
+    }
+    document.querySelectorAll('form[data-gosx-form], [data-gizmo-mode]').forEach(function (surface) {
+      var controls = surface.matches && surface.matches("[data-gizmo-mode]")
+        ? [surface]
+        : Array.prototype.slice.call(surface.querySelectorAll('button[type="submit"], input[type="submit"]'));
+      if (locked) {
+        surface.setAttribute("data-webmcp-review-locked", "true");
+        surface.setAttribute("aria-busy", "true");
+        controls.forEach(function (control) {
+          if (!control.disabled || control.hasAttribute("data-selection-pending-enabled")) {
+            control.disabled = true;
+            control.setAttribute("data-webmcp-review-enabled", "true");
+          }
+        });
+        return;
+      }
+      surface.removeAttribute("data-webmcp-review-locked");
+      surface.removeAttribute("aria-busy");
+      controls.forEach(function (control) {
+        if (!control.hasAttribute("data-webmcp-review-enabled")) return;
+        control.removeAttribute("data-webmcp-review-enabled");
+        if (!control.closest("[data-selection-pending]")) control.disabled = false;
+      });
+    });
+  }
+
+  function requireCanonicalReload(message) {
+    updateStatus({
+      state: "error",
+      message: message || "The live preview could not be reversed safely; restoring the canonical scene."
+    });
+    window.setTimeout(function () { window.location.reload(); }, 0);
+    return false;
+  }
+
   function renderProposalExpiry() {
     var expiry = one("[data-webmcp-proposal-expiry]");
     if (!expiry) return;
@@ -333,8 +519,9 @@
     }
     var remaining = expiresAt - Date.now();
     if (remaining <= 0) {
-      expiry.textContent = "expired · restage required";
+      expiry.textContent = "expired · restoring canonical scene";
       reviewButtons(true);
+      if (!reviewInFlight) discardProposal(null);
       return;
     }
     var minutes = Math.max(1, Math.ceil(remaining / 60000));
@@ -343,6 +530,7 @@
 
   function renderProposal() {
     if (!pendingProposal) return;
+    lockSceneMutationControls(true);
     var receipt = pendingProposal.receipt || {};
     var affected = Array.isArray(receipt.affected) ? receipt.affected : [];
     var rationale = one("[data-webmcp-proposal-rationale]");
@@ -388,7 +576,10 @@
     updateStatus({
       state: "proposal",
       tool: "scene_preview_actions",
-      message: "Canonical revision " + canonicalRevision + " is unchanged. Review the exact staged operations, then apply or discard."
+      message: (Array.isArray(pendingProposal.sceneCommands) && pendingProposal.sceneCommands.length
+        ? "The viewport is showing a reversible agent preview. "
+        : "") + "Canonical revision " + canonicalRevision +
+        " is unchanged. Scene edits pause during review; orbit and selection stay live."
     });
     var proposalCard = one("[data-webmcp-proposal]");
     if (proposalCard && agentPanel && typeof agentPanel.scrollTo === "function") {
@@ -414,6 +605,7 @@
     );
     pendingProposal = null;
     reviewInFlight = false;
+    lockSceneMutationControls(false);
     if (actions) actions.hidden = true;
     if (agentPanel) agentPanel.classList.remove("has-pending-proposal");
     reviewButtons(false);
@@ -449,13 +641,24 @@
       if (generation !== proposalHydration) return;
       var proposal = payload && payload.proposal;
       if (!proposal || !proposal.proposalId) {
-        if (pendingProposal) clearProposal("No staged WebMCP proposal is awaiting review in this browser session.");
+        if (pendingProposal) {
+          var missingProposalID = pendingProposal.proposalId;
+          revertScenePreview(missingProposalID).then(function (restored) {
+            if (!restored) {
+              requireCanonicalReload("The staged preview disappeared before it could be reversed; restoring the canonical scene.");
+              return;
+            }
+            clearProposal("No staged WebMCP proposal is awaiting review in this browser session.");
+            refreshPage();
+          });
+        }
         return;
       }
       pendingProposal = proposal;
       toolStates.scene_preview_actions = "complete";
       renderToolFlow();
       renderProposal();
+      activateScenePreview(proposal);
     }).catch(function (error) {
       if (generation !== proposalHydration) return;
       updateStatus({ state: "error", message: error && error.message ? error.message : "The staged proposal could not be restored." });
@@ -485,6 +688,9 @@
     if (!id) return;
     focusedEntityId = id;
     highlightFocusedEntity(id);
+    if (window.__gosxStudioSelection && typeof window.__gosxStudioSelection.apply === "function") {
+      window.__gosxStudioSelection.apply(id);
+    }
 
     var current = new URL(window.location.href).searchParams.get("selection");
     if (current === id) return;
@@ -544,6 +750,18 @@
     return Promise.resolve();
   }
 
+  function renderedCanonicalRevision() {
+    var field = one('input[type="hidden"][name="expectedRevision"]');
+    var revision = field ? Number(field.value) : NaN;
+    return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
+  }
+
+  function proposalBaseRevision(proposal) {
+    var receipt = proposal && proposal.receipt;
+    var revision = receipt ? Number(receipt.beforeRevision) : NaN;
+    return Number.isSafeInteger(revision) && revision > 0 ? revision : null;
+  }
+
   function hideDemoPanel() {
     var panel = one("[data-studio-demo-panel]");
     if (panel) panel.hidden = true;
@@ -592,7 +810,7 @@
   function resetDemo(button) {
     var expectedRevision = Number(button.getAttribute("data-revision"));
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
-      updateStatus({ state: "error", message: "The shared demo revision is unavailable; reload before resetting." });
+      updateStatus({ state: "error", message: "The shared demo revision is unavailable; refresh the view before resetting." });
       return;
     }
     if (!window.confirm("Reset the shared public demo scene for everyone? Pending proposals and current scene edits will be discarded.")) return;
@@ -612,7 +830,17 @@
       focusedEntityId = "";
       clearToolFlow();
       clearTrace();
-      clearProposal("The shared demo was restored; no staged proposal is awaiting review.");
+      var previewID = pendingProposal && pendingProposal.proposalId;
+      return revertScenePreview(previewID).then(function (restored) {
+        if (!restored) {
+          requireCanonicalReload("The demo reset succeeded, but its local preview could not be reversed; restoring the clean canonical scene.");
+          return null;
+        }
+        clearProposal("The shared demo was restored; no staged proposal is awaiting review.");
+        return payload;
+      });
+    }).then(function (payload) {
+      if (!payload) return false;
       updateStatus({
         state: "ready",
         message: "Shared demo restored at scene revision " + String(payload && payload.revision || "current") + "."
@@ -642,28 +870,37 @@
       });
     }).then(function (payload) {
       proposalHydration++;
-      clearProposal("The reviewed proposal was applied to the canonical scene.");
-      updateStatus({
-        state: "applied",
-        message: "Applied by human review at scene revision " +
-          String(payload && payload.receipt ? payload.receipt.afterRevision : "current") + "."
+      return scenePreviewChain.then(function () {
+        activeScenePreview = null;
+        markScenePreview(false);
+        clearProposal("The reviewed proposal was applied to the canonical scene.");
+        updateStatus({
+          state: "applied",
+          message: "Applied by human review at scene revision " +
+            String(payload && payload.receipt ? payload.receipt.afterRevision : "current") + "."
+        });
+        return refreshPage();
       });
-      return refreshPage();
     }).catch(function (error) {
       if (error && (error.status === 404 || error.status === 409 || error.status === 410)) {
         proposalHydration++;
-        clearProposal(
-          error.status === 409
-            ? "The scene changed before approval. Ask the agent to inspect the current revision and stage a fresh proposal."
-            : "This staged proposal is no longer available. Ask the agent to stage it again."
-        );
-        updateStatus({
-          state: "error",
-          message: error.status === 409
-            ? "Revision conflict: canonical state was preserved. Inspect the current scene and restage."
-            : (error && error.message ? error.message : "The proposal is no longer available.")
+        return revertScenePreview(proposal.proposalId).then(function (restored) {
+          if (!restored) {
+            return requireCanonicalReload("The proposal ended while its local preview was active; restoring the current canonical scene.");
+          }
+          clearProposal(
+            error.status === 409
+              ? "The scene changed before approval. Ask the agent to inspect the current revision and stage a fresh proposal."
+              : "This staged proposal is no longer available. Ask the agent to stage it again."
+          );
+          updateStatus({
+            state: "error",
+            message: error.status === 409
+              ? "Revision conflict: canonical state was preserved. Inspect the current scene and restage."
+              : (error && error.message ? error.message : "The proposal is no longer available.")
+          });
+          return refreshPage();
         });
-        return;
       }
       reviewInFlight = false;
       reviewButtons(false);
@@ -696,14 +933,25 @@
     }).then(function () {
       proposalHydration++;
       clearToolFlow();
-      clearProposal("Proposal revoked; the canonical scene was never changed.");
-      updateStatus({ state: "ready", message: "The staged proposal was revoked without changing the canonical scene." });
+      return revertScenePreview(proposalId).then(function (restored) {
+        if (!restored) {
+          return requireCanonicalReload("The proposal was revoked, but its local preview could not be reversed; restoring the canonical scene.");
+        }
+        clearProposal("Proposal revoked; the canonical scene was never changed.");
+        updateStatus({ state: "ready", message: "The staged proposal was revoked without changing the canonical scene." });
+        return refreshPage();
+      });
     }).catch(function (error) {
       if (error && (error.status === 404 || error.status === 410)) {
         proposalHydration++;
-        clearProposal("This staged proposal is no longer available.");
-        updateStatus({ state: "ready", message: "The staged proposal was already unavailable; canonical state is unchanged." });
-        return;
+        return revertScenePreview(proposalId).then(function (restored) {
+          if (!restored) {
+            return requireCanonicalReload("The expired proposal preview could not be reversed; restoring the canonical scene.");
+          }
+          clearProposal("This staged proposal is no longer available.");
+          updateStatus({ state: "ready", message: "The staged proposal was already unavailable; canonical state is unchanged." });
+          return refreshPage();
+        });
       }
       reviewInFlight = false;
       reviewButtons(false);
@@ -759,9 +1007,11 @@
   });
 
   document.addEventListener("studio:webmcp:proposal", function (event) {
-    pendingProposal = event && event.detail ? event.detail : null;
+    var proposal = event && event.detail ? event.detail : null;
+    pendingProposal = proposal;
     proposalHydration++;
     renderProposal();
+    activateScenePreview(proposal);
   });
 
   document.addEventListener("studio:webmcp:trace", function (event) {
@@ -777,6 +1027,16 @@
     renderToolFlow();
     renderTrace();
     if (pendingProposal) renderProposal();
+    if (activeScenePreview) {
+      var renderedRevision = renderedCanonicalRevision();
+      var previewRevision = proposalBaseRevision(activeScenePreview);
+      if (renderedRevision !== null && previewRevision !== null && renderedRevision !== previewRevision) {
+        requireCanonicalReload("The canonical scene changed during review; restoring its current revision before restaging.");
+        return;
+      }
+      markScenePreview(false);
+      activateScenePreview(activeScenePreview);
+    }
     if (focusedEntityId) window.setTimeout(function () { highlightFocusedEntity(focusedEntityId); }, 0);
     discoverDemoState();
     discoverPendingProposal();
@@ -805,6 +1065,18 @@
     if (!copy) return;
     event.preventDefault();
     copyDemoPrompt(copy);
+  });
+
+  // A narrow diagnostics surface keeps the asynchronous preview lifecycle
+  // executable in browser-free tests and observable during demo rehearsals.
+  // It does not expose commit: canonical authority remains server-owned and
+  // reachable only through the explicit human review control above.
+  window.__gosxStudioWebMCPPreview = Object.freeze({
+    activate: activateScenePreview,
+    revert: revertScenePreview,
+    activeProposalID: function () {
+      return activeScenePreview ? String(activeScenePreview.proposalId || "") : "";
+    }
   });
 
   renderStatus();

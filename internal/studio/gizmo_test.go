@@ -49,6 +49,29 @@ func TestCompileWithoutSelectionEmitsNoGizmo(t *testing.T) {
 	}
 }
 
+func TestCompileViewportUsesStableSignalDrivenGizmo(t *testing.T) {
+	document := SampleDocument()
+	props, err := CompileViewport(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controls := findTransformControls(props.Graph.Nodes)
+	if controls == nil {
+		t.Fatal("interactive viewport must always lower stable TransformControls helpers")
+	}
+	if controls.ID != "studio-gizmo" || controls.Target != "" || controls.Mode != "" || controls.Size != 1.2 {
+		t.Fatalf("signal-driven viewport gizmo = %+v", controls)
+	}
+	if props.SelectionInputSignal != "studio.viewport.selectedID" {
+		t.Fatalf("selection input signal = %q", props.SelectionInputSignal)
+	}
+	for _, object := range props.SceneIR().Objects {
+		if object.Selected {
+			t.Fatalf("viewport object %q bakes selection into the persistent scene", object.ID)
+		}
+	}
+}
+
 func TestCompilePropsExposeCameraRigSignals(t *testing.T) {
 	props, err := Compile(SampleDocument())
 	if err != nil {

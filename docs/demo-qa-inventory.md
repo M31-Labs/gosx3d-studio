@@ -12,7 +12,7 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 | Review is governed and revision-safe | Arbiter decision, reasons, canonical/approval revision, fingerprint, affected IDs, and expiry are visible | Stale revisions fail; proposals are session-owned, one-shot, expiring, and one-active-per-browser |
 | A human decision is unambiguous | Apply and Discard are mutually disabled while either request is pending | Concurrent commit/discard attempts allow only one terminal operation |
 | The showcase is reproducible | Clean/dirty baseline gate and human-only Prepare clean demo control; reset returns to a query-free, non-Board selection | Exact prompt cannot be copied while the shared canonical scene differs from the baseline |
-| The result is visible | Board selection, Inspector name/material, material swatch, viewport, and activity history converge after approval | Reload shows the committed canonical document and no stale proposal resurrects; activity retains both operation kinds and one matching plan token across proposal/approval |
+| The result is visible | Board selection, Inspector name/material, material swatch, viewport, and activity history converge in place after approval | Managed navigation preserves the Scene3D canvas while reconciling committed canonical state; a separate recovery reload cannot resurrect a stale proposal; activity retains both operation kinds and one matching plan token across proposal/approval |
 
 ## Controls
 
@@ -30,7 +30,8 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 - Clean and dirty shared-demo baseline.
 - No proposal, staged proposal, expired proposal, applied proposal, and discarded proposal.
 - Stale-revision recovery after another canonical edit.
-- Successful exact sequence: inspect → find → focus → stage → reload → apply.
+- Successful exact sequence: inspect → find → focus → live preview → apply, with no page reload or canvas teardown.
+- Separate resilience sequence: stage → forced reload → proposal recovery → discard.
 - No-op rename, material assignment, transform, and canceling operation batch.
 - Double-action attempt: Apply/Discard and Discard/Apply.
 

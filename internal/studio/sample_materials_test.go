@@ -1,6 +1,11 @@
 package studio
 
-import "testing"
+import (
+	"testing"
+
+	"m31labs.dev/gosx/scene"
+	"m31labs.dev/gosx/scene/preview"
+)
 
 func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	document := SampleDocument()
@@ -46,6 +51,24 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	if material := document.Materials["board-steel-material"]; material.Selena != nil {
 		t.Fatal("Brushed Steel must retain Standard PBR lighting under the Studio rig")
 	}
+	coral := document.Materials["player-1-material"]
+	if coral.Selena != nil {
+		t.Fatal("Coral Pieces must use lit Standard PBR instead of a flat custom shader")
+	}
+	if coral.Color != "#c83f35" || coral.Roughness != 0.44 || coral.Metalness != 0.02 ||
+		coral.Clearcoat != 0.20 || coral.Sheen != 0.03 || coral.Transmission != 0 ||
+		coral.Iridescence != 0 || coral.Emissive != 0 {
+		t.Fatalf("Coral Pieces physical finish = %+v", coral)
+	}
+	playerOnePieces := 0
+	for _, entity := range document.Entities {
+		if entity.Mesh != nil && entity.Mesh.Material == coral.ID {
+			playerOnePieces++
+		}
+	}
+	if playerOnePieces != 10 {
+		t.Fatalf("Coral Pieces references = %d, want 10", playerOnePieces)
+	}
 
 	props, err := Compile(document)
 	if err != nil {
@@ -78,6 +101,22 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	if got := objects["board-inner-fillet"]; got.kind != "torus" || got.tube != 0.018 || got.wireframe == nil || *got.wireframe {
 		t.Fatalf("compiled inner fillet = %+v, want a solid shadow torus", got)
 	}
+	foundCoral := false
+	for _, object := range props.SceneIR().Objects {
+		if object.ID != "piece-player-1-01" {
+			continue
+		}
+		foundCoral = true
+		if object.Kind != "sphere" || object.MaterialKind != "standard" || object.Color != "#c83f35" ||
+			object.Roughness != 0.44 || object.Metalness != 0.02 || object.Clearcoat != 0.20 ||
+			object.Sheen != 0.03 || object.Transmission != 0 || object.Iridescence != 0 ||
+			object.Emissive != nil || object.Wireframe == nil || *object.Wireframe {
+			t.Fatalf("compiled Coral Piece = %+v, want a solid lit coral Standard PBR sphere", object)
+		}
+	}
+	if !foundCoral {
+		t.Fatal("compiled Coral Piece missing")
+	}
 
 	// This is the material used by the recorded WebMCP handoff. Exercise the
 	// exact assignment so the demo cannot silently fall back to the old piece
@@ -103,6 +142,38 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	}
 }
 
+func TestShowcaseCoralRendersSaturatedUnderStudioLighting(t *testing.T) {
+	document := SampleDocument()
+	props, err := Compile(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := preview.Render(props, preview.Options{
+		Width: 720, Height: 480, Background: document.Environment.Background,
+		DisablePostFX: true, MaxSegments: 24,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The previous constant-output shader yielded zero pixels at this
+	// saturation threshold and made the coral army read as white-pink. Keep
+	// enough deeply red-orange pixels in the deterministic rendered frame that
+	// future material or lighting edits cannot silently reintroduce that washout.
+	saturatedCoralPixels := 0
+	for y := result.Image.Bounds().Min.Y; y < result.Image.Bounds().Max.Y; y++ {
+		for x := result.Image.Bounds().Min.X; x < result.Image.Bounds().Max.X; x++ {
+			pixel := result.Image.RGBAAt(x, y)
+			if int(pixel.R)-int(pixel.G) >= 70 && int(pixel.R)-int(pixel.B) >= 80 &&
+				pixel.R >= 120 && pixel.G >= 30 {
+				saturatedCoralPixels++
+			}
+		}
+	}
+	if saturatedCoralPixels < 600 {
+		t.Fatalf("saturated rendered coral pixels = %d, want at least 600", saturatedCoralPixels)
+	}
+}
+
 func TestAdvancedPhysicalMaterialRangesAreValidated(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -123,5 +194,27 @@ func TestAdvancedPhysicalMaterialRangesAreValidated(t *testing.T) {
 				t.Fatal("out-of-range physical material value must fail validation")
 			}
 		})
+	}
+}
+
+func TestShowcaseBoardFinishChangeIsLiveSceneCommandDiffable(t *testing.T) {
+	document := SampleDocument()
+	before, err := CompileViewport(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	board := document.Entities["board"]
+	board.Mesh.Material = "board-steel-material"
+	document.Entities[board.ID] = board
+	after, err := CompileViewport(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diff := scene.DiffScene(before.SceneIR(), after.SceneIR(), scene.DiffOptions{})
+	if len(diff.RemountFields) != 0 {
+		t.Fatalf("board finish change forces viewport remount through %v", diff.RemountFields)
+	}
+	if len(diff.Commands) == 0 {
+		t.Fatal("board finish change produced no live Scene3D commands")
 	}
 }

@@ -53,7 +53,7 @@ func TestInvalidSelenaCannotReplaceLastValidMaterialState(t *testing.T) {
 	}
 	before, _ := workspace.Snapshot()
 	beforeFingerprint, _ := before.Fingerprint()
-	material := document.Materials["player-1-material"]
+	material := document.Materials["board-material"]
 	if material.Selena == nil {
 		t.Fatal("sample Selena material missing")
 	}

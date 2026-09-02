@@ -260,11 +260,14 @@ If `.env` already exists, keep it rather than overwriting it. Then:
 4. Confirm the Agent Collaboration panel reports four available tools.
 5. Ask the agent to inspect the scene, find `board`, focus it, and stage the
    rename-plus-material example above using the returned revision.
-6. Confirm the proposal card appears and the scene revision has not changed.
-7. Reload the same tab and confirm the proposal returns for the same browser
-   session while the canonical revision remains unchanged.
-8. Choose **Apply staged changes** and confirm the name and material both
-   change while the revision advances exactly once.
+6. Confirm the proposal card and **Agent preview · not committed** badge appear,
+   the board finish changes live, and the canonical scene revision does not.
+7. Orbit the still-mounted viewport, then choose **Apply staged changes** and
+   confirm the name and material reconcile in place while the revision advances
+   exactly once.
+8. As a separate resilience check, stage a fresh proposal, deliberately reload
+   the tab, and confirm the same-session proposal returns without changing the
+   canonical revision; discard it before the next demo run.
 
 For the hosted build, the same flow can be tested through ChatGPT's in-app
 browser or Chrome with WebMCP testing enabled. The hosted URL must be HTTPS and

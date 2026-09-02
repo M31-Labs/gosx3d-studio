@@ -36,6 +36,8 @@ jobs:
         run: go vet ./...
       - name: Unit and integration tests
         run: go test ./...
+      - name: WebMCP live preview lifecycle
+        run: node --test scripts/studio-webmcp-preview.test.js
       # The command bus, the workspace caches, and the background evidence run
       # all share state across goroutines. Run them under the detector.
       - name: Race detector

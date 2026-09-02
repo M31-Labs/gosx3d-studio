@@ -672,7 +672,7 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			sceneProps, err := studio.CompileSelected(document, selected)
+			sceneProps, err := studio.CompileViewport(document)
 			if err != nil {
 				return nil, err
 			}

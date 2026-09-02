@@ -663,6 +663,8 @@
       governance: governance,
       preview: preview,
       materials: response.materials || {},
+      sceneCommands: Array.isArray(response.sceneCommands) ? response.sceneCommands : [],
+      reverseSceneCommands: Array.isArray(response.reverseSceneCommands) ? response.reverseSceneCommands : [],
       expiresAt: response.expiresAt || null
     };
     dispatch(EVENTS.proposal, eventDetail);

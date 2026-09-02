@@ -162,10 +162,52 @@ func TestWebMCPReviewHydratesTheCurrentSessionProposal(t *testing.T) {
 		`payload && payload.proposal`,
 		`pendingProposal = proposal`,
 		`renderProposal()`,
+		`activateScenePreview(proposal)`,
 	)
 	if !strings.Contains(review, "discoverPendingProposal();") {
 		t.Fatal("review UI defines pending-proposal hydration but never invokes it")
 	}
+}
+
+func TestWebMCPProposalUsesReversibleLiveSceneCommands(t *testing.T) {
+	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+	requireSourceFragments(t, adapter, "proposal command transport",
+		"sceneCommands", "reverseSceneCommands",
+	)
+	activate := javascriptFunctionSource(t, review, "activateScenePreview")
+	requireSourceFragments(t, activate, "live proposal preview",
+		"dispatchSceneCommands", "reverseSceneCommands", "sceneCommands", "markScenePreview",
+	)
+	revert := javascriptFunctionSource(t, review, "revertScenePreview")
+	requireSourceFragments(t, revert, "live proposal rollback",
+		"reverseSceneCommands", "dispatchSceneCommands", "markScenePreview(restored ? false : true)",
+	)
+	requireSourceFragments(t, page, "live proposal preview disclosure",
+		"data-webmcp-preview-badge", "Agent preview · not committed",
+	)
+}
+
+func TestWebMCPPreviewLocksCanonicalEditsAndSelfCleansOnExpiry(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	lock := javascriptFunctionSource(t, review, "lockSceneMutationControls")
+	requireSourceFragments(t, lock, "review mutation lock",
+		"form[data-gosx-form]", "[data-gizmo-mode]", "data-webmcp-review-locked",
+		"data-webmcp-review-enabled",
+	)
+	render := javascriptFunctionSource(t, review, "renderProposal")
+	requireSourceFragments(t, render, "review lock activation", "lockSceneMutationControls(true)")
+	clear := javascriptFunctionSource(t, review, "clearProposal")
+	requireSourceFragments(t, clear, "review lock release", "lockSceneMutationControls(false)")
+	expiry := javascriptFunctionSource(t, review, "renderProposalExpiry")
+	requireSourceFragments(t, expiry, "expired preview cleanup",
+		"remaining <= 0", "discardProposal(null)", "restoring canonical scene",
+	)
+	revert := javascriptFunctionSource(t, review, "revertScenePreview")
+	requireSourceFragments(t, revert, "rollback failure disclosure",
+		"activeScenePreview = matchedPreview", "markScenePreview(restored ? false : true)",
+	)
 }
 
 func TestWebMCPReviewRevokesDiscardedProposalsOnTheServer(t *testing.T) {
@@ -203,6 +245,10 @@ func TestWebMCPReviewPropagatesHTTPStatusAndClearsTerminalCommitFailures(t *test
 	}
 	if !strings.Contains(commit, "Revision conflict") || !strings.Contains(commit, "restage") {
 		t.Error("revision-conflict handling does not direct the user to inspect and restage")
+	}
+	if !strings.Contains(commit[terminalFailures:], "revertScenePreview(proposal.proposalId)") ||
+		!strings.Contains(commit[terminalFailures:], "refreshPage()") {
+		t.Error("terminal commit failures do not restore the current canonical viewport")
 	}
 }
 

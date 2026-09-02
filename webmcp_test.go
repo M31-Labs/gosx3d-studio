@@ -7,10 +7,12 @@ import (
 	"html"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"m31labs.dev/gosx/scene"
 	"m31labs.dev/gosx3d-studio/internal/studio"
 )
 
@@ -147,6 +149,70 @@ func TestWebMCPProposalCarriesGoSXGroupScaleThroughHumanReview(t *testing.T) {
 	}
 }
 
+func TestWebMCPProposalCarriesReversibleLiveSceneCommandsWithoutCanonicalMutation(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	before, _ := workspace.Snapshot()
+	result, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: before.Revision,
+		Title:            "Preview brushed steel",
+		Operations: []studio.Operation{{
+			Kind: studio.OpAssignMaterial, Target: "board", Material: "board-steel-material",
+		}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands, ok := result["sceneCommands"].([]scene.Command)
+	if !ok || len(commands) == 0 {
+		t.Fatalf("forward live scene commands = %#v", result["sceneCommands"])
+	}
+	reverse, ok := result["reverseSceneCommands"].([]scene.Command)
+	if !ok || len(reverse) == 0 {
+		t.Fatalf("reverse live scene commands = %#v", result["reverseSceneCommands"])
+	}
+	preview, err := before.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	board := preview.Entities["board"]
+	board.Mesh.Material = "board-steel-material"
+	preview.Entities[board.ID] = board
+	canonicalProps, err := studio.CompileViewport(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previewProps, err := studio.CompileViewport(preview)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forwardDiff := scene.DiffScene(canonicalProps.SceneIR(), previewProps.SceneIR(), scene.DiffOptions{})
+	reverseDiff := scene.DiffScene(previewProps.SceneIR(), canonicalProps.SceneIR(), scene.DiffOptions{})
+	if len(forwardDiff.RemountFields) != 0 || len(reverseDiff.RemountFields) != 0 {
+		t.Fatalf("live board preview requires remount: forward=%v reverse=%v", forwardDiff.RemountFields, reverseDiff.RemountFields)
+	}
+	if !reflect.DeepEqual(commands, forwardDiff.Commands) || !reflect.DeepEqual(reverse, reverseDiff.Commands) {
+		t.Fatalf("stored live commands do not match exact SceneIR diffs:\nforward=%#v\nwant=%#v\nreverse=%#v\nwant=%#v", commands, forwardDiff.Commands, reverse, reverseDiff.Commands)
+	}
+	for label, commandSet := range map[string][]scene.Command{"forward": commands, "reverse": reverse} {
+		if len(commandSet) != 2 || commandSet[0].Kind != scene.CommandRemoveObject || commandSet[1].Kind != scene.CommandCreateObject {
+			t.Fatalf("%s board preview commands = %#v, want one remove/create replacement", label, commandSet)
+		}
+		for _, command := range commandSet {
+			if command.ObjectID != "board" {
+				t.Fatalf("%s preview command affected %q, want only board", label, command.ObjectID)
+			}
+		}
+	}
+	after, _ := workspace.Snapshot()
+	if after.Revision != before.Revision || after.Entities["board"].Mesh.Material != before.Entities["board"].Mesh.Material {
+		t.Fatal("client-local scene preview mutated canonical state")
+	}
+}
+
 func TestWebMCPProposalExpiresAndCannotCommit(t *testing.T) {
 	workspace, err := studio.NewWorkspace(studio.SampleDocument())
 	if err != nil {
@@ -204,6 +270,61 @@ func TestWebMCPStaleCommitIsRejectedAndRemoved(t *testing.T) {
 	after, _ := workspace.Snapshot()
 	if after.Revision != canonical.Revision || after.Entities["board"].Name != "Canonical Board" {
 		t.Fatalf("stale commit changed canonical scene: revision=%d name=%q", after.Revision, after.Entities["board"].Name)
+	}
+}
+
+func TestWebMCPCurrentInvalidatesEveryProposalWhoseBaseRevisionIsStale(t *testing.T) {
+	workspace, err := studio.NewWorkspace(studio.SampleDocument())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := newWebMCPProposalStore(workspace, mustWebMCPPolicy(t))
+	before, _ := workspace.Snapshot()
+	first, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: before.Revision,
+		Title:            "Session A review",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Session A Board"}},
+	}, "session-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.Stage(webMCPProposalRequest{
+		ExpectedRevision: before.Revision,
+		Title:            "Session B review",
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "scene-root", Name: "Session B Root"}},
+	}, "session-b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, canonical, err := workspace.Execute(studio.Transaction{
+		ID: "concurrent-canonical-edit", Actor: "human://other", Mode: studio.ModeDirect,
+		ExpectedRevision: before.Revision,
+		Operations:       []studio.Operation{{Kind: studio.OpRenameEntity, Target: "board", Name: "Canonical Board"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if current := store.Current("session-a"); current != nil {
+		t.Fatalf("stale proposal was restored: %#v", current)
+	}
+	if current := store.Current("session-b"); current != nil {
+		t.Fatalf("other owner's stale proposal survived pruning: %#v", current)
+	}
+	if len(store.proposals) != 0 || len(store.order) != 0 {
+		t.Fatalf("stale proposal storage was not compacted: proposals=%d order=%v", len(store.proposals), store.order)
+	}
+	for proposalID, owner := range map[string]string{
+		first["proposalId"].(string):  "session-a",
+		second["proposalId"].(string): "session-b",
+	} {
+		if _, err := store.Commit(proposalID, owner); !errors.Is(err, errWebMCPProposalNotFound) {
+			t.Fatalf("commit invalidated proposal %q: %v, want not found", proposalID, err)
+		}
+	}
+	after, _ := workspace.Snapshot()
+	if after.Revision != canonical.Revision || after.Entities["board"].Name != "Canonical Board" {
+		t.Fatalf("stale-current cleanup changed canonical scene: revision=%d name=%q", after.Revision, after.Entities["board"].Name)
 	}
 }
 

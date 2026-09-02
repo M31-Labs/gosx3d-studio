@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"m31labs.dev/gosx/scene"
 	"m31labs.dev/gosx3d-studio/internal/studio"
 )
 
@@ -52,8 +53,13 @@ type webMCPProposal struct {
 	Governance  []webMCPOperationDecision
 	Preview     map[string]any
 	Materials   map[string]string
-	ExpiresAt   time.Time
-	Claimed     bool
+	// SceneCommands render the proposal as a reversible, client-local preview.
+	// Canonical authority remains unchanged until Commit executes the stored
+	// transaction; Discard applies ReverseSceneCommands to the same live mount.
+	SceneCommands        []scene.Command
+	ReverseSceneCommands []scene.Command
+	ExpiresAt            time.Time
+	Claimed              bool
 }
 
 // webMCPProposalStore keeps staged edits exact and bounded. The browser only
@@ -227,10 +233,18 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 		return nil, errWebMCPProposalCommitting
 	}
 	var sameRevision, changesScene bool
+	var canonicalScene scene.SceneIR
 	if err := store.workspace.Read(func(document *studio.Document) error {
 		sameRevision = document.Revision == request.ExpectedRevision
 		if sameRevision {
 			changesScene = webMCPOperationsChangeDocument(document, request.Operations)
+			if changesScene {
+				props, compileErr := studio.CompileViewport(*document)
+				if compileErr != nil {
+					return compileErr
+				}
+				canonicalScene = props.SceneIR()
+			}
 		}
 		return nil
 	}); err != nil {
@@ -243,12 +257,24 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 	if err != nil {
 		return nil, err
 	}
+	previewProps, err := studio.CompileViewport(preview)
+	if err != nil {
+		return nil, err
+	}
+	forward := scene.DiffScene(canonicalScene, previewProps.SceneIR(), scene.DiffOptions{})
+	reverse := scene.DiffScene(previewProps.SceneIR(), canonicalScene, scene.DiffOptions{})
+	var sceneCommands, reverseSceneCommands []scene.Command
+	if len(forward.RemountFields) == 0 && len(reverse.RemountFields) == 0 {
+		sceneCommands = forward.Commands
+		reverseSceneCommands = reverse.Commands
+	}
 	expiresAt := store.now().Add(webMCPProposalTTL)
 	previewSummary := webMCPDocumentSummary(preview)
 	proposal := webMCPProposal{
 		ID: proposalID, Owner: owner, Title: request.Title, Rationale: request.Rationale,
 		Transaction: transaction, Receipt: receipt, Governance: governance,
-		Preview: previewSummary, Materials: webMCPMaterialDisplayNames(receipt, preview), ExpiresAt: expiresAt,
+		Preview: previewSummary, Materials: webMCPMaterialDisplayNames(receipt, preview),
+		SceneCommands: sceneCommands, ReverseSceneCommands: reverseSceneCommands, ExpiresAt: expiresAt,
 	}
 	// A successful preview supersedes an older review from the same browser.
 	// Failed validation or preview execution returns above and preserves it.
@@ -262,9 +288,12 @@ func (store *webMCPProposalStore) Stage(request webMCPProposalRequest, owner str
 }
 
 // Current returns the newest unexpired proposal owned by this exact browser
-// session. Keeping the opaque proposal ID server-backed lets a human reload or
-// restore the tab without losing the review boundary, while a different
-// session learns nothing about proposals it does not own.
+// session whose review base is still the canonical workspace revision. Keeping
+// the opaque proposal ID server-backed lets a human reload or restore the tab
+// without losing the review boundary, while a different session learns nothing
+// about proposals it does not own. A proposal based on an older revision can no
+// longer produce the reviewed result, so Current removes it instead of letting
+// the browser restore a stale live preview.
 func (store *webMCPProposalStore) Current(owner string) map[string]any {
 	if owner == "" {
 		return nil
@@ -272,6 +301,16 @@ func (store *webMCPProposalStore) Current(owner string) map[string]any {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	store.pruneLocked(store.now())
+	var canonicalRevision uint64
+	// Keep the same store -> workspace lock order Stage uses. Only the scalar
+	// revision escapes the read callback; the live document remains borrowed.
+	if err := store.workspace.Read(func(document *studio.Document) error {
+		canonicalRevision = document.Revision
+		return nil
+	}); err != nil {
+		return nil
+	}
+	store.pruneStaleLocked(canonicalRevision)
 	for index := len(store.order) - 1; index >= 0; index-- {
 		proposal, ok := store.proposals[store.order[index]]
 		if ok && !proposal.Claimed && webMCPProposalOwnerMatches(proposal.Owner, owner) {
@@ -303,14 +342,16 @@ func (store *webMCPProposalStore) Discard(proposalID, owner string) (map[string]
 
 func webMCPProposalView(proposal webMCPProposal) map[string]any {
 	return map[string]any{
-		"proposalId": proposal.ID,
-		"title":      proposal.Title,
-		"rationale":  proposal.Rationale,
-		"expiresAt":  proposal.ExpiresAt.UTC().Format(time.RFC3339),
-		"receipt":    proposal.Receipt,
-		"governance": proposal.Governance,
-		"preview":    proposal.Preview,
-		"materials":  proposal.Materials,
+		"proposalId":           proposal.ID,
+		"title":                proposal.Title,
+		"rationale":            proposal.Rationale,
+		"expiresAt":            proposal.ExpiresAt.UTC().Format(time.RFC3339),
+		"receipt":              proposal.Receipt,
+		"governance":           proposal.Governance,
+		"preview":              proposal.Preview,
+		"materials":            proposal.Materials,
+		"sceneCommands":        proposal.SceneCommands,
+		"reverseSceneCommands": proposal.ReverseSceneCommands,
 	}
 }
 
@@ -400,6 +441,23 @@ func (store *webMCPProposalStore) pruneLocked(now time.Time) {
 	for _, id := range store.order {
 		proposal, ok := store.proposals[id]
 		if !ok || (!proposal.Claimed && !proposal.ExpiresAt.After(now)) {
+			delete(store.proposals, id)
+			continue
+		}
+		kept = append(kept, id)
+	}
+	store.order = kept
+}
+
+// pruneStaleLocked removes every unclaimed proposal whose exact review base is
+// no longer canonical. Claimed proposals belong to an in-flight Commit and are
+// left for finishCommit to consume or release; deleting one here would break
+// that lifecycle's ownership handshake.
+func (store *webMCPProposalStore) pruneStaleLocked(canonicalRevision uint64) {
+	kept := store.order[:0]
+	for _, id := range store.order {
+		proposal, ok := store.proposals[id]
+		if !ok || (!proposal.Claimed && proposal.Transaction.ExpectedRevision != canonicalRevision) {
 			delete(store.proposals, id)
 			continue
 		}

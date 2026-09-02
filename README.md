@@ -33,9 +33,10 @@ changes** action, which is not exposed as a WebMCP tool.
 
 A persistent typed-call trace makes the collaboration legible in the page: it
 records the inspected revision, the object the agent found, the visible focus
-request, and the bounded operation count staged for review. The trace and
-server-owned proposal return after a same-session reload, while canonical scene
-state remains unchanged.
+request, and the bounded operation count staged for review. Focus, preview,
+discard, and approval reconcile in place without tearing down the live Scene3D
+canvas. The trace and server-owned proposal also survive a deliberate
+same-session reload as a separate recovery guarantee.
 
 Four tools are registered in `public/studio-webmcp.js`:
 
@@ -238,6 +239,7 @@ go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-o
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...
 go test ./...
+node --test scripts/studio-webmcp-preview.test.js
 go test -race ./internal/... ./app/... .
 go run ./cmd/studio-smoke
 go run ./cmd/studio-certify
