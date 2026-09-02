@@ -55,8 +55,8 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	if coral.Selena != nil {
 		t.Fatal("Coral Pieces must use lit Standard PBR instead of a flat custom shader")
 	}
-	if coral.Color != "#c83f35" || coral.Roughness != 0.44 || coral.Metalness != 0.02 ||
-		coral.Clearcoat != 0.20 || coral.Sheen != 0.03 || coral.Transmission != 0 ||
+	if coral.Color != "#c8321f" || coral.Roughness != 0.70 || coral.Metalness != 0 ||
+		coral.Clearcoat != 0 || coral.Sheen != 0 || coral.Transmission != 0 ||
 		coral.Iridescence != 0 || coral.Emissive != 0 {
 		t.Fatalf("Coral Pieces physical finish = %+v", coral)
 	}
@@ -107,9 +107,9 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 			continue
 		}
 		foundCoral = true
-		if object.Kind != "sphere" || object.MaterialKind != "standard" || object.Color != "#c83f35" ||
-			object.Roughness != 0.44 || object.Metalness != 0.02 || object.Clearcoat != 0.20 ||
-			object.Sheen != 0.03 || object.Transmission != 0 || object.Iridescence != 0 ||
+		if object.Kind != "sphere" || object.MaterialKind != "standard" || object.Color != "#c8321f" ||
+			object.Roughness != 0.70 || object.Metalness != 0 || object.Clearcoat != 0 ||
+			object.Sheen != 0 || object.Transmission != 0 || object.Iridescence != 0 ||
 			object.Emissive != nil || object.Wireframe == nil || *object.Wireframe {
 			t.Fatalf("compiled Coral Piece = %+v, want a solid lit coral Standard PBR sphere", object)
 		}

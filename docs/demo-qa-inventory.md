@@ -13,6 +13,8 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 | A human decision is unambiguous | Apply and Discard are mutually disabled while either request is pending | Concurrent commit/discard attempts allow only one terminal operation |
 | The showcase is reproducible | Clean/dirty baseline gate and human-only Prepare clean demo control; reset returns to a query-free, non-Board selection | Exact prompt cannot be copied while the shared canonical scene differs from the baseline |
 | The result is visible | Board selection, Inspector name/material, material swatch, viewport, and activity history converge in place after approval | Managed navigation preserves the Scene3D canvas while reconciling committed canonical state; a separate recovery reload cannot resurrect a stale proposal; activity retains both operation kinds and one matching plan token across proposal/approval |
+| The workbench stays interactive | Hierarchy focus and viewport selection move immediately; camera orbit survives selection, material edits, Apply, and Discard | Same-origin links and forms reconcile in place; the live Scene3D canvas keeps object identity while safe SceneIR changes dispatch as commands |
+| Player one reads as coral | Ten player-one spheres are visibly saturated red-orange with rounded light response, not flat white-pink | The material uses a matte Standard PBR `#c8321f`; deterministic preview evidence enforces at least 600 deeply saturated coral pixels |
 
 ## Controls
 
@@ -32,6 +34,8 @@ This is the release evidence checklist for the public WebMCP challenge build. It
 - Stale-revision recovery after another canonical edit.
 - Successful exact sequence: inspect → find → focus → live preview → apply, with no page reload or canvas teardown.
 - Separate resilience sequence: stage → forced reload → proposal recovery → discard.
+- Dirty same-entity Inspector value survives a background reconciliation; switching entities replaces keyed forms so the old draft cannot target the new object.
+- Preview Apply and Discard each preserve camera pose and canvas identity; forced command failure remains visibly disclosed and recovers canonical state.
 - No-op rename, material assignment, transform, and canceling operation batch.
 - Double-action attempt: Apply/Discard and Discard/Apply.
 

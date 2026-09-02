@@ -111,13 +111,14 @@ func checkerMaterials() map[ID]Material {
 			Roughness: 0.68, Metalness: 0.12, Clearcoat: 0.28, Iridescence: 0.04,
 		},
 		"player-1-material": {
-			ID: "player-1-material", Name: "Coral Pieces", Color: "#c83f35",
+			ID: "player-1-material", Name: "Coral Pieces", Color: "#c8321f",
 			// Keep the pieces on the lit Standard PBR path. The old constant-color
 			// Selena surface treated display-range coral as linear input; ACES then
 			// lifted it to a flat chalk-pink and bypassed the sphere normals. These
-			// restrained physical values preserve the authored coral while letting
-			// the Studio light rig describe each piece's round form.
-			Roughness: 0.44, Metalness: 0.02, Clearcoat: 0.20, Sheen: 0.03,
+			// A warm, blue-restrained coral base and matte dielectric finish keep the
+			// Studio key light from bleaching the bright faces toward white-pink,
+			// while the sphere normals still describe each piece's round form.
+			Roughness: 0.70,
 		},
 		"player-4-material": {
 			ID: "player-4-material", Name: "Cobalt Pieces", Color: "#3d7ba1",
