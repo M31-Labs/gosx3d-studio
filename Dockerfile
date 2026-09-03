@@ -3,7 +3,7 @@
 # Both base images are pinned to multi-platform manifest digests. GoSX, TinyGo,
 # and the module graph are pinned independently by scripts/render-build.sh,
 # go.mod, and go.sum.
-ARG GO_IMAGE="golang:1.26.0-bookworm@sha256:2a0ba12e116687098780d3ce700f9ce3cb340783779646aafbabed748fa6677c"
+ARG GO_IMAGE="golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36"
 ARG RUNTIME_IMAGE="debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171"
 
 FROM ${GO_IMAGE} AS build

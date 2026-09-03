@@ -170,6 +170,10 @@ func TestStudioActionAuthentication(t *testing.T) {
 	if err := authorizeAction(request, "token"); err == nil {
 		t.Fatal("missing bearer token was accepted")
 	}
+	request.Header.Set("Authorization", "Bearer replace-with-a-local-action-token")
+	if err := authorizeAction(request, "replace-with-a-local-action-token"); err == nil {
+		t.Fatal("published action-token placeholder was accepted")
+	}
 	request.Header.Set("Authorization", "Bearer token")
 	if err := authorizeAction(request, "token"); err != nil {
 		t.Fatalf("valid bearer token: %v", err)
@@ -324,13 +328,13 @@ func TestRenderBlueprintBuildsAndRunsThePackagedGoSXArtifact(t *testing.T) {
 		`studio_tinygo_version="0.41.1"`,
 		"sha256sum --check --status",
 		`tinygo${studio_tinygo_version}.linux-${studio_tinygo_arch}.tar.gz`,
-		"go run m31labs.dev/gosx/cmd/gosx@v0.55.0 build --prod .",
+		"go run m31labs.dev/gosx/cmd/gosx@v0.55.1 build --prod .",
 	} {
 		if !strings.Contains(buildContents, required) {
 			t.Fatalf("Render build script is missing reproducibility contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.55.0 build ."} {
+	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.55.1 build ."} {
 		if strings.Contains(buildContents, forbidden) {
 			t.Fatalf("Render build script contains non-production fallback %q", forbidden)
 		}

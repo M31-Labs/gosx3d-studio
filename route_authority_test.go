@@ -168,6 +168,29 @@ func TestBearerMatchIsExactAndRejectsAnEmptyToken(t *testing.T) {
 			t.Fatalf("header %q was accepted with no configured token", header)
 		}
 	}
+	if bearerMatches("Bearer replace-with-a-local-action-token", "replace-with-a-local-action-token") {
+		t.Fatal("published action-token placeholder authenticated its matching bearer header")
+	}
+}
+
+func TestActionTokenRefusesThePublishedPlaceholder(t *testing.T) {
+	t.Setenv("GOSX_ENV", "development")
+	resolved, err := resolveActionToken(" replace-with-a-local-action-token ")
+	if err != nil {
+		t.Fatalf("development placeholder: %v", err)
+	}
+	if resolved != "" {
+		t.Fatalf("development placeholder resolved to %q, want disabled", resolved)
+	}
+
+	t.Setenv("GOSX_ENV", "production")
+	if _, err := resolveActionToken("replace-with-a-local-action-token"); err == nil {
+		t.Fatal("production accepted the published action-token placeholder")
+	}
+	resolved, err = resolveActionToken("a-private-action-token")
+	if err != nil || resolved != "a-private-action-token" {
+		t.Fatalf("private production action token = %q, %v", resolved, err)
+	}
 }
 
 // A read route must not mutate. GoSX matches on method, so a read declaration

@@ -39,10 +39,13 @@ func main() {
 
 	appName := getenv("APP_NAME", "GoSX 3D Studio")
 	port := getenv("PORT", "8080")
+	actionToken, err := resolveActionToken(os.Getenv("STUDIO_ACTION_TOKEN"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	var (
 		workspace   *studio.Workspace
 		demoProject *studioDemoProject
-		err         error
 	)
 	if studioDemoModeEnabled(os.Getenv("STUDIO_DEMO_MODE")) {
 		demoProject, err = newStudioDemoProject()
@@ -70,7 +73,7 @@ func main() {
 		appName:     appName,
 		workspace:   workspace,
 		demoProject: demoProject,
-		actionToken: os.Getenv("STUDIO_ACTION_TOKEN"),
+		actionToken: actionToken,
 		// desktopHost decides whether native-host-only routes answer at all.
 		desktopHost:   desktopMode(runtime.GOOS, os.Getenv("STUDIO_DESKTOP"), os.Getenv("STUDIO_SERVER_ONLY")),
 		sessionSecret: os.Getenv("SESSION_SECRET"),
@@ -129,7 +132,10 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 	root := config.root
 	appName := config.appName
 	workspace := config.workspace
-	actionToken := config.actionToken
+	actionToken, err := resolveActionToken(config.actionToken)
+	if err != nil {
+		return nil, err
+	}
 	desktopHost := config.desktopHost
 	if config.demoProject != nil && config.demoProject.Workspace() != workspace {
 		return nil, fmt.Errorf("public demo project does not own the configured workspace")
@@ -147,7 +153,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 	if err != nil {
 		return nil, err
 	}
-	studioapp.BindWorkspace(workspace)
+	studioapp.BindRuntime(workspace, actionToken != "")
 
 	router := route.NewRouter()
 	router.SetLayout(func(ctx *route.RouteContext, body gosx.Node) gosx.Node {
@@ -879,6 +885,29 @@ var sharedSecretPlaceholders = map[string]bool{
 	"replace-with-a-local-development-secret": true,
 }
 
+var actionTokenPlaceholders = map[string]bool{
+	"replace-with-a-local-action-token": true,
+}
+
+// resolveActionToken disables the published local placeholder and rejects it
+// outright in production. An empty token intentionally keeps the privileged
+// bearer API unavailable; browser-authority routes continue to use sessions
+// and CSRF protection.
+func resolveActionToken(configured string) (string, error) {
+	configured = strings.TrimSpace(configured)
+	if configured == "" {
+		return "", nil
+	}
+	if !actionTokenPlaceholders[configured] {
+		return configured, nil
+	}
+	if studioProductionMode() {
+		return "", fmt.Errorf("STUDIO_ACTION_TOKEN is still the published placeholder; production requires a private action token or an explicitly disabled empty value")
+	}
+	log.Printf("STUDIO_ACTION_TOKEN is still the published placeholder; bearer automation is disabled until a private token is configured.")
+	return "", nil
+}
+
 // resolveSessionSecret refuses to sign sessions with a value anyone can read
 // out of the repository. Session cookies and CSRF tokens both derive from this
 // secret, so a published default would let an attacker mint the CSRF token
@@ -914,15 +943,16 @@ func studioProductionMode() bool {
 // action token in constant time. A byte-by-byte string comparison leaks the
 // length of the matching prefix through timing.
 func bearerMatches(header, token string) bool {
-	if token == "" {
+	token = strings.TrimSpace(token)
+	if token == "" || actionTokenPlaceholders[token] {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(header), []byte("Bearer "+token)) == 1
 }
 
 func authorizeAction(request *http.Request, token string) error {
-	if token == "" {
-		return statusError{http.StatusServiceUnavailable, fmt.Errorf("STUDIO_ACTION_TOKEN is not configured")}
+	if token = strings.TrimSpace(token); token == "" || actionTokenPlaceholders[token] {
+		return statusError{http.StatusServiceUnavailable, fmt.Errorf("STUDIO_ACTION_TOKEN is not configured with a private value")}
 	}
 	if !bearerMatches(request.Header.Get("Authorization"), token) {
 		return statusError{http.StatusUnauthorized, fmt.Errorf("invalid Studio action credentials")}

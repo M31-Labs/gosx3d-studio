@@ -27,7 +27,7 @@ jobs:
       - name: Module pins are current
         run: go mod verify && go mod tidy -diff
       - name: GoSX component contract
-        run: go run m31labs.dev/gosx/cmd/gosx@v0.55.0 check app/page.gsx
+        run: go run m31labs.dev/gosx/cmd/gosx@v0.55.1 check app/page.gsx
       - name: Arbiter WebMCP policy contract
         run: |
           go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
