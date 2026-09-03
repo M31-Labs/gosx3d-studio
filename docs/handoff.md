@@ -2,7 +2,7 @@
 
 ## What exists
 
-- A standalone GoSX v0.54.2 application with a dense desktop workbench shell,
+- A standalone GoSX v0.55.0 application with a dense desktop workbench shell,
   typed `SceneDoc`, shared `SceneIR`, and Scene3D rendering.
 - Live hierarchy selection, transform and material editing, modeling operators,
   timeline controls, diagnostics, and command receipts backed by canonical

@@ -10,7 +10,7 @@ separate deployed [public demo](https://gosx3d.m31labs.dev) run.
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
-- Public GoSX `v0.54.2` for the current local verification run; the earlier
+- Public GoSX `v0.55.0` for the current verification run; the earlier
   deployed-origin pass used `v0.54.0` before the public app rollout
 
 This verifies the public Google Chrome path accepted by the Challenge. A final
@@ -120,7 +120,7 @@ responses were all empty.
 The final source tree also passes:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.55.0 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go mod verify

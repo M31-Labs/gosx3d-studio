@@ -60,4 +60,4 @@ case "$studio_tinygo_report" in
 		;;
 esac
 
-go run m31labs.dev/gosx/cmd/gosx@v0.54.2 build --prod .
+go run m31labs.dev/gosx/cmd/gosx@v0.55.0 build --prod .

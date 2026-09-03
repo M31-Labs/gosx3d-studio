@@ -71,10 +71,15 @@ as new. During the submission period, the project added the four-tool WebMCP
 adapter, session-scoped proposal and review boundary, visible browser-agent
 focus and review experience, bounded proposal storage, WebMCP-specific tests,
 an executable Arbiter policy, a safe shared-demo reset, documentation, and
-deployment configuration. On September 2, the Studio also completed its hybrid
-board finish library—four portable Selena surface programs with physical
+deployment configuration. The completed polish slice also added no-reload,
+in-place workbench reconciliation while preserving the mounted Scene3D canvas
+and camera; WebGPU-first rendering with WebGL fallback at native-display
+cadence; restored the authored coral piece color; and a compact demo evidence
+dock that leaves the full Studio layout unchanged. On September 2, the Studio
+also completed its hybrid board finish library—four portable Selena surface
+programs with physical
 fallback metadata, plus Standard PBR Brushed Steel, rim, chassis, and sockets—
-and moved its pin to GoSX v0.54.2 so selected PBR surfaces stay solid while
+and moved its pin to GoSX v0.55.0 so selected PBR surfaces stay solid while
 explicit outlines and wireframes remain available. The affine group-scale path
 introduced in GoSX v0.54.0 is exercised through SceneDoc, nested prefabs,
 preview evidence, exact picking, and gizmo commits.
@@ -131,7 +136,7 @@ reset. ChatGPT's in-app browser has not yet been tested.
 Carved Wood, Imperial Jade, Midnight Lacquer, and Moon Porcelain use portable
 Selena surface programs with physical fallback metadata. Brushed Steel, the
 machined rim, blackened-steel chassis, and countersunk sockets remain Standard
-PBR. With GoSX v0.54.2, selecting those PBR surfaces keeps them solid instead
+PBR. With GoSX v0.55.0, selecting those PBR surfaces keeps them solid instead
 of exposing generated triangulation spokes; explicit outline and wireframe
 authoring remains supported.
 
@@ -179,6 +184,8 @@ Codex did not submit or update the project on Devpost in this drafting pass.
   session ownership, a 64-proposal cap, and a 12-operation cap.
 - Same-origin session and CSRF protection without exposing the Studio's bearer
   automation token to browser JavaScript.
+- WebGPU-first rendering at native-display cadence with WebGL fallback;
+  in-place reconciliation preserves the mounted canvas and camera.
 - Visible attribution: preview receipts use `agent://webmcp`; accepted changes
   use `human://webmcp-review`.
 - Visible shared-demo reset with revision monotonicity and staged-proposal
@@ -288,7 +295,7 @@ Open `http://localhost:8080` in a compatible browser and follow the same flow.
 Run the final clean diff through the repository's evidence floor:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.55.0 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...
@@ -335,28 +342,21 @@ the opening belongs to the agent's object discovery rather than demo setup.
 
 ## Screenshot Shot List
 
-Final high-resolution Windows Chrome frames are ready in `docs/assets/` for
-the clean workbench, staged review, and human-applied result.
+The three final high-resolution Windows Chrome frames must be recaptured after
+the final GoSX v0.55.0 deployment:
 
-1. **Full workbench and tool readiness** — Scene Hierarchy, 3D viewport,
-   Inspector, current **REVISION**, and **Agent Collaboration** showing
-   **Agent tools ready · 4 tools**. Caption: “One scene, visible to both human
-   and browser agent.”
-2. **Structured discovery** — agent results and the persistent typed-call trace
-   from `scene_get_state` and `scene_find_objects`, showing revision `R`, object
-   name `Board`, and stable ID `board`. Caption: “The agent reads scene truth
-   instead of guessing from pixels.”
-3. **Shared focus** — highlighted `board` row beside the Inspector selection and
-   viewport. Caption: “A WebMCP focus request gives the person and agent the
-   same visible referent without mutating the scene.”
-4. **Reviewable proposal** — **Latest staged proposal** with rationale,
+1. **Clean workbench** — Scene Hierarchy, 3D viewport, Inspector, current
+   **REVISION**, and **Agent Collaboration** showing **Agent tools ready · 4
+   tools**, plus the focused `board` and its typed inspect/find/focus evidence.
+   Caption: “One scene, visible to both human and browser agent.”
+2. **Staged review** — **Latest staged proposal** with rationale,
    `Board → Launch Board` and `Carved Wood (board-material) → Brushed Steel
    (board-steel-material)` semantic changes, `agent://webmcp`, affected ID,
    Arbiter Allow evidence, revision boundary, fingerprint, **Discard**, and
    **Apply staged changes**.
    Caption: “The agent proposes; Apply stays in the visible Studio UI, outside
    the WebMCP tool surface.”
-5. **Auditable handoff** — `Launch Board`, `Brushed Steel`, revision `R+1`, and
+3. **Applied handoff** — `Launch Board`, `Brushed Steel`, revision `R+1`, and
    **Agent Activity** showing both `agent://webmcp` propose and
    `human://webmcp-review` direct entries. Caption: “One reviewed proposal
    becomes one attributed canonical change.”
@@ -390,8 +390,9 @@ mock `modelContext` console, or any reset UI until those surfaces are final.
       URL.
 - [x] Publish the final source repository, verify anonymous access and license
       detection, and fill the repository URL.
-- [x] Capture final clean, staged-review, and human-applied screenshots from the
-      verified GoSX v0.54.2 Windows Chrome run.
+- [ ] Recapture the three final gallery frames—clean workbench, staged review,
+      and applied handoff—after the final GoSX v0.55.0 deployment; the existing
+      frames came from the verified GoSX v0.54.2 Windows Chrome run.
 - [ ] Record the under-three-minute video with audio, publish it on YouTube,
       and fill the video URL.
 - [ ] Fill every required official form answer and update the existing Devpost
@@ -407,8 +408,9 @@ material above.
 
 - Native WebMCP behavior is verified in Google Chrome 152.0.7977.65 on Windows.
   ChatGPT's in-app browser remains a separate manual submission check.
-- Canonical scene and pending proposal state are process-local. The Render
-  configuration intentionally uses one instance; a restart loses that state.
+- Canonical scene and pending proposal state are process-local. The
+  authoritative Kubernetes deployment runs one replica with a `Recreate`
+  strategy; a restart loses that state.
 - The hosted demo is a single-instance shared canonical workspace with
   revision-conflict safety. It does not implement live presence, CRDT
   synchronization, accounts, or durable cloud workspaces.
@@ -437,7 +439,7 @@ Challenge. Values in brackets require the submitter's confirmation.
 | **Country of residence of yourself and team members if applicable** (required) | `[TODO: select every applicable country exactly as listed in the form]` |
 | **If submitting on behalf of an organization, what is the organization name?** (optional) | `[TODO if applicable; otherwise leave blank]` |
 | **App Status** (required) | `Existing` |
-| **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; a visible review and exact-commit UI outside the WebMCP tool surface; a visible shared-demo reset that is not a WebMCP tool; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; the affine group-scale path introduced in GoSX v0.54.0; Challenge documentation; and deployment configuration. On September 2 we completed four portable Selena board surfaces with physical fallback metadata plus Standard PBR Brushed Steel, rim, chassis, and sockets, then moved the current pin to GoSX v0.54.2 for solid selected-PBR behavior with explicit outline and wireframe opt-ins preserved. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
+| **If Existing, explain what you updated during the submission period** | `GoSX 3D Studio existed before August 25 with its SceneDoc editor and shared revision-safe human/agent transaction engine. During the submission period we added a browser WebMCP adapter registering four tools; structured scene inspection, search, and visible focus; a bounded session-owned non-mutating proposal service; an executable Arbiter allow/deny policy with decision traces; a visible review and exact-commit UI outside the WebMCP tool surface; a visible shared-demo reset that is not a WebMCP tool; actor attribution and semantic receipts; WebMCP, policy, reset, authority, server, and adapter tests; the affine group-scale path introduced in GoSX v0.54.0; Challenge documentation; and deployment configuration. We also completed no-reload, in-place workbench reconciliation while preserving the mounted Scene3D canvas and camera; WebGPU-first rendering with WebGL fallback at native-display cadence; restored the authored coral piece color; and compacted the demo evidence dock without changing the full Studio layout. On September 2 we completed four portable Selena board surfaces with physical fallback metadata plus Standard PBR Brushed Steel, rim, chassis, and sockets, then moved the current pin to GoSX v0.55.0 for solid selected-PBR behavior with explicit outline and wireframe opt-ins preserved. The pre-existing editor and transaction foundations are documented separately and are not claimed as new work.` |
 | **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev) |
 | **If applicable, testing instructions for application** (private to Devpost and judges) | `No credentials are required. Open the live URL in a compatible browser, click Reset shared scene and confirm the warning, confirm Agent Collaboration reports four tools, then use Copy demo prompt and follow the Hosted judge flow in this draft.` |
 | **URL to your PUBLIC Code Repo** (required) | [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) |
