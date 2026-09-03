@@ -6,6 +6,11 @@ path.
 
 **Live judge demo:** [gosx3d.m31labs.dev](https://gosx3d.m31labs.dev)
 
+> **Deployment status:** The live URL still serves the immutable build identified
+> under [Deploy on Kubernetes](#deploy-on-kubernetes). The judge-facing handoff
+> enhancements described below as release-candidate work are present in source,
+> but are not claimed as live until the next immutable deployment.
+
 ![GoSX 3D Studio showing a human-approved WebMCP scene change](docs/assets/webmcp-human-applied.png)
 
 _One intent, four typed calls, two exact edits, and one human approval._
@@ -16,20 +21,27 @@ viewport selection and revision-safe human/agent commands, and exposes its
 collaboration surface through four browser-native WebMCP tools. A visible reset
 restores the sample at a newer canonical revision.
 
-The final hosted sample contains 150 entities and compiles to 145 meshes.
-Against that scene, one intent becomes four typed calls, two exact edits, and
-one human approval. Technical artists can delegate hierarchy search and batch
-preparation without surrendering scene authority.
+The sample contains 150 entities and compiles to 145 meshes. Against that
+scene, one intent becomes four typed calls, two exact edits, and one human
+approval. Technical artists can delegate hierarchy search and batch preparation
+without surrendering scene authority.
 
 ## WebMCP collaboration
 
 The Studio now exposes its existing human/agent scene contract directly to a
 compatible browser. An agent can inspect canonical scene state, search stable
 object IDs, focus the visible hierarchy, and stage a bounded edit preview. The
-preview appears in the Studio with its rationale, revision, affected objects,
-semantic changes, deterministic fingerprint, and Arbiter Allow evidence. It
-does not change the scene until a person uses the visible **Apply staged
-changes** action, which is not exposed as a WebMCP tool.
+release candidate names all four registrations and their roles in an in-app
+**Native WebMCP** disclosure, with a direct link to the `registerTool` source.
+
+When the two-edit demo is staged, a presentation-size card mirrors the exact
+rename and material before/after values over the live viewport while marking
+canonical revision `R` unchanged. The detailed review keeps its rationale,
+affected objects, deterministic fingerprint, and Arbiter Allow evidence in
+view; sticky **Discard** and human-only **Apply 2 exact edits** controls keep the
+decision reachable while the artist inspects the result. Apply is not exposed
+as a WebMCP tool. After approval, a persistent **Human approved** outcome records
+the exact edit count and `R → R+1` handoff in the workspace.
 
 A persistent **WebMCP tool receipts** trace makes the collaboration legible in
 the page: it records the inspected revision, the object the agent found, the
@@ -103,6 +115,14 @@ console/log errors, or HTTP errors. ChatGPT's in-app browser remains useful
 optional cross-client assurance. See [Native WebMCP
 verification](docs/native-webmcp-qa.md) for the exact evidence boundary and
 exercised workflow.
+
+For the final public take, `scripts/record-public-demo.mjs` attaches to an
+already-open native Windows Chrome session and leaves **Apply** to the human
+operator. After recording stops, it accepts the take only if the canonical
+values and revision handoff match, all four tool receipts are present, the
+PROPOSED/APPROVED activity pair shares one plan, current evidence is 31/31, and
+the original mounted WebGPU canvas stayed connected with no second top-level
+document request.
 
 For a disposable shared judge/demo workspace with a visible reset action that
 is not exposed as a WebMCP tool:
@@ -218,9 +238,10 @@ return to the pinned versions.
 - Human editing forms for transforms, material assignment and PBR/Selena
   records, sub-object selection, seven deterministic mesh operators, undo and
   redo — all converging on the same revision-safe transactions agents use.
-- A live Agent Collaboration panel (WebMCP readiness, semantic proposal diff,
-  visible UI approval, shared-workspace attribution counts) and a
-  command-history console fed by real receipts.
+- A live Agent Collaboration panel with WebMCP readiness, an in-app four-tool
+  disclosure, a presentation-size semantic proposal diff, sticky human-only
+  approval, a persistent approval outcome, and shared-workspace attribution;
+  the command-history console is fed by real receipts.
 - The certification card renders the live deterministic evidence run, cached
   per document revision.
 - `GET /api/studio/project/status` plus authenticated

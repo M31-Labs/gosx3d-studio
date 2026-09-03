@@ -120,6 +120,14 @@
     return true;
   }
 
+  function isInteractiveTarget(target) {
+    if (!target) return false;
+    if (typeof target.closest === "function") {
+      return Boolean(target.closest("input, textarea, select, button, a, summary, [role='treeitem'], [contenteditable='true']"));
+    }
+    return /INPUT|TEXTAREA|SELECT|BUTTON|A|SUMMARY/.test(String(target.tagName || ""));
+  }
+
   document.addEventListener("click", function (event) {
     var button = event.target && typeof event.target.closest === "function"
       ? event.target.closest("[data-camera-view]")
@@ -129,7 +137,7 @@
   });
 
   document.addEventListener("keydown", function (event) {
-    if (event.target && /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
+    if (event.defaultPrevented || isInteractiveTarget(event.target)) return;
     var step = event.shiftKey ? 2 : 0.5;
     if (String(event.key || "").toLowerCase() === "f") chooseView("perspective");
     else if (event.key === "ArrowLeft") nudge(-step, 0, 0);

@@ -136,6 +136,13 @@ const events = [];
 const activeTools = new Map();
 let acceptResetDialog = false;
 let studioReady = false;
+const recordingGuard = {
+  armed: false,
+  frameId: "",
+  documentRequests: [],
+  frameNavigations: [],
+  sameDocumentNavigations: [],
+};
 
 function command(method, params = {}, timeoutMS = 25000) {
   const id = ++nextCommandID;
@@ -178,6 +185,21 @@ socket.addEventListener("message", ({ data }) => {
   }
   if (message.method === "WebMCP.toolsRemoved") {
     for (const tool of params.tools || []) activeTools.delete(tool.name);
+    return;
+  }
+  if (message.method === "Network.requestWillBeSent" && recordingGuard.armed &&
+      params.type === "Document" && (!recordingGuard.frameId || params.frameId === recordingGuard.frameId)) {
+    recordingGuard.documentRequests.push({ url: params.request?.url || "", loaderId: params.loaderId || "" });
+    return;
+  }
+  if (message.method === "Page.frameNavigated" && recordingGuard.armed &&
+      params.frame && !params.frame.parentId) {
+    recordingGuard.frameNavigations.push({ url: params.frame.url || "", loaderId: params.frame.loaderId || "" });
+    return;
+  }
+  if (message.method === "Page.navigatedWithinDocument" && recordingGuard.armed &&
+      (!recordingGuard.frameId || params.frameId === recordingGuard.frameId)) {
+    recordingGuard.sameDocumentNavigations.push(params.url || "");
     return;
   }
   if (message.method === "Page.javascriptDialogOpening") {
@@ -251,9 +273,14 @@ async function uiSnapshot() {
     };
     const mount = document.querySelector("[data-gosx-scene3d]") ||
       document.querySelector("[data-gosx-scene3d-mounted]");
+    const mountGuard = window.__gosx3dPublicDemoMountGuard || null;
+    const canvas = mount?.querySelector("canvas") || null;
     const proposal = document.querySelector("[data-webmcp-proposal]");
     const review = document.querySelector("[data-webmcp-review-actions]");
     const badge = document.querySelector("[data-webmcp-preview-badge]");
+    const approvalOutcome = document.querySelector("[data-webmcp-approval-outcome]");
+    const commit = document.querySelector("[data-webmcp-commit]");
+    const commitRect = commit?.getBoundingClientRect();
     return {
       href: location.href,
       readyState: document.readyState,
@@ -275,6 +302,14 @@ async function uiSnapshot() {
         mount?.getAttribute("data-gosx-scene3d-render-mesh-objects") ||
         0
       ),
+      sceneBoundary: mountGuard ? {
+        armed: true,
+        sameMount: mountGuard.mount === mount,
+        mountConnected: mountGuard.mount?.isConnected === true,
+        sameCanvas: mountGuard.canvas === canvas,
+        canvasConnected: mountGuard.canvas?.isConnected === true,
+        canvasInsideMount: mountGuard.mount?.contains(mountGuard.canvas) === true,
+      } : { armed: false },
       reset: {
         hidden: document.querySelector("[data-studio-demo-panel]")?.hidden ?? null,
         revision: Number(document.querySelector("[data-studio-demo-reset]")?.getAttribute("data-revision")),
@@ -296,12 +331,19 @@ async function uiSnapshot() {
         revision: text("[data-webmcp-proposal-revision]"),
         changes: Array.from(document.querySelectorAll("[data-webmcp-proposal-changes] li"))
           .map((item) => String(item.textContent || "").replace(/\\s+/g, " ").trim()),
-        commitDisabled: document.querySelector("[data-webmcp-commit]")?.disabled ?? null,
+        commitDisabled: commit?.disabled ?? null,
+        commitText: text("[data-webmcp-commit]"),
+        commitVisible: commit ? !commit.hidden && getComputedStyle(commit).display !== "none" &&
+          getComputedStyle(commit).visibility !== "hidden" && commitRect.width > 0 && commitRect.height > 0 : false,
       },
       preview: {
         active: document.querySelector(".scene-stage")?.getAttribute("data-webmcp-preview") === "true",
         badgeHidden: badge ? badge.hidden : null,
         badgeText: text("[data-webmcp-preview-badge]"),
+      },
+      approvalOutcome: {
+        hidden: approvalOutcome ? approvalOutcome.hidden : null,
+        text: text("[data-webmcp-approval-outcome]"),
       },
       evidence: text(".telemetry-proof.certification-state"),
       material: selectedMaterialForm ? {
@@ -420,6 +462,7 @@ async function invokeTool(toolName, input) {
     const ui = await uiSnapshot();
     return ui.flow[toolName] === "complete" ? ui : null;
   });
+  await assertRecordedSceneBoundary(`${toolName} completion`);
   console.log(`  completed: ${toolName}`);
   return result;
 }
@@ -481,6 +524,50 @@ function pairedPlan(activity, expectedPlan) {
   return proposedPlan && proposedPlan === approvedPlan ? { proposed, approved, plan: proposedPlan } : null;
 }
 
+function assertNoRecordedDocumentNavigation() {
+  const violations = [
+    ...recordingGuard.documentRequests.map((entry) => `Document request ${entry.url}`),
+    ...recordingGuard.frameNavigations.map((entry) => `main-frame navigation ${entry.url}`),
+  ];
+  if (violations.length) {
+    throw new Error(`Recorded take crossed the zero-reload boundary: ${violations.join("; ")}`);
+  }
+}
+
+async function armRecordedSceneMount() {
+  const state = await evaluate(`(() => {
+    const mount = document.querySelector("[data-gosx-scene3d]") ||
+      document.querySelector("[data-gosx-scene3d-mounted]");
+    const canvas = mount?.querySelector("canvas") || null;
+    if (!mount || !canvas || !mount.isConnected || !canvas.isConnected) {
+      return { armed: false, hasMount: !!mount, hasCanvas: !!canvas };
+    }
+    window.__gosx3dPublicDemoMountGuard = { mount, canvas };
+    return { armed: true };
+  })()`);
+  if (state?.armed !== true) {
+    throw new Error(`Could not arm the mounted Scene3D canvas guard: ${JSON.stringify(state)}`);
+  }
+}
+
+async function assertRecordedSceneBoundary(label) {
+  assertNoRecordedDocumentNavigation();
+  const ui = await uiSnapshot();
+  const boundary = ui.sceneBoundary || {};
+  const stable = boundary.armed === true && boundary.sameMount === true &&
+    boundary.mountConnected === true && boundary.sameCanvas === true &&
+    boundary.canvasConnected === true && boundary.canvasInsideMount === true;
+  if (!stable || ui.mounted !== "true" || ui.ready !== "true" ||
+      ui.backend !== "webgpu" || ui.renderer !== "webgpu" || ui.meshObjects !== 145) {
+    throw new Error(
+      `${label}: the recorded Scene3D mount/render boundary changed: ` +
+      JSON.stringify({ boundary, mounted: ui.mounted, ready: ui.ready,
+        backend: ui.backend, renderer: ui.renderer, meshObjects: ui.meshObjects }),
+    );
+  }
+  return ui;
+}
+
 async function explicitPostTakeCleanup(reason) {
   console.log(`\nExplicit cleanup requested (${reason}). Recording should already be stopped.`);
   const pendingAtStart = await currentProposal();
@@ -516,6 +603,7 @@ try {
     command("Runtime.enable"),
     command("Page.enable"),
     command("DOM.enable"),
+    command("Network.enable"),
   ]);
   await command("Emulation.setDeviceMetricsOverride", {
     width: WIDTH,
@@ -526,7 +614,8 @@ try {
   await command("WebMCP.enable");
 
   // One deliberate off-camera navigation guarantees the public build is the
-  // document being recorded. No navigation or reload occurs after this point.
+  // document being recorded. No later top-level document request or reload is
+  // allowed; GoSX managed same-document route transitions remain permitted.
   await command("Page.navigate", { url: STUDIO_URL });
   const nativeWindow = await command("Browser.getWindowForTarget", { targetId: target.id });
   await command("Browser.setWindowBounds", {
@@ -586,6 +675,13 @@ try {
     throw new Error(`Unexpected clean scene: ${JSON.stringify(baselineCanonical)}`);
   }
 
+  const frameTree = await command("Page.getFrameTree");
+  recordingGuard.frameId = String(frameTree.frameTree?.frame?.id || "");
+  if (!recordingGuard.frameId) throw new Error("Could not resolve the native Chrome main frame for the reload guard.");
+  recordingGuard.armed = true;
+  await armRecordedSceneMount();
+  await assertRecordedSceneBoundary("recording start");
+
   console.log(`\nREADY TO RECORD · baseline revision ${baseline}`);
   console.log("Opening state: Coral Piece selected · Board canonical · Evidence 31/31 current.");
   await cue("START OBS. Hold the clean scene for two seconds, make the small opening orbit, then return to the Agent panel.");
@@ -608,6 +704,7 @@ try {
   if (focus.focusRequested !== true || focus.revision !== baseline) {
     throw new Error(`Focus result crossed the revision boundary: ${JSON.stringify(focus)}`);
   }
+  await assertRecordedSceneBoundary("visible Board focus");
   await waitUntil("visible Board focus", async () => {
     const ui = await uiSnapshot();
     return ui.selectedID === "board" && ui.boardHierarchyText?.includes("Board") ? ui : null;
@@ -626,6 +723,7 @@ try {
     return canonical.revision === baseline && canonical.board?.name === "Board" &&
       canonical.board?.materialID === "board-material" && ui.proposal.pending &&
       ui.proposal.reviewHidden === false && ui.proposal.commitDisabled === false &&
+      ui.proposal.commitVisible === true && ui.proposal.commitText === "Apply 2 exact edits" &&
       ui.proposal.summary === "Prepare Launch Board" && ui.proposal.actor === "agent://webmcp" &&
       ui.proposal.policy === "Arbiter · Allow · 2/2" &&
       ui.proposal.revision?.includes(`canonical ${baseline} unchanged`) && exactChanges &&
@@ -633,6 +731,7 @@ try {
       ? { ui, canonical }
       : null;
   });
+  await assertRecordedSceneBoundary("staged preview");
 
   console.log(`\nPROPOSAL READY · canonical revision ${baseline} remains unchanged · proposal ${preview.proposalId}`);
   await cue(
@@ -645,14 +744,46 @@ try {
       !beforeApplyUI.proposal.pending || beforeApplyUI.preview.badgeHidden !== false) {
     throw new Error("The shared revision or proposal changed during review. Stop and reset for a clean take.");
   }
+  await assertRecordedSceneBoundary("human review");
 
   await cue(
-    "MANUAL HUMAN APPROVAL: click the visible ‘Apply staged changes’ button yourself exactly once. Wait for Evidence 31/31 · current at the next revision, sweep Launch Board / Brushed Steel / paired activity, leave two seconds still, and STOP OBS. Press Enter here only after recording has stopped.",
+    "MANUAL HUMAN APPROVAL: click the visible ‘Apply 2 exact edits’ button yourself exactly once. Wait for Evidence 31/31 · current at the next revision, sweep Launch Board / Brushed Steel / paired activity, leave two seconds still, and STOP OBS. Press Enter here only after recording has stopped.",
   );
+
+  const expectedRevision = baseline + 1;
+  const finalEvidence = await waitForCurrentEvidence(expectedRevision);
+  const final = await waitUntil("verified human-approved final scene", async () => {
+    const canonical = await canonicalSummary();
+    const ui = await uiSnapshot();
+    const pair = pairedPlan(ui.activity, preview.proposalId);
+    const flowComplete = EXPECTED_TOOLS.every((name) => ui.flow[name] === "complete");
+    return canonical.revision === expectedRevision && canonical.demo.clean === false &&
+      canonical.board?.name === "Launch Board" && canonical.board?.materialID === STEEL_MATERIAL_ID &&
+      ui.revision === expectedRevision && ui.statusLabel === "Human-approved change applied" &&
+      ui.selectedID === "board" && ui.boardHierarchyText?.includes("Launch Board") &&
+      ui.material?.id === STEEL_MATERIAL_ID && ui.material?.name === "Brushed Steel" &&
+      ui.approvalOutcome.hidden === false &&
+      ui.approvalOutcome.text?.includes("Human approved") &&
+      ui.approvalOutcome.text?.includes(`revision ${baseline} → ${expectedRevision}`) &&
+      !ui.proposal.pending && ui.preview.badgeHidden === true &&
+      flowComplete && ui.trace.length === EXPECTED_TOOLS.length && pair &&
+      finalEvidence.evidence === ui.evidence
+      ? { canonical, ui, pair }
+      : null;
+  }, 50000);
+  if (await currentProposal()) throw new Error("A proposal remained pending after the recorded human approval.");
+  await assertRecordedSceneBoundary("verified final scene");
+  recordingGuard.armed = false;
   takeCompleted = true;
-  console.log("Recording flow handed off and complete. The driver deliberately did not click or verify the human-only Apply action.");
+  console.log(
+    `Recording verified: revision ${baseline} → ${expectedRevision} · Launch Board · Brushed Steel · ` +
+    `paired plan ${final.pair.plan} · Evidence 31/31 · 0 document reloads · ` +
+    `same mounted WebGPU canvas · ${recordingGuard.sameDocumentNavigations.length} managed same-document transition(s).`,
+  );
+  console.log("The driver observed—but did not perform—the human-only Apply action.");
   console.log("Native Chrome remains open. Leave the applied result for the demo, or use Prepare clean demo manually after recording.");
 } catch (error) {
+  recordingGuard.armed = false;
   console.error(`\n${error instanceof OperatorAbort ? "TAKE ABORTED" : "TAKE STOPPED"}: ${error.message}`);
   console.error("No automatic scene cleanup has run. Stop OBS before choosing cleanup.");
   if (studioReady) {
