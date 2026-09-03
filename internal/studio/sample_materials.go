@@ -1,10 +1,10 @@
 package studio
 
-// The board library pairs GoSX's physical material metadata with the portable
-// Selena programs from the framework's Chinese Checkers showcase. Procedural
-// grain, veining, lacquer, and glaze make the authored finishes read as real
-// surfaces; Brushed Steel intentionally stays on the lit Standard PBR path so
-// its metallic response remains driven by the Studio's four-light rig.
+// The board library pairs GoSX's physical material metadata with portable
+// Selena programs from the framework's Chinese Checkers showcase. The default
+// Carved Wood and Brushed Steel finishes stay on the lit Standard PBR path so
+// their shape and highlights remain dependable across GPU backends; the jade,
+// lacquer, and porcelain alternatives demonstrate authored Selena surfaces.
 
 const carvedWoodSelena = `
 material CarvedWood {
@@ -80,7 +80,11 @@ material MoonPorcelain {
 func checkerMaterials() map[ID]Material {
 	return map[ID]Material{
 		"board-material": {
-			ID: "board-material", Name: "Carved Wood", Color: "#7a4728",
+			ID: "board-material", Name: "Carved Wood", Color: "#76513a",
+			Roughness: 0.38, Metalness: 0, Clearcoat: 0.42, Sheen: 0.14, Anisotropy: 0.32,
+		},
+		"board-selena-detail-material": {
+			ID: "board-selena-detail-material", Name: "Carved Grain Inlay", Color: "#76513a",
 			Roughness: 0.5, Metalness: 0, Clearcoat: 0.24, Sheen: 0.08,
 			Selena: &SelenaShader{Material: "CarvedWood", Source: carvedWoodSelena},
 		},
@@ -119,11 +123,10 @@ func checkerMaterials() map[ID]Material {
 			ID: "player-1-material", Name: "Coral Pieces", Color: "#c8321f",
 			// Keep the pieces on the lit Standard PBR path. The old constant-color
 			// Selena surface treated display-range coral as linear input; ACES then
-			// lifted it to a flat chalk-pink and bypassed the sphere normals. These
-			// A warm, blue-restrained coral base and matte dielectric finish keep the
-			// Studio key light from bleaching the bright faces toward white-pink,
-			// while the sphere normals still describe each piece's round form.
-			Roughness: 0.70,
+			// lifted it to a flat chalk-pink and bypassed the sphere normals. A warm,
+			// blue-restrained base plus a dielectric clearcoat keeps the saturated
+			// coral body while restoring the crisp highlights of a polished game piece.
+			Roughness: 0.32, Clearcoat: 0.65, Sheen: 0.08,
 		},
 		"player-4-material": {
 			ID: "player-4-material", Name: "Cobalt Pieces", Color: "#3d7ba1",

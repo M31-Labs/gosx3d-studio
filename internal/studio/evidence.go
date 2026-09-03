@@ -912,7 +912,7 @@ func certifyMaterialAuthoring(document Document) (ID, bool, error) {
 		return "", false, err
 	}
 	validFingerprint := fingerprintOf(direct)
-	invalid := document.Materials["board-material"]
+	invalid := document.Materials["board-selena-detail-material"]
 	invalid.Selena = &SelenaShader{Material: invalid.Selena.Material, Source: "invalid Selena source"}
 	_, _, invalidErr := workspace.Execute(Transaction{ID: "certify:material-invalid", Actor: "certifier://studio", Mode: ModeDirect, ExpectedRevision: direct.Revision, Operations: []Operation{{Kind: OpSetMaterial, MaterialRecord: &invalid}}})
 	afterInvalid, _ := workspace.Snapshot()

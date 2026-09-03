@@ -40,7 +40,7 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		t.Fatalf("socket rises %.3f above the face, want at most a thin highlight crescent", socketTop-boardTop)
 	}
 
-	for _, id := range []ID{"board-material", "board-jade-material", "board-lacquer-material", "board-porcelain-material"} {
+	for _, id := range []ID{"board-selena-detail-material", "board-jade-material", "board-lacquer-material", "board-porcelain-material"} {
 		material, ok := document.Materials[id]
 		if !ok {
 			t.Fatalf("board finish %q missing", id)
@@ -50,18 +50,22 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		}
 	}
 	wood := document.Materials["board-material"]
-	if wood.Color != "#7a4728" || wood.Roughness != 0.5 || wood.Metalness != 0 ||
-		wood.Clearcoat != 0.24 || wood.Sheen != 0.08 {
+	if wood.Color != "#76513a" || wood.Roughness != 0.38 || wood.Metalness != 0 ||
+		wood.Clearcoat != 0.42 || wood.Sheen != 0.14 || wood.Anisotropy != 0.32 {
 		t.Fatalf("Carved Wood physical fallback = %+v", wood)
 	}
+	if wood.Selena != nil {
+		t.Fatal("default Carved Wood must retain portable lit Standard PBR shading")
+	}
+	grain := document.Materials["board-selena-detail-material"]
 	for _, authoredLift := range []string{
 		"rgb(0.16, 0.065, 0.025)",
 		"rgb(0.66, 0.32, 0.14)",
 		"float = 0.045",
 		"1.0 - smoothstep(0.04, 0.34, length(holeUV))",
 	} {
-		if !strings.Contains(wood.Selena.Source, authoredLift) {
-			t.Fatalf("Carved Wood Selena source is missing calibrated display lift %q", authoredLift)
+		if !strings.Contains(grain.Selena.Source, authoredLift) {
+			t.Fatalf("Carved Grain Inlay Selena source is missing calibrated display lift %q", authoredLift)
 		}
 	}
 	if material := document.Materials["board-steel-material"]; material.Selena != nil {
@@ -71,8 +75,8 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 	if coral.Selena != nil {
 		t.Fatal("Coral Pieces must use lit Standard PBR instead of a flat custom shader")
 	}
-	if coral.Color != "#c8321f" || coral.Roughness != 0.70 || coral.Metalness != 0 ||
-		coral.Clearcoat != 0 || coral.Sheen != 0 || coral.Transmission != 0 ||
+	if coral.Color != "#c8321f" || coral.Roughness != 0.32 || coral.Metalness != 0 ||
+		coral.Clearcoat != 0.65 || coral.Sheen != 0.08 || coral.Transmission != 0 ||
 		coral.Iridescence != 0 || coral.Emissive != 0 {
 		t.Fatalf("Coral Pieces physical finish = %+v", coral)
 	}
@@ -102,8 +106,8 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 			wireframe                                    *bool
 		}{object.Kind, object.ScaleY, object.Tube, object.Sheen, object.Iridescence, object.Anisotropy, object.Wireframe}
 	}
-	if got := objects["board"]; got.kind != "cylinder" || got.sheen != 0.08 || got.wireframe == nil || *got.wireframe {
-		t.Fatalf("compiled board = %+v, want solid sheen-bearing Selena cylinder", got)
+	if got := objects["board"]; got.kind != "cylinder" || got.sheen != 0.14 || got.anisotropy != 0.32 || got.wireframe == nil || *got.wireframe {
+		t.Fatalf("compiled board = %+v, want solid lit anisotropic wood cylinder", got)
 	}
 	if got := objects["board-pedestal"]; got.anisotropy != 0.22 {
 		t.Fatalf("compiled chassis anisotropy = %.2f, want 0.22", got.anisotropy)
@@ -124,8 +128,8 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		}
 		foundCoral = true
 		if object.Kind != "sphere" || object.MaterialKind != "standard" || object.Color != "#c8321f" ||
-			object.Roughness != 0.70 || object.Metalness != 0 || object.Clearcoat != 0 ||
-			object.Sheen != 0 || object.Transmission != 0 || object.Iridescence != 0 ||
+			object.Roughness != 0.32 || object.Metalness != 0 || object.Clearcoat != 0.65 ||
+			object.Sheen != 0.08 || object.Transmission != 0 || object.Iridescence != 0 ||
 			object.Emissive != nil || object.Wireframe == nil || *object.Wireframe {
 			t.Fatalf("compiled Coral Piece = %+v, want a solid lit coral Standard PBR sphere", object)
 		}

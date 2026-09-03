@@ -34,10 +34,10 @@ func SampleDocument() Document {
 	add(meshEntity("board-pedestal", "Pedestal", Vec3{Y: -0.37}, Geometry{Kind: "cylinder", RadiusTop: 4.18, RadiusBottom: 4.26, Height: 0.42, RadialSegments: 64}, "pedestal-material", false))
 	// These two typed torus layers consume the same GoSX geometry path as the
 	// latest checkers showcase. The outer rim catches a restrained metal
-	// highlight; the dark inner fillet separates that fixed chassis detail from
-	// the assignable face without introducing another interaction target.
+	// highlight; the thin procedural grain inlay separates that fixed chassis
+	// detail from the assignable face without becoming another interaction target.
 	add(meshEntity("board-outer-rim", "Machined Outer Rim", Vec3{Y: -0.025}, Geometry{Kind: "torus", Radius: 4.035, Tube: 0.075, RadialSegments: 96, TubularSegments: 20}, "board-rim-material", false))
-	add(meshEntity("board-inner-fillet", "Inner Shadow Fillet", Vec3{Y: -0.013}, Geometry{Kind: "torus", Radius: 3.87, Tube: 0.018, RadialSegments: 96, TubularSegments: 12}, "socket-material", false))
+	add(meshEntity("board-inner-fillet", "Carved Grain Inlay", Vec3{Y: -0.013}, Geometry{Kind: "torus", Radius: 3.87, Tube: 0.018, RadialSegments: 96, TubularSegments: 12}, "board-selena-detail-material", false))
 	holes := checkerHoles()
 	for _, hole := range holes {
 		socket := meshEntity(ID(fmt.Sprintf("socket-%03d", hole.index)), fmt.Sprintf("Socket %03d", hole.index), Vec3{X: hole.position.X, Y: -0.057, Z: hole.position.Z}, Geometry{Kind: "sphere", Radius: 0.145, Segments: 20}, "socket-material", false)
