@@ -159,8 +159,10 @@ Its public health endpoint reports `0.55.1`.
 
 [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) — MIT
 
-The repository is public. The final release-candidate changes still need to be
-merged to its default branch and anonymously rechecked before the deadline.
+The repository is public, the release candidate is merged to its default
+branch at merge commit `1a14cba13eaf82bae5ff510853fe533a95e5ddb8`, and the
+required source, MIT license, gallery assets, and testing instructions are
+available without authentication.
 
 ## Demo Video
 
@@ -195,7 +197,7 @@ native Windows Chrome:
 - [x] Deploy the immutable `v0.55.1` image and repeat the public Windows Chrome
       flow: 162/162 stress and 139/139 clean-recording assertions.
 - [x] Capture the three final gallery frames from the public run.
-- [ ] Commit and merge the release candidate to the public default branch.
+- [x] Commit and merge the release candidate to the public default branch.
 - [ ] Record and publish the 2:22 YouTube demo with audio.
 - [ ] Confirm the remaining official form answers below.
 
@@ -211,9 +213,9 @@ Nothing in this draft has been sent to or updated on Devpost.
   requires visible human approval.
 - The broader editor includes capabilities whose certification state remains
   partial or planned; the demo claim is limited to the verified scene workflow.
-- The YouTube upload, default-branch merge, and official form review remain
-  outstanding. ChatGPT in-app testing is optional cross-client assurance and
-  has not been completed.
+- The YouTube upload and official form review remain outstanding. ChatGPT
+  in-app testing is optional cross-client assurance and has not been
+  completed.
 
 ## TODO Official Form Fields
 
