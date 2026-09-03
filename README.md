@@ -6,9 +6,9 @@ path.
 
 **Live judge demo:** [gosx3d.m31labs.dev](https://gosx3d.m31labs.dev)
 
-> **Deployment status:** The live URL serves the final-polish build from main
-> merge commit `c2e9af06a67ed1aa95d61bf68aac903fa67fe80e`, pinned to image digest
-> `sha256:8b28089e5dd6c757744aeae3448d283388f52b0a49b6a2f61c2061d68c5062e7`.
+> **Deployment status:** The live URL serves the compact-review build from main
+> merge commit `1e68684cbe6d5a8a10257c1ea9b85e40c9046125`, pinned to image digest
+> `sha256:facffa246e9377d49db38c5d0c008e4e6db1a593f10e1e5ebfaff8f2475e9b9c`.
 > Its public health endpoint reports GoSX `0.55.1`.
 
 ![GoSX 3D Studio showing a human-approved WebMCP scene change](docs/assets/webmcp-human-applied.png)
@@ -115,8 +115,8 @@ flow staged a reversible preview, applied it exactly once through the visible
 human action, and reset to a clean shared scene with no failed assertions,
 runtime exceptions, console/log errors, or HTTP errors.
 
-The final-polish deployment then passed a separate public acceptance in native
-Windows Chrome 152 at both 1920×1080 and 1440×900. It negotiated WebGPU,
+The preceding final-polish deployment passed a separate public acceptance in
+native Windows Chrome 152 at both 1920×1080 and 1440×900. It negotiated WebGPU,
 rendered 145 meshes, and exposed exactly four tools. Starting at revision 1,
 the flow staged exactly `Board → Launch Board` and
 `Carved Wood (board-material) → Brushed Steel (board-steel-material)`; visible
@@ -129,6 +129,16 @@ and no failures. ChatGPT's in-app browser remains useful optional cross-client
 assurance; this acceptance claim is for native Windows Chrome. See [Native
 WebMCP verification](docs/native-webmcp-qa.md) for the evidence boundary and
 exercised workflow.
+
+The current compact-review deployment passed a fresh public acceptance in
+native Windows Chrome `152.0.7977.76` at 1920×1080. Chrome discovered exactly
+four page tools over native `document.modelContext`, rendered 145 meshes with
+WebGPU, completed Inspect, Find, Focus, and Stage, and kept the exact two-edit
+preview at canonical revision 2. Visible approval advanced the scene once to
+revision 3, retained paired PROPOSED/APPROVED activity and **Evidence 31/31 ·
+current**, and preserved the same mounted canvas with zero document reloads
+across three managed same-document transitions. A visible confirmed reset then
+restored the clean shared scene at revision 4 for judges.
 
 For the final public take, `scripts/record-public-demo.mjs` attaches to an
 already-open native Windows Chrome session and leaves **Apply** to the human
@@ -168,8 +178,8 @@ runtime secrets outside Git, an immutable Harbor digest, and TLS through the
 existing M31 Labs ingress.
 
 The current public deployment was built from main merge commit
-`c2e9af06a67ed1aa95d61bf68aac903fa67fe80e` and is pinned to image digest
-`sha256:8b28089e5dd6c757744aeae3448d283388f52b0a49b6a2f61c2061d68c5062e7`.
+`1e68684cbe6d5a8a10257c1ea9b85e40c9046125` and is pinned to image digest
+`sha256:facffa246e9377d49db38c5d0c008e4e6db1a593f10e1e5ebfaff8f2475e9b9c`.
 Its public health endpoint reports GoSX `0.55.1`.
 
 Keep the service at one instance: the demo intentionally shares process-local
