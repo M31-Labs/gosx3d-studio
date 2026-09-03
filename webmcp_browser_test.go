@@ -440,6 +440,45 @@ func TestWebMCPReviewLocksBothTerminalActionsAndShowsTrustEvidence(t *testing.T)
 	}
 }
 
+func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+	styles := readWebMCPFixture(t, "public/styles.css")
+
+	scroll := javascriptFunctionSource(t, review, "scrollAgentPanelTop")
+	requireSourceFragments(t, scroll, "terminal review scroll",
+		`one(".agent-panel")`,
+		`scrollTo({ top: 0, behavior: "auto" })`,
+		`agentPanel.scrollTop = 0`,
+	)
+	for _, functionName := range []string{"resetDemo", "commitProposal", "discardProposal"} {
+		terminal := javascriptFunctionSource(t, review, functionName)
+		if !strings.Contains(terminal, "scrollAgentPanelTop()") {
+			t.Errorf("%s does not reveal the WebMCP status header before its successful refresh", functionName)
+		}
+	}
+	for _, required := range []string{
+		`.agent-panel.has-pending-proposal .agent-actions`,
+		`display: none`,
+	} {
+		if !strings.Contains(styles, required) {
+			t.Errorf("pending review visual hierarchy is missing %q", required)
+		}
+	}
+	for _, required := range []string{
+		"Canonical material",
+		"One ephemeral scene shared across visitors.",
+	} {
+		if !strings.Contains(page, required) {
+			t.Errorf("review truth copy is missing %q", required)
+		}
+	}
+	if !strings.Contains(adapter, "· visible UI") {
+		t.Error("focus receipt does not distinguish visible UI synchronization")
+	}
+}
+
 func TestPublicDemoPromptRequiresCleanBaseline(t *testing.T) {
 	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
 	discover := javascriptFunctionSource(t, review, "discoverDemoState")

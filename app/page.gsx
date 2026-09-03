@@ -288,7 +288,7 @@ func Page() Node {
 					<div class="material-preview" style={"--material-preview-color: " + data.inspector.materialColor}></div>
 					<dl class="properties">
 						<div>
-							<dt>Material</dt>
+							<dt>Canonical material</dt>
 							<dd>{data.inspector.material}</dd>
 						</div>
 						<div>
@@ -823,7 +823,7 @@ func Page() Node {
 				<div class="studio-demo-reset" data-studio-demo-panel data-webmcp-idle-only hidden>
 					<span>
 						<strong>Shared public demo</strong>
-						<small>One ephemeral scene for every visitor. Reset clears edits and staged proposals.</small>
+						<small>One ephemeral scene shared across visitors. Reset clears current edits and staged proposals.</small>
 						<small class="studio-demo-state" data-studio-demo-state aria-live="polite">Checking showcase baseline…</small>
 					</span>
 					<button type="button" data-studio-demo-reset data-revision={data.revision}>Reset shared scene</button>

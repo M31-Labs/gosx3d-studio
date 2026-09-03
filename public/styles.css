@@ -1531,6 +1531,10 @@ time,
   background: color-mix(in srgb, var(--color-author) 4%, var(--color-panel));
 }
 
+.agent-panel.has-pending-proposal .agent-actions {
+  display: none;
+}
+
 .proposal > * {
   min-width: 0;
 }

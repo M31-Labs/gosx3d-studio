@@ -627,6 +627,16 @@
     }
   }
 
+  function scrollAgentPanelTop() {
+    var agentPanel = one(".agent-panel");
+    if (!agentPanel) return;
+    if (typeof agentPanel.scrollTo === "function") {
+      agentPanel.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+    agentPanel.scrollTop = 0;
+  }
+
   function discoverPendingProposal() {
     var generation = ++proposalHydration;
     request("/api/studio/webmcp/proposals/current", {
@@ -914,6 +924,7 @@
         state: "ready",
         message: "Shared demo restored at scene revision " + String(payload && payload.revision || "current") + "."
       });
+      scrollAgentPanelTop();
       return refreshPage(window.location.pathname);
     }).catch(function (error) {
       button.disabled = false;
@@ -948,6 +959,7 @@
           message: "Applied by human review at scene revision " +
             String(payload && payload.receipt ? payload.receipt.afterRevision : "current") + "."
         });
+        scrollAgentPanelTop();
         return refreshPage();
       });
     }).catch(function (error) {
@@ -1008,6 +1020,7 @@
         }
         clearProposal("Proposal revoked; the canonical scene was never changed.");
         updateStatus({ state: "ready", message: "The staged proposal was revoked without changing the canonical scene." });
+        scrollAgentPanelTop();
         return refreshPage();
       });
     }).catch(function (error) {
