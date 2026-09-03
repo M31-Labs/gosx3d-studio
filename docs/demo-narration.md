@@ -18,16 +18,16 @@ typed WebMCP tools—and no commit tool.
 
 ## 0:28–0:40
 
-A browser agent can turn this one request into four calls. For this
-deterministic take, Chrome invokes those same native page tools, while its
-WebMCP pane exposes the schemas an agent discovers.
+A browser agent can turn this request into four calls. For this deterministic
+take, Chrome invokes those native page tools. The in-app disclosure shows the
+same four registrations.
 
 ## 0:40–1:07
 
 Chrome reads the current revision, searches structured SceneDoc data, finds
 Board as stable ID `board`, and focuses the same object in the visible Studio.
-The fourth tool validates and stages two edits at that exact revision. Nothing
-navigates or reloads.
+The fourth tool validates two edits at that exact revision and stages their
+viewport diff. The canvas stays mounted and the page never reloads.
 
 ## 1:07–1:18
 
@@ -47,14 +47,15 @@ The artist can inspect the proposed material spatially before deciding.
 
 ## 1:53–2:03
 
-I choose Apply. That human action is deliberately outside the WebMCP tool
-surface.
+The sticky control names the scope: two exact edits. I choose Apply. That human
+action sits outside the WebMCP tool surface.
 
 ## 2:03–2:20
 
-Both edits commit through the same revision-safe engine, and the revision
-advances exactly once. Scene search and batch preparation can move to an
-agent; spatial judgment and authorship stay with the artist.
+Both edits commit through the same revision-safe engine, advancing the revision
+once. The persistent Human approved outcome, current evidence, and paired
+activity make the handoff auditable. Busywork moves to the agent; spatial
+judgment and authorship stay with the artist.
 
 ## 2:20–2:28
 

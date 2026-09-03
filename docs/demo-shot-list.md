@@ -3,8 +3,9 @@
 Primary take: use `scripts/record-public-demo.mjs` to cue an existing
 **native Windows Chrome 149+** tab. The helper never launches a browser, refuses
 a non-Windows target, invokes the four native WebMCP tools in a fixed order,
-and deliberately leaves Apply to the person. Chrome DevTools' manual **Run
-tool** flow is the immediate backup. Use the clean
+and deliberately leaves Apply to the person. The primary take opens the
+Studio's in-app **Native WebMCP** disclosure; Chrome DevTools' manual **Run
+tool** flow is backup only. Use the clean
 [narration card](demo-narration.md) while recording; production direction is in
 [the full demo script](demo-video-script.md).
 
@@ -14,13 +15,13 @@ tool** flow is the immediate backup. Use the clean
 | --- | --- | --- |
 | 0:00-0:16 | Hold the clean value card, then orbit once without selecting Board | Polished board, glossy coral, **Shared ephemeral demo workspace · WebGPU** |
 | 0:16-0:28 | Establish the live boundary | `[R]`, `WEBGPU`, **Agent tools ready**, **150 entities · 4 WebMCP tools · 0 commit tools**, **Evidence 31/31 · current** |
-| 0:28-0:40 | Hold the in-product task; use a short same-session **Application -> WebMCP** pickup | Exact user intent and exactly four **Available Tools** |
-| 0:40-1:07 | Follow the off-capture helper cues for state, find, focus, and preview; trim only cue/wait time | Four completed native results; stable ID `board`; hierarchy/Inspector focus; staged preview |
-| 1:07-1:18 | With DevTools closed, punch into **WebMCP tool receipts** at 150% | Inspect/Find/Focus/Stage, same document, no reload |
-| 1:18-1:43 | Punch into the proposal at 165%; open Arbiter reasons for two seconds | Exact rename/material diff, actor, Allow 2/2, fingerprint, canonical `[R]` unchanged |
-| 1:43-1:53 | Return wide and orbit Brushed Steel preview once | **Agent preview · not committed**, unchanged revision |
-| 1:53-2:03 | Click **Apply staged changes** exactly once | Visible human decision outside the four-tool surface |
-| 2:03-2:20 | Wait for evidence, then show applied state and paired activity | `Launch Board`, `Brushed Steel`, `[R+1]`, **Evidence 31/31 · current**, matching proposed/approved token |
+| 0:28-0:40 | Hold the task; open the in-app **Native WebMCP** disclosure, then close it | Exact intent, four registered tool names and roles, source link |
+| 0:40-1:07 | Follow the off-capture helper cues for state, find, focus, and preview; hold the full presentation viewport after Stage | Four native results; stable ID `board`; hierarchy/Inspector focus; readable two-edit viewport diff |
+| 1:07-1:18 | With the in-app disclosure closed, punch into **WebMCP tool receipts** at 150% | Inspect/Find/Focus/Stage, same document, no reload |
+| 1:18-1:43 | Punch into the proposal without losing the sticky Apply; open Arbiter reasons for two seconds | Exact diff, actor, Allow 2/2, fingerprint, canonical `[R]` unchanged, **Apply 2 exact edits** |
+| 1:43-1:53 | Return to the presentation-size viewport and orbit Brushed Steel once | Readable viewport diff, **Agent preview · not committed**, unchanged revision |
+| 1:53-2:03 | Click sticky **Apply 2 exact edits** exactly once | Visible human decision outside the four-tool surface |
+| 2:03-2:20 | Land on the persistent **Human approved** outcome; show evidence and paired activity | `Launch Board`, `Brushed Steel`, `[R+1]`, **Evidence 31/31 · current**, matching proposed/approved token |
 | 2:20-2:28 | Switch to signed-out public GitHub source tab | Public repo URL, live `registerTool` code, **MIT source** caption |
 
 ## Primary sequence — cue-driven Windows Chrome
@@ -35,31 +36,40 @@ tool** flow is the immediate backup. Use the clean
    ```
 
    The terminal is only the control channel. The helper prints the detected
-   browser and aborts unless its target is Windows Chrome.
+   browser and aborts unless its target is Windows Chrome. Its default
+   1920x1080 metrics activate the Studio's presentation layout; do not override
+   them for the primary take.
 3. At the off-camera prompt, make sure nobody else is using the shared
    workspace, then type `RESET`. The helper performs its only navigation and
    reset before recording.
 4. Wait for **Preflight passed** and **READY TO RECORD**. Write down the printed
    baseline revision `[R]`.
 5. Start OBS only when cued. Capture the browser window, not the terminal. Do
-   beats 1-3, then press Enter once to finish the helper's **START OBS** cue.
+   beats 1-3, including the in-app **Native WebMCP** disclosure, close the
+   disclosure, then press Enter once to finish the helper's **START OBS** cue.
 6. Press Enter once at each **INSPECT**, **FIND**, **FOCUS**, and **STAGE**
    cue. Do not type any other response. The helper invokes the exact inputs
    below and validates each visible result.
-7. At **REVIEW / ORBIT**, show the receipts, proposal, policy reasons,
-   fingerprint, and reversible material in the Studio. Press Enter after the
-   orbit to advance to the approval cue.
-8. At **MANUAL HUMAN APPROVAL**, click **Apply staged changes** yourself exactly
-   once. The helper intentionally does not click or verify this action.
-9. Wait for **Evidence 31/31 · current** at `[R+1]`, show the applied proof,
-   switch to the public source tab, leave two seconds still, and stop OBS.
-10. Only after OBS stops, return to the terminal and press Enter. On an aborted
-    take, stop OBS first; use the helper's explicit `RESET` cleanup only if you
-    intend to clear the shared state.
+7. At **REVIEW / ORBIT**, first hold the presentation-size viewport diff, then
+   show the receipts, proposal, policy reasons, fingerprint, sticky **Apply 2
+   exact edits**, and reversible material. Press Enter after the orbit to
+   advance to the approval cue.
+8. At **MANUAL HUMAN APPROVAL**, click **Apply 2 exact edits** yourself exactly
+   once. The helper never clicks it; after recording stops, it verifies the
+   exact canonical result, paired activity, evidence, and zero reloads.
+9. Wait for the persistent **Human approved** viewport outcome and **Evidence
+   31/31 · current** at `[R+1]`; show the paired activity, switch to the public
+   source tab, leave two seconds still, and stop OBS.
+10. Only after OBS stops, return to the terminal and press Enter. The helper
+    then verifies final `[R+1]`, current evidence, paired proposed/approved
+    activity, the same mounted WebGPU canvas, and zero recorded main-document
+    loads. On an aborted take, stop OBS first; use its explicit `RESET` cleanup
+    only if you intend to clear the shared state.
 
 The helper performs one off-camera `Page.navigate` before **READY TO RECORD**
-and never calls `Page.reload`. There is no navigation or reload during the
-recorded Studio flow.
+and never calls `Page.reload`. During the recorded Studio flow, Focus may use a
+managed same-document route transition; the helper fails the take on any
+recorded main-document request or main-frame navigation.
 
 ## Exact WebMCP inputs
 
@@ -144,8 +154,8 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
       `https://gosx3d.m31labs.dev` signed out.
 - [ ] Run the helper, coordinate the shared reset, and wait for **Preflight
       passed** plus **READY TO RECORD**. Record its `[R]`; do not reset again.
-- [ ] Rehearse opening **Application -> WebMCP** and verify four Available Tools
-      without invoking one. Close it again before the tool-call beat.
+- [ ] Rehearse opening the in-app **Native WebMCP** disclosure and verify four
+      registered tool names and roles. Close it before the tool-call beat.
 - [ ] Prepare the signed-out source tab:
       `https://github.com/M31-Labs/gosx3d-studio/blob/main/public/studio-webmcp.js#L747-L802`.
 - [ ] Keep this operator sheet on the second device. Do not expose a text
@@ -161,10 +171,9 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
 - **Quality:** CQP/CQ 18-22, or 10-16 Mbps. Optimize for readable UI text.
 - **Audio:** 48 kHz AAC, 160-192 kbps; normal speech peaks at `-12 dB` to
   `-6 dB` without clipping.
-- **DevTools layout:** Start full-width. During beat 3, open DevTools docked
-  right and make the WebMCP pane wide enough to read without covering the
-  Studio. Close it before beat 4. Do not resize the browser window or reload
-  the page.
+- **Presentation layout:** Keep the Studio at the helper's 1920x1080 device
+  metrics for the entire take. Open only the in-app **Native WebMCP** disclosure
+  during beat 3; do not resize the browser window or reload the page.
 - **Editorial crops:** 150% for receipts, 165% for proposal. Derive both from
   the same master. Return wide for orbit, Apply, and final evidence.
 - **Privacy:** Do Not Disturb on; no bookmarks, accounts, extensions,
@@ -178,14 +187,18 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
 3. Use the off-capture helper cues to run each tool. Let the visible rail and
    receipts complete; trim cue latency in post, never result order.
 4. Keep the Studio visible when Focus runs so Board's UI selection is obvious.
-5. Keep DevTools closed after the beat-3 tool-list pickup; do not refresh or
-   navigate the Studio.
-6. Open the Arbiter disclosure with a click, hold two seconds, then close it.
-7. Orbit the reversible preview before approval.
-8. Click **Apply staged changes** once, then wait for **Evidence 31/31 ·
-   current** at `[R+1]`.
+5. Close the in-app tool disclosure after beat 3; do not refresh or navigate
+   the Studio.
+6. After Stage, hold the presentation-size viewport diff before punching into
+   the detailed proposal.
+7. Open the Arbiter disclosure with a click, hold two seconds, then close it;
+   keep sticky **Apply 2 exact edits** visible.
+8. Orbit the reversible preview before approval, then click **Apply 2 exact
+   edits** once.
 9. Show the paired `agent://webmcp` **PROPOSED** and
-   `human://webmcp-review` **APPROVED** entries with the same short plan token.
+   `human://webmcp-review` **APPROVED** entries with the same short plan token,
+   **Evidence 31/31 · current** at `[R+1]`, and the persistent **Human
+   approved** outcome.
 10. Switch to the prepared public source tab for eight seconds. Leave two
     seconds of stillness at the end.
 
@@ -205,19 +218,24 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
 - Confirm the final edit says **Chrome invokes** for the deterministic take,
   shows exactly one `[R] -> [R+1]` advance, and never claims agent-selected
   calls.
+- After OBS stops, confirm the driver reports final `[R+1]`, current 31/31
+  evidence, paired activity, the same mounted WebGPU canvas, and zero recorded
+  main-document loads.
 
 ## Abort conditions
 
 Stop, reset, and restart if any of these occurs:
 
-- WebMCP discovery shows anything other than four tools.
+- Native WebMCP discovery or the in-app disclosure shows anything other than
+  four tools.
 - A call errors, is skipped, duplicated, reordered, or targets a non-`board`
   object.
 - Board is already selected before Focus.
 - Another visitor changes the shared workspace.
 - A reload or second Studio navigation occurs.
 - The proposal differs from the two scripted operations.
-- Apply conflicts, advances more than once, or final evidence stays stale.
+- Apply conflicts, advances more than once, the persistent **Human approved**
+  outcome is missing, or final evidence stays stale.
 - A private account detail, notification, credential, or unsupported claim is
   captured.
 
