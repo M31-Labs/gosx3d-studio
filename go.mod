@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	m31labs.dev/arbiter v1.9.0
-	m31labs.dev/gosx v0.54.2
+	m31labs.dev/gosx v0.55.1
 )
 
 require (
@@ -14,10 +14,10 @@ require (
 	github.com/odvcencio/gotreesitter v0.50.1 // indirect
 	github.com/odvcencio/turboquant v0.1.3 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	golang.org/x/image v0.38.0 // indirect
+	golang.org/x/image v0.45.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect

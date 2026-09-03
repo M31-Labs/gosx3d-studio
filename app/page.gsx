@@ -171,7 +171,7 @@ func Page() Node {
 					</Each>
 					<li data-hierarchy-empty role="status" hidden>No scene entities match this search.</li>
 				</ul>
-				<form data-gosx-form method="post" action={actionPath("entityOp")} class="inspector-form hierarchy-ops-form">
+				<form data-gosx-form data-selection-bound="true" data-gosx-key={"entity-op-" + data.inspector.id} method="post" action={actionPath("entityOp")} class="inspector-form hierarchy-ops-form">
 					<input type="hidden" name="csrf_token" value={csrf.token}></input>
 					<input type="hidden" name="target" value={data.inspector.id}></input>
 					<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -212,6 +212,10 @@ func Page() Node {
 					</div>
 				</header>
 				<div class="scene-stage" data-selection-id={data.inspector.id} data-camera-home={data.cameraHome} data-camera-focus-x={data.inspector.x} data-camera-focus-y={data.inspector.y} data-camera-focus-z={data.inspector.z}>
+					<div class="viewport-preview-badge" data-webmcp-preview-badge hidden aria-live="polite">
+						<span></span>
+						Agent preview · not committed
+					</div>
 					<div class="runtime-readout" aria-label="Observed runtime telemetry">
 						<span>SCENE IR</span>
 						<strong>mounted</strong>
@@ -241,7 +245,7 @@ func Page() Node {
 				</header>
 				<details open>
 					<summary>Transform</summary>
-					<form data-gosx-form method="post" action={actionPath("setTransform")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"transform-" + data.inspector.id} method="post" action={actionPath("setTransform")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -284,7 +288,7 @@ func Page() Node {
 					<div class="material-preview" style={"--material-preview-color: " + data.inspector.materialColor}></div>
 					<dl class="properties">
 						<div>
-							<dt>Material</dt>
+							<dt>Canonical material</dt>
 							<dd>{data.inspector.material}</dd>
 						</div>
 						<div>
@@ -304,7 +308,7 @@ func Page() Node {
 							<dd>{data.inspector.roughness}</dd>
 						</div>
 					</dl>
-					<form data-gosx-form method="post" action={actionPath("assignMaterial")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"assign-material-" + data.inspector.id} method="post" action={actionPath("assignMaterial")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -319,7 +323,7 @@ func Page() Node {
 						<p class="form-status">{action.message}</p>
 						<button type="submit" class="inspector-apply">Assign material</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("setMaterial")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"material-" + data.inspector.id + "-" + data.inspector.materialId} method="post" action={actionPath("setMaterial")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="materialId" value={data.inspector.materialId}></input>
@@ -389,7 +393,7 @@ func Page() Node {
 				</details>
 				<details>
 					<summary>Model Asset</summary>
-					<form data-gosx-form method="post" action={actionPath("reimportAsset")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"reimport-" + data.inspector.id} method="post" action={actionPath("reimportAsset")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -407,7 +411,7 @@ func Page() Node {
 				</details>
 				<details>
 					<summary>Modifiers</summary>
-					<form data-gosx-form method="post" action={actionPath("setSolidify")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"solidify-" + data.inspector.id} method="post" action={actionPath("setSolidify")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -423,7 +427,7 @@ func Page() Node {
 						<p class="form-status">{action.message}</p>
 						<button type="submit" class="inspector-apply">Set solidify</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("setSubdivision")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"subdivision-" + data.inspector.id} method="post" action={actionPath("setSubdivision")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -437,7 +441,7 @@ func Page() Node {
 						</label>
 						<button type="submit" class="inspector-apply">Set subdivision</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("reorderModifier")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"modifier-order-" + data.inspector.id} method="post" action={actionPath("reorderModifier")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -451,7 +455,7 @@ func Page() Node {
 						</label>
 						<button type="submit" class="inspector-apply">Move modifier</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("applyModifier")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"modifier-apply-" + data.inspector.id} method="post" action={actionPath("applyModifier")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -483,7 +487,7 @@ func Page() Node {
 							<dd class="authored">{data.modeling.selectionSummary}</dd>
 						</div>
 					</dl>
-					<form data-gosx-form method="post" action={actionPath("selectSubobjects")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"subobjects-" + data.inspector.id} method="post" action={actionPath("selectSubobjects")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -502,7 +506,7 @@ func Page() Node {
 						<p class="form-status">{action.message}</p>
 						<button type="submit" class="inspector-apply">Select sub-objects</button>
 					</form>
-					<form data-gosx-form method="post" action={actionPath("meshOperator")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"mesh-operator-" + data.inspector.id} method="post" action={actionPath("meshOperator")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -555,7 +559,7 @@ func Page() Node {
 							</div>
 						</Each>
 					</dl>
-					<form data-gosx-form method="post" action={actionPath("prefabOp")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"prefab-op-" + data.inspector.id} method="post" action={actionPath("prefabOp")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -607,7 +611,7 @@ func Page() Node {
 				</details>
 				<details>
 					<summary>Physics</summary>
-					<form data-gosx-form method="post" action={actionPath("setPhysics")} class="inspector-form">
+					<form data-gosx-form data-selection-bound="true" data-gosx-key={"physics-" + data.inspector.id} method="post" action={actionPath("setPhysics")} class="inspector-form">
 						<input type="hidden" name="csrf_token" value={csrf.token}></input>
 						<input type="hidden" name="target" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
@@ -819,7 +823,7 @@ func Page() Node {
 				<div class="studio-demo-reset" data-studio-demo-panel data-webmcp-idle-only hidden>
 					<span>
 						<strong>Shared public demo</strong>
-						<small>One ephemeral scene for every visitor. Reset clears edits and staged proposals.</small>
+						<small>One ephemeral scene shared across visitors. Reset clears current edits and staged proposals.</small>
 						<small class="studio-demo-state" data-studio-demo-state aria-live="polite">Checking showcase baseline…</small>
 					</span>
 					<button type="button" data-studio-demo-reset data-revision={data.revision}>Reset shared scene</button>

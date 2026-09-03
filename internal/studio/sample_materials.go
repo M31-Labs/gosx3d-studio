@@ -1,22 +1,27 @@
 package studio
 
-// The board library pairs GoSX's physical material metadata with the portable
-// Selena programs from the framework's Chinese Checkers showcase. Procedural
-// grain, veining, lacquer, and glaze make the authored finishes read as real
-// surfaces; Brushed Steel intentionally stays on the lit Standard PBR path so
-// its metallic response remains driven by the Studio's four-light rig.
+// The board library pairs GoSX's physical material metadata with portable
+// Selena programs from the framework's Chinese Checkers showcase. The default
+// Carved Wood and Brushed Steel finishes stay on the lit Standard PBR path so
+// their shape and highlights remain dependable across GPU backends; the jade,
+// lacquer, and porcelain alternatives demonstrate authored Selena surfaces.
 
 const carvedWoodSelena = `
 material CarvedWood {
-    param darkWalnut : color = rgb(0.07, 0.025, 0.012)
-    param warmWalnut : color = rgb(0.30, 0.12, 0.05)
-    param satinLift  : float = 0.025
+    // Keep the heartwood above near-black so the grain survives the
+    // tone-mapped WebGPU display path and still reads as warm walnut.
+    param darkWalnut : color = rgb(0.16, 0.065, 0.025)
+    param warmWalnut : color = rgb(0.66, 0.32, 0.14)
+    param satinLift  : float = 0.045
     surface(geo) -> color {
         let grainLine = sin(geo.uv.x * 54.0 + sin(geo.uv.y * 10.0) * 1.6)
         let grain     = grainLine * 0.5 + 0.5
         let endGrain  = sin((geo.uv.x + geo.uv.y) * 19.0) * 0.025
         let holeUV    = geo.uv - vec2f(0.5, 0.5)
-        let carved    = smoothstep(0.34, 0.04, length(holeUV)) * 0.10
+        // Reversing smoothstep's edges is undefined in GLSL and WGSL. Express
+        // the same inward mask explicitly so Dawn/WebGPU never turns the
+        // complete surface into NaNs that resolve as near-black.
+        let carved    = (1.0 - smoothstep(0.04, 0.34, length(holeUV))) * 0.10
         let body      = mix(darkWalnut.rgb, warmWalnut.rgb, 0.34 + grain * 0.30 + endGrain)
         return vec4f(body * (1.0 - carved) + vec3f(satinLift, satinLift, satinLift), 1.0)
     }
@@ -75,7 +80,11 @@ material MoonPorcelain {
 func checkerMaterials() map[ID]Material {
 	return map[ID]Material{
 		"board-material": {
-			ID: "board-material", Name: "Carved Wood", Color: "#5f4032",
+			ID: "board-material", Name: "Carved Wood", Color: "#76513a",
+			Roughness: 0.38, Metalness: 0, Clearcoat: 0.42, Sheen: 0.14, Anisotropy: 0.32,
+		},
+		"board-selena-detail-material": {
+			ID: "board-selena-detail-material", Name: "Carved Grain Inlay", Color: "#76513a",
 			Roughness: 0.5, Metalness: 0, Clearcoat: 0.24, Sheen: 0.08,
 			Selena: &SelenaShader{Material: "CarvedWood", Source: carvedWoodSelena},
 		},
@@ -111,14 +120,13 @@ func checkerMaterials() map[ID]Material {
 			Roughness: 0.68, Metalness: 0.12, Clearcoat: 0.28, Iridescence: 0.04,
 		},
 		"player-1-material": {
-			ID: "player-1-material", Name: "Coral Pieces", Color: "#e66b62",
-			Roughness: 0.2, Metalness: 0.08, Clearcoat: 0.68, Sheen: 0.18,
-			Transmission: 0.04, Iridescence: 0.08, Emissive: 0.025,
-			Selena: &SelenaShader{Material: "CoralPiece", Source: `
-material CoralPiece {
-  param tint : color = rgb(0.902, 0.420, 0.384)
-  surface(geo) -> color { return vec4f(tint.rgb, 1.0) }
-}`},
+			ID: "player-1-material", Name: "Coral Pieces", Color: "#c8321f",
+			// Keep the pieces on the lit Standard PBR path. The old constant-color
+			// Selena surface treated display-range coral as linear input; ACES then
+			// lifted it to a flat chalk-pink and bypassed the sphere normals. A warm,
+			// blue-restrained base plus a dielectric clearcoat keeps the saturated
+			// coral body while restoring the crisp highlights of a polished game piece.
+			Roughness: 0.32, Clearcoat: 0.65, Sheen: 0.08,
 		},
 		"player-4-material": {
 			ID: "player-4-material", Name: "Cobalt Pieces", Color: "#3d7ba1",

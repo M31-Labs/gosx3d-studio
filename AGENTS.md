@@ -31,6 +31,7 @@ diagnostics, and documentation are complete or explicitly not applicable.
 gosx check app/page.gsx
 go vet ./...
 go test ./...
+node --test scripts/studio-webmcp-preview.test.js
 go test -race ./internal/... ./app/... .
 go run ./cmd/studio-smoke
 gosx build .

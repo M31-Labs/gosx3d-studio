@@ -162,10 +162,52 @@ func TestWebMCPReviewHydratesTheCurrentSessionProposal(t *testing.T) {
 		`payload && payload.proposal`,
 		`pendingProposal = proposal`,
 		`renderProposal()`,
+		`activateScenePreview(proposal)`,
 	)
 	if !strings.Contains(review, "discoverPendingProposal();") {
 		t.Fatal("review UI defines pending-proposal hydration but never invokes it")
 	}
+}
+
+func TestWebMCPProposalUsesReversibleLiveSceneCommands(t *testing.T) {
+	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+	requireSourceFragments(t, adapter, "proposal command transport",
+		"sceneCommands", "reverseSceneCommands",
+	)
+	activate := javascriptFunctionSource(t, review, "activateScenePreview")
+	requireSourceFragments(t, activate, "live proposal preview",
+		"dispatchSceneCommands", "reverseSceneCommands", "sceneCommands", "markScenePreview",
+	)
+	revert := javascriptFunctionSource(t, review, "revertScenePreview")
+	requireSourceFragments(t, revert, "live proposal rollback",
+		"reverseSceneCommands", "dispatchSceneCommands", "markScenePreview(restored ? false : true)",
+	)
+	requireSourceFragments(t, page, "live proposal preview disclosure",
+		"data-webmcp-preview-badge", "Agent preview · not committed",
+	)
+}
+
+func TestWebMCPPreviewLocksCanonicalEditsAndSelfCleansOnExpiry(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	lock := javascriptFunctionSource(t, review, "lockSceneMutationControls")
+	requireSourceFragments(t, lock, "review mutation lock",
+		"form[data-gosx-form]", "[data-gizmo-mode]", "data-webmcp-review-locked",
+		"data-webmcp-review-enabled",
+	)
+	render := javascriptFunctionSource(t, review, "renderProposal")
+	requireSourceFragments(t, render, "review lock activation", "lockSceneMutationControls(true)")
+	clear := javascriptFunctionSource(t, review, "clearProposal")
+	requireSourceFragments(t, clear, "review lock release", "lockSceneMutationControls(false)")
+	expiry := javascriptFunctionSource(t, review, "renderProposalExpiry")
+	requireSourceFragments(t, expiry, "expired preview cleanup",
+		"remaining <= 0", "discardProposal(null)", "restoring canonical scene",
+	)
+	revert := javascriptFunctionSource(t, review, "revertScenePreview")
+	requireSourceFragments(t, revert, "rollback failure disclosure",
+		"activeScenePreview = matchedPreview", "markScenePreview(restored ? false : true)",
+	)
 }
 
 func TestWebMCPReviewRevokesDiscardedProposalsOnTheServer(t *testing.T) {
@@ -204,6 +246,10 @@ func TestWebMCPReviewPropagatesHTTPStatusAndClearsTerminalCommitFailures(t *test
 	if !strings.Contains(commit, "Revision conflict") || !strings.Contains(commit, "restage") {
 		t.Error("revision-conflict handling does not direct the user to inspect and restage")
 	}
+	if !strings.Contains(commit[terminalFailures:], "revertScenePreview(proposal.proposalId)") ||
+		!strings.Contains(commit[terminalFailures:], "refreshPage()") {
+		t.Error("terminal commit failures do not restore the current canonical viewport")
+	}
 }
 
 func TestWebMCPHumanReviewRemainsASeparateUIStep(t *testing.T) {
@@ -241,6 +287,33 @@ func TestWebMCPHumanReviewRemainsASeparateUIStep(t *testing.T) {
 	adapterScript := strings.Index(page, `/studio-webmcp.js`)
 	if uiScript < 0 || adapterScript < 0 || uiScript > adapterScript {
 		t.Fatal("review UI must subscribe before the adapter registers and emits status")
+	}
+}
+
+func TestWebMCPFocusNavigationRetriesOnlyWhileItIsTheLatestIntent(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	focus := javascriptFunctionSource(t, review, "focusEntity")
+	requireSourceFragments(t, focus, "focus navigation intent",
+		`pendingFocusNavigation = intent`,
+		`scheduleFocusNavigation(intent)`,
+		`window.__gosxStudioSelection.apply(id)`,
+	)
+	retry := javascriptFunctionSource(t, review, "scheduleFocusNavigation")
+	requireSourceFragments(t, retry, "bounded focus navigation retry",
+		`MAX_FOCUS_NAVIGATION_ATTEMPTS`,
+		`navigation.navigate(target, { preserveScroll: true })`,
+		`applied !== false`,
+		`focusNavigationLanded(intent, window.location.href)`,
+	)
+	for _, required := range []string{
+		`document.addEventListener("gosx:navigate"`,
+		`document.addEventListener("gosx:scene3d:input"`,
+		`event.target.closest("a[data-entity-id]")`,
+		`clearAgentFocus()`,
+	} {
+		if !strings.Contains(review, required) {
+			t.Errorf("latest-focus reconciliation missing %q", required)
+		}
 	}
 }
 
@@ -286,7 +359,7 @@ func TestPublicDemoResetIsVisibleAndNeverAgentCallable(t *testing.T) {
 		t.Fatal("human UI does not explicitly confirm and call the demo reset endpoint")
 	}
 	reset := javascriptFunctionSource(t, review, "resetDemo")
-	if !strings.Contains(reset, `focusedEntityId = ""`) || !strings.Contains(reset, "refreshPage(window.location.pathname)") {
+	if !strings.Contains(reset, `clearAgentFocus()`) || !strings.Contains(reset, "refreshPage(window.location.pathname)") {
 		t.Fatal("demo reset does not clear the prior agent focus and query-string selection")
 	}
 	if strings.Contains(adapter, "/api/studio/demo/reset") || strings.Contains(adapter, "data-studio-demo-reset") {
@@ -364,6 +437,45 @@ func TestWebMCPReviewLocksBothTerminalActionsAndShowsTrustEvidence(t *testing.T)
 		if !strings.Contains(page, required) || !strings.Contains(review, required) {
 			t.Errorf("proposal trust evidence is missing shared hook %q", required)
 		}
+	}
+}
+
+func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	adapter := readWebMCPFixture(t, "public/studio-webmcp.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+	styles := readWebMCPFixture(t, "public/styles.css")
+
+	scroll := javascriptFunctionSource(t, review, "scrollAgentPanelTop")
+	requireSourceFragments(t, scroll, "terminal review scroll",
+		`one(".agent-panel")`,
+		`scrollTo({ top: 0, behavior: "auto" })`,
+		`agentPanel.scrollTop = 0`,
+	)
+	for _, functionName := range []string{"resetDemo", "commitProposal", "discardProposal"} {
+		terminal := javascriptFunctionSource(t, review, functionName)
+		if !strings.Contains(terminal, "scrollAgentPanelTop()") {
+			t.Errorf("%s does not reveal the WebMCP status header before its successful refresh", functionName)
+		}
+	}
+	for _, required := range []string{
+		`.agent-panel.has-pending-proposal .agent-actions`,
+		`display: none`,
+	} {
+		if !strings.Contains(styles, required) {
+			t.Errorf("pending review visual hierarchy is missing %q", required)
+		}
+	}
+	for _, required := range []string{
+		"Canonical material",
+		"One ephemeral scene shared across visitors.",
+	} {
+		if !strings.Contains(page, required) {
+			t.Errorf("review truth copy is missing %q", required)
+		}
+	}
+	if !strings.Contains(adapter, "· visible UI") {
+		t.Error("focus receipt does not distinguish visible UI synchronization")
 	}
 }
 

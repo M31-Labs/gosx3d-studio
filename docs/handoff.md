@@ -2,7 +2,7 @@
 
 ## What exists
 
-- A standalone GoSX v0.54.2 application with a dense desktop workbench shell,
+- A standalone GoSX v0.55.1 application with a dense desktop workbench shell,
   typed `SceneDoc`, shared `SceneIR`, and Scene3D rendering.
 - Live hierarchy selection, transform and material editing, modeling operators,
   timeline controls, diagnostics, and command receipts backed by canonical
@@ -14,6 +14,14 @@
 - Four browser-native WebMCP tools for scene inspection, search, visible focus,
   and bounded edit proposals. Every proposal is evaluated by Arbiter and stays
   non-mutating until a person applies the exact staged transaction.
+- An immutable public GoSX v0.55.1 deployment built from commit
+  `d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
+  `sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`;
+  public health reports `0.55.1`.
+- Native Windows Chrome 152 public-origin evidence: 162/162 stress assertions
+  and 139/139 clean-recording assertions, native `document.modelContext`, four
+  tools, WebGPU, zero reload commands, one main-document request, exact-once
+  human Apply, clean reset, and no failures.
 - A pinned production build, Render Blueprint, Linux evidence workflow, and a
   Windows workflow that stages an offline bundle and unsigned MSIX package.
 

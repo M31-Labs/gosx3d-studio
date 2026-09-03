@@ -12,6 +12,23 @@ func Compile(document Document) (scene.Props, error) {
 	return CompileSelected(document, "")
 }
 
+// CompileViewport builds the long-lived interactive editor surface. Selection
+// is deliberately absent from its authored scene payload: the mounted engine
+// receives selection through SelectionInputSignal and repositions the stable
+// TransformControls helpers in place. A hierarchy click can therefore update
+// the Inspector without invalidating the GPU surface or resetting its camera.
+func CompileViewport(document Document) (scene.Props, error) {
+	props, err := CompileSelected(document, "")
+	if err != nil {
+		return scene.Props{}, err
+	}
+	props.Graph.Nodes = append(props.Graph.Nodes, scene.TransformControls{
+		ID:   "studio-gizmo",
+		Size: 1.2,
+	})
+	return props, nil
+}
+
 func CompileSelected(document Document, selected ID) (scene.Props, error) {
 	if err := document.Validate(); err != nil {
 		return scene.Props{}, err
@@ -77,16 +94,21 @@ func compileProps(document Document, nodes []scene.Node) scene.Props {
 		Controls:   scene.ControlOrbit,
 		Responsive: scene.Bool(true),
 		FillHeight: scene.Bool(true),
-		// The Studio is a review surface, so visual parity across the clean,
-		// staged, and applied states matters more than opportunistic backend
-		// switching. GoSX's WebGL path currently gives the physical board
-		// finishes and authored lights their most consistent presentation.
-		ForceWebGL:           scene.Bool(true),
-		PickSignalNamespace:  "studio.viewport",
-		SelectionInputSignal: "studio.viewport.selectedID",
-		GizmoInputSignal:     "studio.viewport.gizmoMode",
-		CameraInputSignal:    "studio.viewport.cameraIn",
-		CameraOutputSignal:   "studio.viewport.cameraOut",
+		// Prefer the modern GPU path on capable browsers while retaining GoSX's
+		// honest WebGL fallback for unsupported or lost devices. Interactive
+		// camera work follows the display's native refresh instead of quantizing
+		// 100/144 Hz panels through a 60 fps cap; the adaptive governor uses the
+		// 16.7 ms interaction budget and can trade DPR before cadence degrades.
+		PreferWebGPU:          scene.Bool(true),
+		AdaptiveQuality:       scene.Bool(true),
+		AdaptiveTargetFrameMS: 16.7,
+		AdaptiveWarmupFrames:  12,
+		AdaptivePostFX:        scene.Bool(true),
+		PickSignalNamespace:   "studio.viewport",
+		SelectionInputSignal:  "studio.viewport.selectedID",
+		GizmoInputSignal:      "studio.viewport.gizmoMode",
+		CameraInputSignal:     "studio.viewport.cameraIn",
+		CameraOutputSignal:    "studio.viewport.cameraOut",
 		Camera: scene.PerspectiveCamera{
 			Position: toSceneVec(document.Camera.Position),
 			Rotation: toSceneEuler(document.Camera.Rotation),

@@ -244,7 +244,7 @@ or copy agent output between tools.
 
 ## Local compatible-browser test
 
-The project pins the current GoSX release, `v0.54.2`. From the repository root:
+The project pins the current GoSX release, `v0.55.1`. From the repository root:
 
 ```bash
 cp .env.example .env
@@ -260,11 +260,14 @@ If `.env` already exists, keep it rather than overwriting it. Then:
 4. Confirm the Agent Collaboration panel reports four available tools.
 5. Ask the agent to inspect the scene, find `board`, focus it, and stage the
    rename-plus-material example above using the returned revision.
-6. Confirm the proposal card appears and the scene revision has not changed.
-7. Reload the same tab and confirm the proposal returns for the same browser
-   session while the canonical revision remains unchanged.
-8. Choose **Apply staged changes** and confirm the name and material both
-   change while the revision advances exactly once.
+6. Confirm the proposal card and **Agent preview · not committed** badge appear,
+   the board finish changes live, and the canonical scene revision does not.
+7. Orbit the still-mounted viewport, then choose **Apply staged changes** and
+   confirm the name and material reconcile in place while the revision advances
+   exactly once.
+8. As a separate resilience check, stage a fresh proposal, deliberately reload
+   the tab, and confirm the same-session proposal returns without changing the
+   canonical revision; discard it before the next demo run.
 
 For the hosted build, the same flow can be tested through ChatGPT's in-app
 browser or Chrome with WebMCP testing enabled. The hosted URL must be HTTPS and
@@ -272,23 +275,29 @@ reachable without local network access.
 
 ### Verified compatible client
 
-The complete public-module flow passed locally in Google Chrome
-152.0.7977.65 on Windows with `WebMCPTesting,DevToolsWebMCPSupport` enabled.
-Chrome exposed its native `Document.modelContext` getter and
-`ModelContext.registerTool`, discovered exactly the four Studio tools, and
-completed inspect, find, focus, a two-operation non-mutating preview, full
-same-session reload recovery, and visible-UI Apply. Canonical name, material,
-and revision stayed unchanged before approval; Apply advanced the revision
-exactly once; and runtime exception, console-error, failed-request, and
-HTTP-error lists were empty. Broader tests cover discard, stale rejection,
-group-scale preview, client-side light-scale validation, and shared reset. This
-is native Chrome WebMCP evidence; it is not a claim that ChatGPT's in-app
-browser has already been tested.
+The immutable [public deployment](https://gosx3d.m31labs.dev) passed 162/162
+stress assertions and 139/139 clean-recording assertions in Google Chrome 152
+on Windows with `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome exposed
+its native `Document.modelContext` getter and `ModelContext.registerTool`,
+discovered exactly the four Studio tools, and completed inspect, find, focus, a
+two-operation non-mutating preview, and visible-UI Apply. Canonical name,
+material, and revision stayed unchanged before approval; Apply advanced the
+revision exactly once; and the clean flow reset the shared scene afterward.
+WebGPU initialized, the run issued zero reload commands and one main-document
+request, and runtime, console, network, and HTTP failure lists were empty.
+
+The public health endpoint reported GoSX `0.55.1`. The image was built from
+commit `d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
+`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+Broader tests cover discard, stale rejection, group-scale preview, client-side
+light-scale validation, and shared reset. This is native Chrome WebMCP
+evidence; it is not a claim that ChatGPT's in-app browser has already been
+tested.
 
 Browser-free verification remains part of the repository's evidence floor:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.55.1 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...

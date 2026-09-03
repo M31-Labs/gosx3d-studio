@@ -109,7 +109,7 @@
       return "Find · " + String(data.totalMatches == null ? objects.length : data.totalMatches) + " match" + (Number(data.totalMatches) === 1 ? "" : "es") + (first.id ? " · " + String(first.id) : "") + (kinds[0] ? " · " + String(kinds[0]) : "");
     }
     if (tool === "scene_focus_object") {
-      return "Focus · " + String(data.object && data.object.id || "object") + " · UI only";
+      return "Focus · " + String(data.object && data.object.id || "object") + " · visible UI";
     }
     if (tool === "scene_preview_actions") {
       var receipt = data.receipt || {};
@@ -663,6 +663,8 @@
       governance: governance,
       preview: preview,
       materials: response.materials || {},
+      sceneCommands: Array.isArray(response.sceneCommands) ? response.sceneCommands : [],
+      reverseSceneCommands: Array.isArray(response.reverseSceneCommands) ? response.reverseSceneCommands : [],
       expiresAt: response.expiresAt || null
     };
     dispatch(EVENTS.proposal, eventDetail);

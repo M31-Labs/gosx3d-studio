@@ -17,9 +17,22 @@ import (
 
 var workspaceBinding struct {
 	sync.RWMutex
-	workspace *studio.Workspace
+	workspace               *studio.Workspace
+	bearerAutomationEnabled bool
 }
 
+// BindRuntime installs the process-owned page state. The caller supplies only
+// whether the already-resolved bearer token is usable; the credential itself
+// never crosses into page data or rendered HTML.
+func BindRuntime(workspace *studio.Workspace, bearerAutomationEnabled bool) {
+	workspaceBinding.Lock()
+	workspaceBinding.workspace = workspace
+	workspaceBinding.bearerAutomationEnabled = bearerAutomationEnabled
+	workspaceBinding.Unlock()
+}
+
+// BindWorkspace updates a switched project without changing the process-wide
+// automation authority established when the application was built.
 func BindWorkspace(workspace *studio.Workspace) {
 	workspaceBinding.Lock()
 	workspaceBinding.workspace = workspace
@@ -40,6 +53,12 @@ func boundWorkspace() *studio.Workspace {
 	workspaceBinding.RLock()
 	defer workspaceBinding.RUnlock()
 	return workspaceBinding.workspace
+}
+
+func bearerAutomationEnabled() bool {
+	workspaceBinding.RLock()
+	defer workspaceBinding.RUnlock()
+	return workspaceBinding.bearerAutomationEnabled
 }
 
 func publicDemoModeEnabled(value string) bool {
@@ -672,7 +691,7 @@ func init() {
 			if err != nil {
 				return nil, err
 			}
-			sceneProps, err := studio.CompileSelected(document, selected)
+			sceneProps, err := studio.CompileViewport(document)
 			if err != nil {
 				return nil, err
 			}
@@ -693,7 +712,7 @@ func init() {
 				"prefabs":        prefabsView(document),
 				"imageAssets":    imageAssetsView(document),
 				"play":           playView(boundWorkspace()),
-				"agent":          agentView(boundWorkspace(), strings.TrimSpace(os.Getenv("STUDIO_ACTION_TOKEN")) != ""),
+				"agent":          agentView(boundWorkspace(), bearerAutomationEnabled()),
 				"cameraHome":     fmt.Sprintf("%g,%g,%g", document.Camera.Position.X, document.Camera.Position.Y, document.Camera.Position.Z),
 				"history":        historyView(boundWorkspace()),
 				"historySummary": fmt.Sprintf("%d entities · revision %04d · command history below", len(document.Entities), document.Revision),

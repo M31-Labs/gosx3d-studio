@@ -27,7 +27,7 @@ jobs:
       - name: Module pins are current
         run: go mod verify && go mod tidy -diff
       - name: GoSX component contract
-        run: go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
+        run: go run m31labs.dev/gosx/cmd/gosx@v0.55.1 check app/page.gsx
       - name: Arbiter WebMCP policy contract
         run: |
           go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
@@ -36,6 +36,8 @@ jobs:
         run: go vet ./...
       - name: Unit and integration tests
         run: go test ./...
+      - name: WebMCP live preview lifecycle
+        run: node --test scripts/studio-webmcp-preview.test.js
       # The command bus, the workspace caches, and the background evidence run
       # all share state across goroutines. Run them under the detector.
       - name: Race detector

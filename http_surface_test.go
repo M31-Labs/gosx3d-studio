@@ -114,6 +114,76 @@ func TestReadRoutesAnswerWithoutCredentials(t *testing.T) {
 	t.Logf("answered anonymous reads on %d read-authority routes", checked)
 }
 
+func TestRenderedAutomationStatusUsesResolvedStudioConfig(t *testing.T) {
+	t.Setenv("GOSX_ENV", "development")
+	for _, test := range []struct {
+		name        string
+		configured  string
+		environment string
+		want        string
+		dontWant    string
+	}{
+		{
+			name:       "private token enables automation",
+			configured: "private-render-test-token",
+			want:       "bearer automation enabled",
+			dontWant:   "automation API disabled",
+		},
+		{
+			name:        "empty token disables automation",
+			environment: "environment-must-not-enable-automation",
+			want:        "automation API disabled",
+			dontWant:    "bearer automation enabled",
+		},
+		{
+			name:        "published placeholder disables automation",
+			configured:  "replace-with-a-local-action-token",
+			environment: "environment-must-not-enable-automation",
+			want:        "automation API disabled",
+			dontWant:    "bearer automation enabled",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("STUDIO_ACTION_TOKEN", test.environment)
+			workspace, err := studio.OpenWorkspace(t.TempDir(), studio.SampleDocument())
+			if err != nil {
+				t.Fatal(err)
+			}
+			app, err := buildStudioApp(studioConfig{
+				root:          ".",
+				appName:       "GoSX 3D Studio (automation status test)",
+				workspace:     workspace,
+				actionToken:   test.configured,
+				sessionSecret: "a-private-secret-for-tests-only-0123456789",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.Header.Set("Accept", "text/html")
+			response := httptest.NewRecorder()
+			app.Build().ServeHTTP(response, request)
+			if response.Code != http.StatusOK {
+				t.Fatalf("render page = %d: %s", response.Code, response.Body.String())
+			}
+			body := response.Body.String()
+			if !strings.Contains(body, test.want) {
+				t.Fatalf("rendered page omitted %q", test.want)
+			}
+			if strings.Contains(body, test.dontWant) {
+				t.Fatalf("rendered page contradicted config with %q", test.dontWant)
+			}
+			if test.configured != "" && strings.Contains(body, test.configured) {
+				t.Fatal("rendered page leaked the configured action token")
+			}
+			if test.environment != "" && strings.Contains(body, test.environment) {
+				t.Fatal("rendered page leaked the unrelated environment token")
+			}
+		})
+	}
+}
+
 func TestTransactionRoutesEnforceRevisionAndReportConflict(t *testing.T) {
 	handler, workspace := newTestStudio(t)
 	document, err := workspace.Snapshot()

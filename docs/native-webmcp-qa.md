@@ -1,8 +1,10 @@
 # Native WebMCP verification
 
-Verified September 2, 2026 across the current source tree, the immutable
-release image, the canonical local server in native Windows Chrome, and a
-separate deployed [public demo](https://gosx3d.m31labs.dev) run.
+Completed September 2, 2026 evidence covers the immutable GoSX `v0.55.1`
+[public demo](https://gosx3d.m31labs.dev) in native Windows Chrome. The public
+health endpoint reported `0.55.1`; the deployed image was built from commit
+`d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
+`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
 
 ## Client
 
@@ -10,11 +12,11 @@ separate deployed [public demo](https://gosx3d.m31labs.dev) run.
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
-- Public GoSX `v0.54.2` for the current local verification run; the earlier
-  deployed-origin pass used `v0.54.0` before the public app rollout
+- Public GoSX `v0.55.1`, including the upstream responsive `fillHeight`
+  stabilization
 
-This verifies the public Google Chrome path accepted by the Challenge. A final
-manual replay in ChatGPT's in-app browser remains a separate submission gate.
+This verifies the compatible Google Chrome path accepted by the Challenge.
+ChatGPT's in-app browser remains useful optional cross-client assurance.
 
 ## WebMCP result
 
@@ -28,15 +30,15 @@ Chrome discovered and invoked exactly these four webpage tools:
 The preview tool schema exposed exactly three operation kinds:
 `rename-entity`, `set-transform`, and `assign-material`.
 
-The latest current-source, public-module run proved:
+The public GoSX `v0.55.1` stress run passed 162/162 acceptance assertions, and
+the clean recording run passed 139/139. Together they proved this same-document
+flow:
 
 - native state inspection, stable-ID search, and visible focus;
 - a two-operation `Board` to `Launch Board` rename plus dedicated `Brushed
   Steel` (`board-steel-material`) board-finish preview;
 - all four visible tool-flow steps completing;
 - unchanged canonical name, material, and revision before approval;
-- restoration of the same session-owned proposal and Apply/Discard controls
-  after a full page reload;
 - a visible Apply action outside the registered tool surface that advanced the
   canonical revision exactly once and applied both reviewed changes;
 - a query-free reset that cleared the browser focus and left a deterministic
@@ -55,17 +57,21 @@ The latest current-source, public-module run proved:
 - a coordinate-clicked, browser-confirmed visible reset back to the sample
   scene.
 
-The Apply and reset both refreshed the rendered hierarchy, Inspector, footer,
-and Agent Collaboration panel through managed GoSX navigation. Neither required
-a page reload or a second main-document request.
+Apply and reset reconciled the hierarchy, Inspector, footer, and Agent
+Collaboration panel in place. The primary demo flow stayed in one main
+document: it required no page reload or second main-document request, and it
+preserved the mounted Scene3D surface and camera. Deliberate full-reload
+persistence is a separate historical recovery test documented below, not a
+step in the demo path.
 
 ## Core Studio result
 
-The same native run also verified that the product surrounding WebMCP is real,
-not a protocol-only fixture:
+The same public native runs also verified that the product surrounding WebMCP
+is real, not a protocol-only fixture:
 
-- Scene3D mounted a marked `623 × 518` canvas through WebGL with GPU rendering,
-  ready/revealed state, and no DOM fallback;
+- Scene3D negotiated its WebGPU-first path in native Windows Chrome, reached
+  ready/revealed state, and used neither the WebGL capability fallback nor a
+  DOM fallback in that run;
 - the canonical selected object seeded GoSX's shared selection signal;
 - Select displayed no transform helper, while Move, Rotate, and Scale rendered
   three visibly distinct helper sets;
@@ -74,34 +80,23 @@ not a protocol-only fixture:
 - runtime exceptions, console errors, log errors, and HTTP responses at or
   above 400 were all empty.
 
-Three best-effort client-event telemetry requests were canceled by managed DOM
-morphs. They produced no HTTP error response and did not affect the application
-or the verification result.
+The public GoSX `v0.55.1` run also confirmed this material contract:
 
-### GoSX v0.54.2 hybrid-board and solid-selection proof
+- glossy Coral Pieces use lit Standard PBR with authored
+  color `#c8321f`, roughness `0.32`, and clearcoat `0.65`;
+- the default polished board face uses Standard PBR with color `#76513a`,
+  roughness `0.38`, and clearcoat `0.42`, while the thin Carved Grain Inlay
+  retained the portable Selena `CarvedWood` surface program.
+
+### Historical explicit-reload persistence (GoSX v0.54.2)
 
 The public `v0.54.2`-backed build was reloaded with `ignoreCache: true` in
 native Windows Chrome 152.0.7977.65. Browser-side health reported `0.54.2`;
-Scene3D completed renderer negotiation and settled on its live WebGL path for
-the final board finish. All four WebMCP tools registered, and Runtime, Log,
-Network, and HTTP error collections were empty.
-
-The September 2 rerun exercised the final 150-entity sample and its 145 compiled
-mesh objects. Its assignable face has a hybrid finish library: Carved Wood,
-Imperial Jade, Midnight Lacquer, and Moon Porcelain use portable Selena surface
-programs with physical fallback metadata, while Brushed Steel remains Standard
-PBR. The machined rim, blackened-steel chassis, inner shadow fillet, and all 121
-countersunk sockets also remain Standard PBR. The face is isolated from the
-chassis; two authored, solid torus layers form its rim and fillet, and each
-socket is a solid sphere mesh flattened to a `0.28` Y scale so only a thin
-crescent rises above the face.
-
-GoSX v0.54.2 keeps a selected Standard PBR surface solid and uses a restrained
-selection lift instead of generated triangle-edge overlays. The Brushed Steel
-face and PBR rim, chassis, and sockets therefore avoid cap-fan and triangulation
-spokes. Explicit `outlineColor` / positive `outlineWidth` styling and
-`wireframe: true` remain supported opt-ins; the Selena finishes continue to own
-their selection treatment without generated topology lines.
+Scene3D completed renderer negotiation and settled on its then-current WebGL
+path. All four WebMCP tools registered, and Runtime, Log, Network, and HTTP
+error collections were empty. This older run remains evidence only for the
+explicit recovery boundary; the current WebGPU and material contracts are the
+ones listed above.
 
 The same native Windows Chrome 152.0.7977.65 run completed Inspect, Find, Focus,
 and Stage, resolved stable ID `board` among 150 entities, and staged the atomic
@@ -117,10 +112,10 @@ responses were all empty.
 
 ## Repository evidence floor
 
-The final source tree also passes:
+The source tree pinned to the public GoSX `v0.55.1` module passes:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.54.2 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.55.1 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go mod verify
@@ -132,19 +127,18 @@ go run ./cmd/studio-certify
 ./scripts/render-build.sh
 ```
 
-The packaged production-mode server then passed a clean 1280 × 800 Chrome load
-behind local TLS with a real WebGL canvas, exact page fit, and no page, console,
-or network errors. The live root was dynamic and `no-store`, issued a
-`Secure; HttpOnly; SameSite=Lax` session cookie, and accepted the
-CSRF-protected canvas selection without a reload. No session-bound page is
-included in the static export.
-
-A separate earlier production/TLS run exercised the deployed
+The completed GoSX `v0.55.1` production/TLS run exercised the deployed
 `https://gosx3d.m31labs.dev` origin through Chrome's native WebMCP surface with
-no injected compatibility object. It discovered exactly four tools, completed
-inspect/search/focus, and staged a governed two-operation preview through the
-secure session/CSRF boundary. The same proposal and visible Apply control
-survived a full reload. Apply changed `Board` to `Launch Board`, assigned
-`Cobalt Pieces`, and advanced the canonical revision exactly once. The run then
-reset the shared scene, and its runtime, page, console, network-failure, and
-HTTP-error lists were empty.
+no injected compatibility object. WebGPU initialized first, exactly four tools
+completed inspect/search/focus and a governed Brushed Steel preview, and the
+visible human Apply advanced the canonical revision exactly once. The clean
+recording run restored the shared scene afterward. Both runs stayed in one main
+document with zero reload commands and one main-document request; runtime,
+console, network, and HTTP failure collections were empty. The live root
+remained dynamic and `no-store`, with session/CSRF protection.
+
+GoSX `v0.55.1` includes the upstream `fillHeight` fix that derives responsive
+height from the mount's layout box instead of feeding a stale canvas aspect
+ratio back into resize. That keeps grid- and flex-bound Scene3D canvases inside
+the workbench during hydration and soft navigation; the public acceptance runs
+verified that released path.

@@ -678,6 +678,37 @@ time,
   font-weight: 500;
 }
 
+.viewport-preview-badge {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-author);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-author-soft) 82%, var(--color-canvas));
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  box-shadow: 0 var(--space-xs) var(--space-lg) var(--color-shadow);
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.viewport-preview-badge[hidden] {
+  display: none;
+}
+
+.viewport-preview-badge span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--radius-round);
+  background: var(--color-author);
+  box-shadow: 0 0 var(--space-sm) var(--color-author);
+}
+
 .studio-scene {
   position: absolute;
   inset: 0;
@@ -1500,6 +1531,10 @@ time,
   background: color-mix(in srgb, var(--color-author) 4%, var(--color-panel));
 }
 
+.agent-panel.has-pending-proposal .agent-actions {
+  display: none;
+}
+
 .proposal > * {
   min-width: 0;
 }
@@ -1770,6 +1805,10 @@ time,
 .studio-shell[data-studio-demo="true"].project-panel-collapsed .workbench {
   grid-template-rows: minmax(28rem, 1fr);
   grid-template-areas: "hierarchy viewport inspector agent";
+}
+
+.studio-shell[data-studio-demo="true"] .telemetry-dock {
+  height: clamp(6.5rem, 12vh, 7.5rem);
 }
 
 .studio-shell[data-studio-demo="true"] .telemetry-content {

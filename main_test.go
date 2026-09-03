@@ -21,10 +21,26 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "__gosx_page_nav"} {
+	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "__gosx_page_nav", "studio.viewport.selectedID", "applyLocalSelection", "a[data-entity-id]", "[data-hierarchy-row]", "markInspectorSelectionPending", "form[data-selection-bound]", "data-selection-pending-enabled", "gosx:navigate", "__gosxStudioSelection"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("selection bridge missing %q", required)
 		}
+	}
+	page, err := os.ReadFile("app/page.gsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := strings.Count(string(page), `data-selection-bound="true"`)
+	targets := strings.Count(string(page), `name="target"`)
+	keys := strings.Count(string(page), `data-gosx-key={`)
+	if bound != targets+1 {
+		t.Fatalf("selection-bound forms = %d, want %d target forms plus setMaterial", bound, targets+1)
+	}
+	if keys != bound {
+		t.Fatalf("selection-bound form keys = %d, want %d", keys, bound)
+	}
+	if !strings.Contains(string(page), `data-gosx-key={"material-" + data.inspector.id + "-" + data.inspector.materialId}`) {
+		t.Fatal("material editor key does not reset when either entity or bound material changes")
 	}
 }
 
@@ -153,6 +169,10 @@ func TestStudioActionAuthentication(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/studio/transactions/call", nil)
 	if err := authorizeAction(request, "token"); err == nil {
 		t.Fatal("missing bearer token was accepted")
+	}
+	request.Header.Set("Authorization", "Bearer replace-with-a-local-action-token")
+	if err := authorizeAction(request, "replace-with-a-local-action-token"); err == nil {
+		t.Fatal("published action-token placeholder was accepted")
 	}
 	request.Header.Set("Authorization", "Bearer token")
 	if err := authorizeAction(request, "token"); err != nil {
@@ -308,13 +328,13 @@ func TestRenderBlueprintBuildsAndRunsThePackagedGoSXArtifact(t *testing.T) {
 		`studio_tinygo_version="0.41.1"`,
 		"sha256sum --check --status",
 		`tinygo${studio_tinygo_version}.linux-${studio_tinygo_arch}.tar.gz`,
-		"go run m31labs.dev/gosx/cmd/gosx@v0.54.2 build --prod .",
+		"go run m31labs.dev/gosx/cmd/gosx@v0.55.1 build --prod .",
 	} {
 		if !strings.Contains(buildContents, required) {
 			t.Fatalf("Render build script is missing reproducibility contract %q", required)
 		}
 	}
-	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.54.2 build ."} {
+	for _, forbidden := range []string{"go build ./", "go run .", "build --dev", "cmd/gosx@v0.55.1 build ."} {
 		if strings.Contains(buildContents, forbidden) {
 			t.Fatalf("Render build script contains non-production fallback %q", forbidden)
 		}
