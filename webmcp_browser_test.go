@@ -460,6 +460,11 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	}
 	for _, required := range []string{
 		`.agent-panel.has-pending-proposal .agent-actions`,
+		`.agent-panel.has-pending-proposal .webmcp-flow`,
+		`grid-template-columns: auto minmax(0, 1fr)`,
+		`.agent-panel.has-pending-proposal::after`,
+		`flex: 0 0 var(--space-xl)`,
+		`.studio-shell[data-studio-demo="true"] .application-menu > button:disabled`,
 		`display: none`,
 	} {
 		if !strings.Contains(styles, required) {

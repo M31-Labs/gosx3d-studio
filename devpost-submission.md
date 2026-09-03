@@ -238,6 +238,19 @@ native Windows Chrome:
 
 ## Submission Readiness Notes
 
+- [ ] Complete the live Devpost project, which is still an unpublished
+      `Untitled` pre-draft: set the title, tagline, description, Built With
+      list, live URL, public repository, gallery/thumbnail, and required form
+      answers from this document.
+- [ ] Commit, merge, and deploy the current compact-review polish. It keeps
+      temporarily locked Save/Undo/Redo controls visible, aligns the proposal
+      cleanly at 1024×768 and 1280×800, and keeps the complete four-call rail,
+      receipts, diff, and human decision visible at 1440×900.
+- [ ] Repeat the short public native-WebMCP acceptance after that deployment;
+      do not reuse the previous deployment evidence for the new image.
+- [ ] Record and publish the 2:28 YouTube demo with audio, then verify the app,
+      repository, and video while signed out.
+- [ ] Supply the six owner-confirmed answers clearly marked below.
 - [x] Document existing foundations separately from Challenge-period work.
 - [x] Verify local GoSX `v0.55.1` in native Windows Chrome: 162/162, WebGPU,
       four tools, zero reload commands, one main-document request, clean reset.
@@ -254,9 +267,6 @@ native Windows Chrome:
       paired activity, the same mounted canvas, zero document loads, five
       managed same-document transitions, zero keyboard camera writes, and no
       failures.
-- [ ] Record and publish the 2:28 YouTube demo with audio, then verify it while
-      signed out.
-- [ ] Supply the six owner-confirmed answers clearly marked below.
 
 Nothing in this draft has been sent to or updated on Devpost.
 
