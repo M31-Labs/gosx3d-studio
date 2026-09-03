@@ -175,6 +175,11 @@
     else if (event.key === "ArrowUp") next = links[Math.max(index - 1, 0)];
     else if (event.key === "Home") next = links[0];
     else if (event.key === "End") next = links[links.length - 1];
+    else if (event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      current.click();
+      return;
+    }
     else return;
     event.preventDefault();
     syncHierarchyRoving(next);

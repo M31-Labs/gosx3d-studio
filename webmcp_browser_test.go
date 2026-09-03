@@ -283,8 +283,8 @@ func TestWebMCPHumanReviewRemainsASeparateUIStep(t *testing.T) {
 	if !strings.Contains(review, `["position", "rotation", "scale"]`) {
 		t.Fatal("human review does not identify the transform field that actually changed")
 	}
-	uiScript := strings.Index(page, `/studio-webmcp-ui.js`)
-	adapterScript := strings.Index(page, `/studio-webmcp.js`)
+	uiScript := strings.Index(page, `script src="/studio-webmcp-ui.js"`)
+	adapterScript := strings.Index(page, `script src="/studio-webmcp.js"`)
 	if uiScript < 0 || adapterScript < 0 || uiScript > adapterScript {
 		t.Fatal("review UI must subscribe before the adapter registers and emits status")
 	}
@@ -469,11 +469,19 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	for _, required := range []string{
 		"Canonical material",
 		"One ephemeral scene shared across visitors.",
-		"Delegate scene busywork. Keep creative control.",
+		"Find 1 object in 150. Stage 2 exact edits. Keep the only Apply.",
+		"Native WebMCP",
+		"scene_get_state",
+		"scene_find_objects",
+		"scene_focus_object",
+		"scene_preview_actions",
 		"0 commit tools",
 		"no auto-commit",
 		"WebMCP tool receipts",
 		"Try it in 30 seconds",
+		"data-webmcp-preview-changes",
+		"data-webmcp-approval-outcome",
+		"data-webmcp-review-gate",
 	} {
 		if !strings.Contains(page, required) {
 			t.Errorf("review truth copy is missing %q", required)
@@ -490,6 +498,8 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 		"awaiting your review",
 		"Human approved ",
 		"same reviewed transaction",
+		"showApprovalOutcome",
+		"Human-only approval · creates revision ",
 	} {
 		if !strings.Contains(review, required) {
 			t.Errorf("judge-facing proposal outcome copy is missing %q", required)
@@ -498,7 +508,10 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	for _, required := range []string{
 		`.studio-shell[data-studio-demo="true"] .judge-value-card`,
 		`.scene-stage[data-webmcp-preview="true"] .judge-value-card`,
-		`--panel-agent: 21rem`,
+		`--panel-agent: 23rem`,
+		`.viewport-preview-card`,
+		`.viewport-approval-outcome`,
+		`position: sticky`,
 		`pointer-events: none`,
 	} {
 		if !strings.Contains(styles, required) {
@@ -512,6 +525,46 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	}
 	if !strings.Contains(adapter, "· visible UI") {
 		t.Error("focus receipt does not distinguish visible UI synchronization")
+	}
+}
+
+func TestPublicDemoStatusPollingCannotRaceAnActiveReset(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	discover := javascriptFunctionSource(t, review, "discoverDemoState")
+	requireSourceFragments(t, discover, "serialized demo status polling",
+		`demoResetInFlight || demoStatusInFlight`,
+		`generation = ++demoStatusGeneration`,
+		`generation !== demoStatusGeneration || demoResetInFlight`,
+		`demoStatusInFlight = false`,
+	)
+	reset := javascriptFunctionSource(t, review, "resetDemo")
+	requireSourceFragments(t, reset, "exclusive public demo reset",
+		`if (demoResetInFlight) return`,
+		`demoResetInFlight = true`,
+		`demoStatusGeneration++`,
+		`demoResetInFlight = false`,
+	)
+	if !strings.Contains(review, "Could not verify the shared baseline · retrying automatically.") {
+		t.Fatal("a transient demo-status failure still disappears instead of preserving a visible retry state")
+	}
+}
+
+func TestStudioCameraHotkeysDoNotCollideWithHierarchyNavigation(t *testing.T) {
+	camera := readWebMCPFixture(t, "public/studio-camera.js")
+	interactions := readWebMCPFixture(t, "public/studio-interactions.js")
+	page := readWebMCPFixture(t, "app/page.gsx")
+	requireSourceFragments(t, camera, "interactive camera shortcut guard",
+		`isInteractiveTarget(event.target)`,
+		`[role='treeitem']`,
+		`event.defaultPrevented`,
+	)
+	requireSourceFragments(t, interactions, "keyboard-operable hierarchy",
+		`event.key === " "`,
+		`current.click()`,
+		`syncHierarchyRoving(next)`,
+	)
+	if !strings.Contains(page, `data-hierarchy-row data-entity-name={item.name} data-hierarchy-id={item.id} data-entity-type={item.kind} role="none"`) {
+		t.Fatal("hierarchy row wrappers must be role=none so links own the treeitem semantics")
 	}
 }
 

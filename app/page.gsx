@@ -161,7 +161,7 @@ func Page() Node {
 				<span id="studio-hierarchy-search-status" class="sr-only" aria-live="polite">{data.entityCount} scene entities</span>
 				<ul id="studio-hierarchy-tree" class="tree hierarchy-tree" role="tree" aria-label="Scene entities">
 					<Each of={data.hierarchy} as="item">
-						<li class={item.class} data-hierarchy-row data-entity-name={item.name} data-hierarchy-id={item.id} data-entity-type={item.kind}>
+						<li class={item.class} data-hierarchy-row data-entity-name={item.name} data-hierarchy-id={item.id} data-entity-type={item.kind} role="none">
 							<a href={"/?selection=" + item.id} data-gosx-link data-entity-id={item.id} role="treeitem" aria-level={item.level} aria-selected={item.selected} tabindex={item.tabIndex} aria-label={"Select " + item.name} title={item.name + " · " + item.id}>
 								<code>{item.code}</code>
 								<span class="entity-kind">{item.kind}</span>
@@ -212,9 +212,20 @@ func Page() Node {
 					</div>
 				</header>
 				<div class="scene-stage" data-selection-id={data.inspector.id} data-camera-home={data.cameraHome} data-camera-focus-x={data.inspector.x} data-camera-focus-y={data.inspector.y} data-camera-focus-z={data.inspector.z}>
-					<div class="viewport-preview-badge" data-webmcp-preview-badge hidden aria-live="polite">
-						<span></span>
-						Agent preview · not committed
+					<aside class="viewport-preview-card" data-webmcp-preview-badge hidden role="status" aria-live="polite" aria-label="Agent preview · not committed; awaiting human approval">
+						<header>
+							<span class="viewport-preview-title"><span aria-hidden="true"></span><strong>Agent preview</strong></span>
+							<small>not committed</small>
+						</header>
+						<ul class="viewport-preview-changes" data-webmcp-preview-changes hidden aria-label="Previewed scene changes"></ul>
+						<p data-webmcp-preview-revision>Canonical revision unchanged · human Apply only</p>
+					</aside>
+					<div class="viewport-approval-outcome" data-webmcp-approval-outcome hidden role="status" aria-live="polite">
+						<span class="viewport-approval-check" aria-hidden="true">✓</span>
+						<span>
+							<strong>Human approved</strong>
+							<small data-webmcp-approval-outcome-copy>Canonical scene updated</small>
+						</span>
 					</div>
 					<div class="runtime-readout" aria-label="Observed runtime telemetry">
 						<span>SCENE IR</span>
@@ -226,11 +237,11 @@ func Page() Node {
 					</div>
 					<section class="judge-value-card" aria-label="Why agent-assisted scene editing is useful">
 						<span class="overline">Agent-assisted scene editing</span>
-						<strong>Delegate scene busywork. Keep creative control.</strong>
-						<p>A browser agent finds exact objects and stages multi-edit previews in the live scene. You inspect the result and decide.</p>
+						<strong>Find 1 object in 150. Stage 2 exact edits. Keep the only Apply.</strong>
+						<p>A browser agent handles precise scene busywork in the live viewport. You inspect the reversible result and decide.</p>
 						<ul aria-label="Demo capabilities">
-							<li>150 entities</li>
-							<li>4 WebMCP tools</li>
+							<li>3 action types</li>
+							<li>12 edits max</li>
 							<li>0 commit tools</li>
 						</ul>
 					</section>
@@ -804,6 +815,19 @@ func Page() Node {
 					</div>
 					<p class="webmcp-status-copy" data-webmcp-status-message>The complete human editing surface remains available while WebMCP initializes.</p>
 				</div>
+				<details class="webmcp-tool-disclosure" data-webmcp-idle-only>
+					<summary>
+						<span>Native WebMCP</span>
+						<strong>4 registered tools</strong>
+					</summary>
+					<ul aria-label="Registered WebMCP tools">
+						<li><code>scene_get_state</code><span>inspect canonical state</span></li>
+						<li><code>scene_find_objects</code><span>find stable object IDs</span></li>
+						<li><code>scene_focus_object</code><span>focus the visible Studio UI</span></li>
+						<li><code>scene_preview_actions</code><span>stage a reversible preview</span></li>
+					</ul>
+					<a href="https://github.com/M31-Labs/gosx3d-studio/blob/main/public/studio-webmcp.js" target="_blank" rel="noreferrer">View registerTool source ↗</a>
+				</details>
 				<div class="webmcp-authority-cue" role="note" aria-label="Authority boundary: agents can inspect, focus, and stage proposals. A person must review and apply changes.">
 					<span class="webmcp-agent-authority">
 						<strong>Agent</strong>
@@ -827,6 +851,7 @@ func Page() Node {
 					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Brushed Steel material. Explain the revision boundary.</p>
 					<button type="button" data-webmcp-copy-prompt disabled>Copy demo prompt</button>
 					<small class="webmcp-mission-steps">1 Copy task · 2 Watch four calls · 3 Review and decide</small>
+					<small class="webmcp-chrome-help">Chrome 149+: DevTools → Application → WebMCP</small>
 					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
 				</section>
 				<section class="webmcp-trace-shell" aria-labelledby="webmcp-trace-title">
@@ -883,6 +908,7 @@ func Page() Node {
 						<p data-webmcp-proposal-policy-reasons>Stage a proposal to see the policy decision for every operation.</p>
 					</details>
 					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
+						<small class="webmcp-review-gate" data-webmcp-review-gate>Human-only approval · creates the next revision</small>
 						<button type="button" data-webmcp-discard>Discard</button>
 						<button type="button" class="primary" data-webmcp-commit>Apply staged changes</button>
 					</div>
