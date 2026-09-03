@@ -1,5 +1,5 @@
 {
-  "defaultProfile": "starter",
+  "defaultProfile": "studio-shell",
   "documentOperations": {
     "entityCount": 1000,
     "iterationsForGate": 5,
@@ -17,12 +17,13 @@
   },
   "profiles": {
     "studio-shell": {
-      "description": "Initial server-rendered GoSX 3D Studio shell budget.",
+      "description": "Interactive Scene3D Studio shell with rounded cold-cache native-Windows payload ceilings and release headroom.",
       "assertions": [
         "lcp <= 2500",
         "long_tasks <= 2",
         "tbt <= 150",
-        "js_total_kb <= 120"
+        "js_total_kb <= 1500",
+        "network_kb <= 900"
       ]
     }
   },

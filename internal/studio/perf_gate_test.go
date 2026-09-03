@@ -50,6 +50,42 @@ func loadDocumentOperationBudgets(t *testing.T) documentOperationBudgets {
 	return *manifest.DocumentOperations
 }
 
+func TestPerfBudgetProfilesResolve(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "perf-budget.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		DefaultProfile string `json:"defaultProfile"`
+		Profiles       map[string]struct {
+			Assertions []string `json:"assertions"`
+		} `json:"profiles"`
+		Routes []struct {
+			URL     string `json:"url"`
+			Profile string `json:"profile"`
+		} `json:"routes"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.DefaultProfile == "" {
+		t.Fatal("perf-budget.json must declare defaultProfile")
+	}
+	if _, ok := manifest.Profiles[manifest.DefaultProfile]; !ok {
+		t.Fatalf("defaultProfile %q does not name a configured profile", manifest.DefaultProfile)
+	}
+	for name, profile := range manifest.Profiles {
+		if len(profile.Assertions) == 0 {
+			t.Errorf("profile %q has no assertions", name)
+		}
+	}
+	for _, route := range manifest.Routes {
+		if _, ok := manifest.Profiles[route.Profile]; !ok {
+			t.Errorf("route %q names missing profile %q", route.URL, route.Profile)
+		}
+	}
+}
+
 func syntheticPerfDocument(t *testing.T, entityCount int) Document {
 	t.Helper()
 	document := SampleDocument()
