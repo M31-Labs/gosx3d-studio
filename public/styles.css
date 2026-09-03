@@ -1792,6 +1792,16 @@ time,
   display: none;
 }
 
+.agent-panel.has-pending-proposal .webmcp-flow {
+  padding-block: var(--space-xs);
+}
+
+.agent-panel.has-pending-proposal .webmcp-flow li {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: start;
+}
+
 .proposal > * {
   min-width: 0;
 }
@@ -2120,7 +2130,7 @@ time,
 }
 
 .studio-shell[data-studio-demo="true"] .desktop-only-control,
-.studio-shell[data-studio-demo="true"] .application-menu button:disabled,
+.studio-shell[data-studio-demo="true"] .application-menu > button:disabled,
 .studio-shell[data-studio-demo="true"] .workspace-tabs button:disabled,
 .studio-shell[data-studio-demo="true"] .tool-bar button:disabled,
 .studio-shell[data-studio-demo="true"] .telemetry-dock nav button:disabled,
@@ -2267,6 +2277,11 @@ time,
 
   .application-menu button {
     padding: 0 var(--space-xs);
+  }
+
+  .agent-panel.has-pending-proposal::after {
+    content: "";
+    flex: 0 0 var(--space-xl);
   }
 
   .webmcp-authority-cue {
