@@ -4,8 +4,9 @@ Primary take: use `scripts/record-public-demo.mjs` to cue an existing
 **native Windows Chrome 149+** tab. The helper never launches a browser, refuses
 a non-Windows target, invokes the four native WebMCP tools in a fixed order,
 and deliberately leaves Apply to the person. Chrome DevTools' manual **Run
-tool** flow is the immediate backup. Full narration is in
-[the demo video script](demo-video-script.md).
+tool** flow is the immediate backup. Use the clean
+[narration card](demo-narration.md) while recording; production direction is in
+[the full demo script](demo-video-script.md).
 
 ## Timeline
 
