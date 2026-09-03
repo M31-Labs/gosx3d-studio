@@ -8,9 +8,11 @@ package studio
 
 const carvedWoodSelena = `
 material CarvedWood {
-    param darkWalnut : color = rgb(0.07, 0.025, 0.012)
-    param warmWalnut : color = rgb(0.30, 0.12, 0.05)
-    param satinLift  : float = 0.025
+    // Keep the heartwood above near-black so the grain survives the
+    // tone-mapped WebGPU display path and still reads as warm walnut.
+    param darkWalnut : color = rgb(0.16, 0.065, 0.025)
+    param warmWalnut : color = rgb(0.66, 0.32, 0.14)
+    param satinLift  : float = 0.045
     surface(geo) -> color {
         let grainLine = sin(geo.uv.x * 54.0 + sin(geo.uv.y * 10.0) * 1.6)
         let grain     = grainLine * 0.5 + 0.5
@@ -75,7 +77,7 @@ material MoonPorcelain {
 func checkerMaterials() map[ID]Material {
 	return map[ID]Material{
 		"board-material": {
-			ID: "board-material", Name: "Carved Wood", Color: "#5f4032",
+			ID: "board-material", Name: "Carved Wood", Color: "#7a4728",
 			Roughness: 0.5, Metalness: 0, Clearcoat: 0.24, Sheen: 0.08,
 			Selena: &SelenaShader{Material: "CarvedWood", Source: carvedWoodSelena},
 		},

@@ -1,6 +1,7 @@
 package studio
 
 import (
+	"strings"
 	"testing"
 
 	"m31labs.dev/gosx/scene"
@@ -46,6 +47,20 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		}
 		if material.Selena == nil {
 			t.Fatalf("board finish %q is missing its portable Selena surface program", id)
+		}
+	}
+	wood := document.Materials["board-material"]
+	if wood.Color != "#7a4728" || wood.Roughness != 0.5 || wood.Metalness != 0 ||
+		wood.Clearcoat != 0.24 || wood.Sheen != 0.08 {
+		t.Fatalf("Carved Wood physical fallback = %+v", wood)
+	}
+	for _, authoredLift := range []string{
+		"rgb(0.16, 0.065, 0.025)",
+		"rgb(0.66, 0.32, 0.14)",
+		"float = 0.045",
+	} {
+		if !strings.Contains(wood.Selena.Source, authoredLift) {
+			t.Fatalf("Carved Wood Selena source is missing calibrated display lift %q", authoredLift)
 		}
 	}
 	if material := document.Materials["board-steel-material"]; material.Selena != nil {
