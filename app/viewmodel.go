@@ -634,14 +634,14 @@ func modelingView(document studio.Document, workspace *studio.Workspace, selecte
 func agentView(workspace *studio.Workspace, tokenConfigured bool) map[string]any {
 	view := map[string]any{
 		"tokenConfigured":  fmt.Sprint(tokenConfigured),
-		"authority":        "Open inspection · session-owned proposals · human review · bearer automation enabled",
+		"authority":        "WebMCP proposals stop at a reversible preview · you decide whether to apply them · bearer automation enabled",
 		"proposalPresent":  false,
 		"proposalSummary":  "No staged WebMCP proposal is awaiting review.",
 		"proposalRevision": "—", "proposalAffected": "—", "proposalFingerprint": "—", "proposalActor": "—",
 		"agentCount": "0", "humanCount": "0",
 	}
 	if !tokenConfigured {
-		view["authority"] = "Open inspection · session-owned proposals · human review · automation API disabled"
+		view["authority"] = "WebMCP proposals stop at a reversible preview · you decide whether to apply them · automation API disabled"
 	}
 	if workspace == nil {
 		return view

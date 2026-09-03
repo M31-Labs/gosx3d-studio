@@ -47,7 +47,7 @@ func Page() Node {
 		</header>
 		<nav class="workspace-tabs" aria-label="Studio workspaces">
 			<button type="button" class="active" aria-current="page">Layout</button>
-			<span class="demo-mode-label">PUBLIC DEMO · GOVERNED AGENT REVIEW</span>
+			<span class="demo-mode-label">PUBLIC DEMO · AGENT PREP · HUMAN APPROVAL</span>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Modeling</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Sculpt</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Rigging</button>
@@ -224,6 +224,16 @@ func Page() Node {
 						<span>REVISION</span>
 						<strong>{data.revision}</strong>
 					</div>
+					<section class="judge-value-card" aria-label="Why agent-assisted scene editing is useful">
+						<span class="overline">Agent-assisted scene editing</span>
+						<strong>Delegate scene busywork. Keep creative control.</strong>
+						<p>A browser agent finds exact objects and stages multi-edit previews in the live scene. You inspect the result and decide.</p>
+						<ul aria-label="Demo capabilities">
+							<li>150 entities</li>
+							<li>4 WebMCP tools</li>
+							<li>0 commit tools</li>
+						</ul>
+					</section>
 					<Scene3D class="studio-scene" {...data.scene}>
 						<div class="viewport-empty-state">
 							<span class="overline">Scene3D unavailable</span>
@@ -781,7 +791,7 @@ func Page() Node {
 			<aside id="agent-panel" class="agent-panel" aria-labelledby="agent-title" tabindex="-1">
 				<header class="panel-heading">
 					<h2 id="agent-title">Agent Collaboration</h2>
-					<span class="runtime-label">stage only</span>
+					<span class="runtime-label">0 commit tools</span>
 				</header>
 				<div class="webmcp-status-region" role="status" aria-live="polite" aria-atomic="true">
 					<div class="webmcp-status-banner" data-webmcp-status-panel data-state="detecting">
@@ -799,7 +809,7 @@ func Page() Node {
 						<strong>Agent</strong>
 						<small>inspect · focus · stage</small>
 					</span>
-					<span class="webmcp-authority-boundary" aria-hidden="true">stage only</span>
+					<span class="webmcp-authority-boundary" aria-hidden="true">no auto-commit</span>
 					<span class="webmcp-human-authority">
 						<strong>Human</strong>
 						<small>review · apply</small>
@@ -811,9 +821,17 @@ func Page() Node {
 					<li data-webmcp-flow-tool="scene_focus_object" data-label="Focus" data-state="idle" aria-label="Focus: idle"><span aria-hidden="true">3</span><strong aria-hidden="true">Focus</strong></li>
 					<li data-webmcp-flow-tool="scene_preview_actions" data-label="Stage" data-state="idle" aria-label="Stage: idle"><span aria-hidden="true">4</span><strong aria-hidden="true">Stage</strong></li>
 				</ol>
+				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
+					<span class="overline" id="webmcp-mission-title">Try it in 30 seconds</span>
+					<strong class="webmcp-mission-heading">Ask for one precise scene edit.</strong>
+					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Brushed Steel material. Explain the revision boundary.</p>
+					<button type="button" data-webmcp-copy-prompt disabled>Copy demo prompt</button>
+					<small class="webmcp-mission-steps">1 Copy task · 2 Watch four calls · 3 Review and decide</small>
+					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
+				</section>
 				<section class="webmcp-trace-shell" aria-labelledby="webmcp-trace-title">
 					<header>
-						<span class="overline" id="webmcp-trace-title">Typed call trace</span>
+						<span class="overline" id="webmcp-trace-title">WebMCP tool receipts</span>
 						<small>this browser session</small>
 					</header>
 					<div class="webmcp-trace" data-webmcp-trace role="log" aria-live="polite" aria-relevant="additions text">
@@ -828,12 +846,6 @@ func Page() Node {
 					</span>
 					<button type="button" data-studio-demo-reset data-revision={data.revision}>Reset shared scene</button>
 				</div>
-				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
-					<span class="overline" id="webmcp-mission-title">Try the collaboration loop</span>
-					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Brushed Steel material. Explain the revision boundary.</p>
-					<button type="button" data-webmcp-copy-prompt disabled>Copy demo prompt</button>
-					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
-				</section>
 				<p class="placeholder-copy" data-webmcp-idle-only>{data.agent.authority}</p>
 				<div class="proposal" data-webmcp-proposal data-revision={data.revision}>
 					<span class="overline">Latest staged proposal</span>
