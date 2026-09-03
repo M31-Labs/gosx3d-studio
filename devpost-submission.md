@@ -164,7 +164,7 @@ exactly once through the visible human action, and returned to a clean shared
 scene. No failed assertion, runtime exception, console/log error, or HTTP error
 was recorded.
 
-The final-polish deployment passed a separate public acceptance in native
+The preceding final-polish deployment passed a separate public acceptance in native
 Windows Chrome 152 at 1920×1080 and 1440×900. It used WebGPU, rendered 145
 meshes, and exposed exactly four tools. From revision 1 it staged exactly
 `Board → Launch Board` and
@@ -177,6 +177,16 @@ top-level document loads, zero camera writes from hierarchy keyboard input, and
 no failures. This acceptance claim is for native Windows Chrome; ChatGPT's
 in-app browser was not used for it.
 
+The current compact-review deployment passed a fresh native Windows Chrome
+`152.0.7977.76` acceptance at 1920×1080. Chrome exposed exactly four native
+tools, WebGPU rendered 145 meshes, and Inspect, Find, Focus, and Stage prepared
+the exact two-edit proposal while canonical revision 2 remained unchanged.
+Visible approval advanced the scene once to revision 3, retained matching
+PROPOSED/APPROVED activity and **Evidence 31/31 · current**, and preserved the
+same mounted canvas with zero document reloads across three managed
+same-document transitions. A visible confirmed reset restored the clean Board
+at revision 4 for judges.
+
 Local run and the full automated verification floor are documented in the
 public README and `docs/native-webmcp-qa.md`.
 
@@ -185,8 +195,8 @@ public README and `docs/native-webmcp-qa.md`.
 [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev)
 
 The live URL serves the immutable GoSX `v0.55.1` image built from main merge
-commit `c2e9af06a67ed1aa95d61bf68aac903fa67fe80e`, pinned by digest
-`sha256:8b28089e5dd6c757744aeae3448d283388f52b0a49b6a2f61c2061d68c5062e7`.
+commit `1e68684cbe6d5a8a10257c1ea9b85e40c9046125`, pinned by digest
+`sha256:facffa246e9377d49db38c5d0c008e4e6db1a593f10e1e5ebfaff8f2475e9b9c`.
 Its public health endpoint reports `0.55.1`.
 
 ## Public Repository Link
@@ -196,7 +206,7 @@ Its public health endpoint reports `0.55.1`.
 The repository is public on its default `main` branch, and the required source,
 MIT license, gallery assets, and testing instructions are available without
 authentication. The deployed judge-clarity implementation is main merge commit
-`c2e9af06a67ed1aa95d61bf68aac903fa67fe80e`.
+`1e68684cbe6d5a8a10257c1ea9b85e40c9046125`.
 
 ## Demo Video
 
@@ -217,8 +227,8 @@ Suggested YouTube description:
 > GoSX 3D Studio turns a 3D editor into a shared surface for artists and
 > browser agents. Four typed WebMCP tools inspect, find, focus, and stage an
 > exact revision-safe proposal; the artist reviews the live result and keeps
-> the only Apply action. Live demo: https://gosx3d.m31labs.dev · MIT source:
-> https://github.com/M31-Labs/gosx3d-studio
+> the only Apply action. Live demo: [GoSX 3D Studio](https://gosx3d.m31labs.dev)
+> · MIT source: [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio)
 
 ## Screenshot Shot List
 
@@ -238,16 +248,18 @@ native Windows Chrome:
 
 ## Submission Readiness Notes
 
-- [ ] Complete the live Devpost project, which is still an unpublished
-      `Untitled` pre-draft: set the title, tagline, description, Built With
-      list, live URL, public repository, gallery/thumbnail, and required form
-      answers from this document.
-- [ ] Commit, merge, and deploy the current compact-review polish. It keeps
+- [x] Publish the live Devpost project as **GoSX 3D Studio** with its title,
+      tagline, description, Built With list, live URL, public repository, and
+      clean-state thumbnail.
+- [ ] Upload the three prepared gallery images through Devpost's browser form;
+      gallery uploads are not supported by the Devpost MCP.
+- [x] Commit, merge, and deploy the current compact-review polish. It keeps
       temporarily locked Save/Undo/Redo controls visible, aligns the proposal
       cleanly at 1024×768 and 1280×800, and keeps the complete four-call rail,
       receipts, diff, and human decision visible at 1440×900.
-- [ ] Repeat the short public native-WebMCP acceptance after that deployment;
-      do not reuse the previous deployment evidence for the new image.
+- [x] Repeat the short public native-WebMCP acceptance after deployment:
+      revision 2 → 3, WebGPU, four tools, paired activity, current evidence,
+      same canvas, zero document reloads, then a clean reset at revision 4.
 - [ ] Record and publish the 2:28 YouTube demo with audio, then verify the app,
       repository, and video while signed out.
 - [ ] Supply the six owner-confirmed answers clearly marked below.
@@ -268,7 +280,9 @@ native Windows Chrome:
       managed same-document transitions, zero keyboard camera writes, and no
       failures.
 
-Nothing in this draft has been sent to or updated on Devpost.
+The public Devpost project is populated at
+[devpost.com/software/gosx-3d-studio](https://devpost.com/software/gosx-3d-studio),
+but it has not been submitted to The WebMCP Challenge.
 
 ## Known Limitations
 
@@ -295,11 +309,11 @@ choose for the submitter.
 | 28251 | **If submitting on behalf of an organization, what is the organization name?** (optional) | `[OWNER INPUT REQUIRED IF ORGANIZATION: enter the legal organization name; otherwise leave blank]` |
 | 28252 | **App Status** (required: New / Existing) | `Existing` |
 | 28253 | **If Existing, explain what you updated during the submission period. (We recommend explaining this in your text description, too!)** (optional) | `GoSX 3D Studio existed before August 25 with its SceneDoc workbench and revision-safe human/agent transaction engine. During the Challenge we added four webpage-registered WebMCP tools for canonical inspection, stable-ID search, visible focus, and bounded non-canonical proposals; session-owned review; executable Arbiter policy evidence; a visible human-only exact-commit boundary; typed-call receipts and actor attribution; same-document Scene3D reconciliation; WebGPU-first rendering; and a polished PBR sample scene. The final deployed polish adds an in-app native-tool disclosure, a presentation-size reversible diff, sticky human-only approval, a persistent revision outcome, race-safe demo reset, conflict-free hierarchy keyboard control, and a recording verifier for the exact handoff. We do not claim the pre-existing editor or transaction foundations as Challenge work.` |
-| 28254 | **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | [https://gosx3d.m31labs.dev](https://gosx3d.m31labs.dev) |
+| 28254 | **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev) |
 | 28255 | **If applicable, testing instructions for application - If you have credentials for your URL, you can put them here.** (optional/private) | `No credentials required. Reset the shared scene and wait for Agent tools ready · 4 tools. In an agent-enabled client, use Copy demo prompt. In Chrome, the same four tools can be invoked from DevTools → Application → WebMCP. Confirm Inspect → Find → Focus → Stage, inspect the non-committed preview at canonical revision R, then click the visible Apply 2 exact edits action and confirm Launch Board, Brushed Steel, and revision R+1.` |
-| 28256 | **URL to your PUBLIC Code Repo (on Github, Gitlab, or Bitbucket)** (required) | [https://github.com/M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) |
-| 28257 | **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. The preceding immutable public GoSX v0.55.1 build passed a 162/162 stress run plus 139/139 clean-recording runs. The final-polish public deployment then passed a separate acceptance at 1920×1080 and 1440×900 using native document.modelContext, WebGPU, 145 meshes, exactly four tools, an exact revision 1→2 staged-and-approved handoff, Evidence 31/31 current, paired activity, the same mounted canvas, zero new document loads during the guarded flow, five managed same-document transitions, zero hierarchy-keyboard camera writes, and no failures. ChatGPT in-app testing was not completed and is not claimed.` |
-| 28258 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification, documentation, and submission preparation. [OWNER INPUT REQUIRED: confirm Codex was the only AI tool, or list every other AI tool used.]` |
+| 28256 | **URL to your PUBLIC Code Repo (on Github, Gitlab, or Bitbucket)** (required) | [Public GitHub repository](https://github.com/M31-Labs/gosx3d-studio) |
+| 28257 | **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. The preceding immutable public GoSX v0.55.1 build passed a 162/162 stress run plus 139/139 clean-recording runs. The preceding final-polish deployment passed a separate acceptance at 1920×1080 and 1440×900 using native document.modelContext, WebGPU, 145 meshes, exactly four tools, an exact revision 1→2 staged-and-approved handoff, current 31/31 evidence, paired activity, the same mounted canvas, zero new document loads, five managed same-document transitions, zero hierarchy-keyboard camera writes, and no failures. The current compact-review deployment then passed a fresh 1920×1080 acceptance with revision 2→3, the same four tools/WebGPU/145-mesh boundary, paired activity, current evidence, the same canvas, zero document reloads, three managed same-document transitions, and a clean reset at revision 4. ChatGPT in-app testing was not completed and is not claimed.` |
+| 28258 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification, documentation, and submission preparation. Buckley generated and pushed the final structured commit, and Buckbot ran the pre-merge review. [OWNER INPUT REQUIRED: confirm this is the complete AI-tool list, or add every other AI tool used.]` |
 | 28259 | **Describe the level of learning you/your team derived from the project** (required: None / Moderate / Significant) | `[OWNER INPUT REQUIRED: choose one]` |
 | 28260 | **Did you gain AI value that you can use in your career?** (required: Yes / No) | `[OWNER INPUT REQUIRED: choose one]` |
 | — | **Public YouTube demo** (required deliverable, under 3 minutes with audio) | `[OWNER INPUT REQUIRED: paste the public YouTube URL]` |

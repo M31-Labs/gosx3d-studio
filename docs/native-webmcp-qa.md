@@ -1,14 +1,17 @@
 # Native WebMCP verification
 
-Completed September 2, 2026 evidence covers the immutable GoSX `v0.55.1`
+The September 3, 2026 submission checkpoint covers the immutable GoSX `v0.55.1`
 [public demo](https://gosx3d.m31labs.dev) in native Windows Chrome. The public
-health endpoint reported `0.55.1`; the deployed image was built from commit
-`1920e05447bfd5d98bee6b0c2576e9302734d46f` and pinned by digest
-`sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`.
+health endpoint reports `0.55.1`; the current image was built from main merge
+commit `1e68684cbe6d5a8a10257c1ea9b85e40c9046125` and pinned by digest
+`sha256:facffa246e9377d49db38c5d0c008e4e6db1a593f10e1e5ebfaff8f2475e9b9c`.
+The broader September 2 stress and clean-recording corpus remains documented
+below as evidence for the preceding immutable deployment.
 
 ## Client
 
-- Google Chrome stable `152.0.7977.65` on Windows
+- Google Chrome stable `152.0.7977.76` on Windows for the current deployment;
+  the broader preceding corpus used `152.0.7977.65`
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
@@ -17,6 +20,15 @@ health endpoint reported `0.55.1`; the deployed image was built from commit
 
 This verifies the compatible Google Chrome path accepted by the Challenge.
 ChatGPT's in-app browser remains useful optional cross-client assurance.
+
+The fresh post-merge acceptance ran at 1920×1080 against native
+`document.modelContext`, WebGPU, and 145 meshes. Inspect, Find, Focus, and Stage
+completed with the exact Board/Brushed Steel preview while canonical revision 2
+remained unchanged. Visible pointer input applied the proposal once at revision
+3; Evidence stayed 31/31 current; PROPOSED and APPROVED activity shared one plan
+token; and the same mounted canvas survived with zero document reloads and
+three managed same-document transitions. A visible confirmed reset restored a
+clean canonical Board at revision 4 for the next visitor.
 
 ## WebMCP result
 
