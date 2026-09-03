@@ -29,6 +29,12 @@ function previewHarness() {
   let mount = element();
   let commandHandler = () => Promise.resolve();
   const commandCalls = [];
+  let navigationHandler = (target) => {
+    window.location.href = new URL(target, window.location.href).href;
+    return Promise.resolve(true);
+  };
+  const navigationCalls = [];
+  const selectionCalls = [];
   let reloadCalls = 0;
   const listeners = new Map();
   const document = {
@@ -67,6 +73,15 @@ function previewHarness() {
           return commandHandler(target, commands);
         }
       }
+    },
+    __gosx_page_nav: {
+      navigate(target, options) {
+        navigationCalls.push({ target, options });
+        return navigationHandler(target, options);
+      }
+    },
+    __gosxStudioSelection: {
+      apply(id) { selectionCalls.push(String(id)); }
     }
   };
   const sandbox = {
@@ -98,8 +113,20 @@ function previewHarness() {
     mount: () => mount,
     replaceMount() { mount = element(); return mount; },
     onCommands(handler) { commandHandler = handler; },
+    onNavigate(handler) { navigationHandler = handler; },
+    navigationCalls,
+    selectionCalls,
+    setHref(value) { window.location.href = String(value); },
+    dispatch(name, detail, fields) {
+      const event = Object.assign({ detail: detail || null }, fields || {});
+      (listeners.get(name) || []).forEach((listener) => listener(event));
+    },
     reloadCalls: () => reloadCalls
   };
+}
+
+function nextTask() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function proposal(id) {
@@ -215,4 +242,66 @@ test("a rejected superseding rollback keeps the prior preview disclosed until ca
   assert.deepEqual(harness.commandCalls.map((call) => call.commands[0].label), ["A+", "A-"]);
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(harness.reloadCalls(), 1);
+});
+
+test("a stale material navigation cannot overwrite a newer WebMCP focus", async () => {
+  const harness = previewHarness();
+  const staleURL = "https://studio.test/?selection=piece-player-1-01&applied=human-set-material-1";
+  harness.setHref(staleURL);
+  let finishFirstFocus;
+  harness.onNavigate((target) => {
+    if (harness.navigationCalls.length === 1) {
+      return new Promise((resolve) => { finishFirstFocus = resolve; });
+    }
+    harness.setHref(new URL(target, staleURL).href);
+    return Promise.resolve(true);
+  });
+
+  harness.dispatch("studio:webmcp:focus", { id: "board" });
+  await nextTask();
+  assert.equal(harness.navigationCalls.length, 1);
+  assert.match(harness.navigationCalls[0].target, /selection=board/);
+
+  // The older form redirect lands after focus and supersedes the first Board
+  // request. GoSX reports that request as not applied, then emits its stale
+  // same-document navigation.
+  harness.setHref(staleURL);
+  harness.dispatch("gosx:navigate", { url: staleURL });
+  finishFirstFocus(false);
+  await nextTask();
+  await nextTask();
+
+  assert.equal(harness.navigationCalls.length, 2, "focus should retry exactly once after the stale redirect wins");
+  assert.match(harness.navigationCalls[1].target, /selection=board/);
+  assert.match(harness.navigationCalls[1].target, /applied=human-set-material-1/);
+  assert.equal(harness.selectionCalls.at(-1), "board", "stale server HTML should be corrected local-first");
+
+  await nextTask();
+  assert.equal(harness.navigationCalls.length, 2, "a landed focus must not schedule another retry");
+});
+
+test("a newer human hierarchy selection cancels a pending focus retry", async () => {
+  const harness = previewHarness();
+  harness.setHref("https://studio.test/?selection=piece-player-1-01");
+  let finishFocus;
+  harness.onNavigate(() => new Promise((resolve) => { finishFocus = resolve; }));
+
+  harness.dispatch("studio:webmcp:focus", { id: "board" });
+  await nextTask();
+  assert.equal(harness.navigationCalls.length, 1);
+
+  const humanLink = {
+    getAttribute(name) { return name === "data-entity-id" ? "piece-player-1-02" : null; }
+  };
+  harness.dispatch("click", null, {
+    target: {
+      closest(selector) { return selector === "a[data-entity-id]" ? humanLink : null; }
+    },
+    preventDefault() {}
+  });
+  finishFocus(false);
+  await nextTask();
+  await nextTask();
+
+  assert.equal(harness.navigationCalls.length, 1, "human selection must supersede the pending agent retry");
 });

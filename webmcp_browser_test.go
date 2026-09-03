@@ -290,6 +290,33 @@ func TestWebMCPHumanReviewRemainsASeparateUIStep(t *testing.T) {
 	}
 }
 
+func TestWebMCPFocusNavigationRetriesOnlyWhileItIsTheLatestIntent(t *testing.T) {
+	review := readWebMCPFixture(t, "public/studio-webmcp-ui.js")
+	focus := javascriptFunctionSource(t, review, "focusEntity")
+	requireSourceFragments(t, focus, "focus navigation intent",
+		`pendingFocusNavigation = intent`,
+		`scheduleFocusNavigation(intent)`,
+		`window.__gosxStudioSelection.apply(id)`,
+	)
+	retry := javascriptFunctionSource(t, review, "scheduleFocusNavigation")
+	requireSourceFragments(t, retry, "bounded focus navigation retry",
+		`MAX_FOCUS_NAVIGATION_ATTEMPTS`,
+		`navigation.navigate(target, { preserveScroll: true })`,
+		`applied !== false`,
+		`focusNavigationLanded(intent, window.location.href)`,
+	)
+	for _, required := range []string{
+		`document.addEventListener("gosx:navigate"`,
+		`document.addEventListener("gosx:scene3d:input"`,
+		`event.target.closest("a[data-entity-id]")`,
+		`clearAgentFocus()`,
+	} {
+		if !strings.Contains(review, required) {
+			t.Errorf("latest-focus reconciliation missing %q", required)
+		}
+	}
+}
+
 func TestCoreStudioInteractionPolishContracts(t *testing.T) {
 	page := readWebMCPFixture(t, "app/page.gsx")
 	interactions := readWebMCPFixture(t, "public/studio-interactions.js")
@@ -332,7 +359,7 @@ func TestPublicDemoResetIsVisibleAndNeverAgentCallable(t *testing.T) {
 		t.Fatal("human UI does not explicitly confirm and call the demo reset endpoint")
 	}
 	reset := javascriptFunctionSource(t, review, "resetDemo")
-	if !strings.Contains(reset, `focusedEntityId = ""`) || !strings.Contains(reset, "refreshPage(window.location.pathname)") {
+	if !strings.Contains(reset, `clearAgentFocus()`) || !strings.Contains(reset, "refreshPage(window.location.pathname)") {
 		t.Fatal("demo reset does not clear the prior agent focus and query-string selection")
 	}
 	if strings.Contains(adapter, "/api/studio/demo/reset") || strings.Contains(adapter, "data-studio-demo-reset") {

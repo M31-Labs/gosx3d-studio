@@ -7,6 +7,8 @@
   var pendingProposal = null;
   var proposalHydration = 0;
   var focusedEntityId = "";
+  var pendingFocusNavigation = null;
+  var MAX_FOCUS_NAVIGATION_ATTEMPTS = 3;
   var demoClean = false;
   var reviewInFlight = false;
   var reviewFocusTarget = null;
@@ -683,27 +685,94 @@
     match.focus({ preventScroll: true });
   }
 
+  function selectionFromURL(value) {
+    try {
+      return String(new URL(value || window.location.href, window.location.href).searchParams.get("selection") || "");
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function clearAgentFocus() {
+    pendingFocusNavigation = null;
+    focusedEntityId = "";
+    var focused = document.querySelectorAll(".hierarchy-tree li.webmcp-focused");
+    Array.prototype.forEach.call(focused, function (item) { item.classList.remove("webmcp-focused"); });
+  }
+
+  function focusNavigationLanded(intent, url) {
+    if (!intent || pendingFocusNavigation !== intent || selectionFromURL(url) !== intent.id) return false;
+    pendingFocusNavigation = null;
+    return true;
+  }
+
+  function scheduleFocusNavigation(intent) {
+    if (!intent || pendingFocusNavigation !== intent) return;
+    if (focusNavigationLanded(intent, window.location.href)) return;
+    if (intent.scheduled || intent.inFlight) return;
+    if (intent.attempts >= MAX_FOCUS_NAVIGATION_ATTEMPTS) {
+      pendingFocusNavigation = null;
+      return;
+    }
+
+    intent.scheduled = true;
+    window.setTimeout(function () {
+      if (pendingFocusNavigation !== intent) return;
+      intent.scheduled = false;
+      if (focusNavigationLanded(intent, window.location.href)) return;
+
+      var targetURL = new URL(window.location.href);
+      targetURL.searchParams.set("selection", intent.id);
+      var target = targetURL.pathname + targetURL.search;
+      var navigation = window.__gosx_page_nav;
+      if (!navigation || typeof navigation.navigate !== "function") {
+        pendingFocusNavigation = null;
+        window.location.assign(target);
+        return;
+      }
+
+      intent.attempts++;
+      intent.inFlight = true;
+      var navigationResult;
+      try {
+        navigationResult = navigation.navigate(target, { preserveScroll: true });
+      } catch (_) {
+        intent.inFlight = false;
+        scheduleFocusNavigation(intent);
+        return;
+      }
+      Promise.resolve(navigationResult).then(function (applied) {
+        if (pendingFocusNavigation !== intent) return;
+        intent.inFlight = false;
+        if (applied !== false && focusNavigationLanded(intent, window.location.href)) return;
+        // A managed form redirect can finish after the focus tool starts and
+        // supersede this navigation. Reassert the newer focus intent, bounded
+        // above so a broken route can never create a navigation loop.
+        scheduleFocusNavigation(intent);
+      }).catch(function () {
+        if (pendingFocusNavigation !== intent) return;
+        intent.inFlight = false;
+        scheduleFocusNavigation(intent);
+      });
+    }, 0);
+  }
+
   function focusEntity(detail) {
     var id = detail && detail.id ? String(detail.id) : "";
     if (!id) return;
     focusedEntityId = id;
+    var intent = {
+      id: id,
+      attempts: 0,
+      scheduled: false,
+      inFlight: false
+    };
+    pendingFocusNavigation = intent;
     highlightFocusedEntity(id);
     if (window.__gosxStudioSelection && typeof window.__gosxStudioSelection.apply === "function") {
       window.__gosxStudioSelection.apply(id);
     }
-
-    var current = new URL(window.location.href).searchParams.get("selection");
-    if (current === id) return;
-    var targetURL = new URL(window.location.href);
-    targetURL.searchParams.set("selection", id);
-    var target = targetURL.pathname + targetURL.search;
-    window.setTimeout(function () {
-      if (window.__gosx_page_nav && typeof window.__gosx_page_nav.navigate === "function") {
-        window.__gosx_page_nav.navigate(target, { preserveScroll: true });
-        return;
-      }
-      window.location.assign(target);
-    }, 0);
+    scheduleFocusNavigation(intent);
   }
 
   function refreshPage(target) {
@@ -827,7 +896,7 @@
       });
     }).then(function (payload) {
       proposalHydration++;
-      focusedEntityId = "";
+      clearAgentFocus();
       clearToolFlow();
       clearTrace();
       var previewID = pendingProposal && pendingProposal.proposalId;
@@ -1022,7 +1091,7 @@
     focusEntity(event && event.detail);
   });
 
-  document.addEventListener("gosx:navigate", function () {
+  document.addEventListener("gosx:navigate", function (event) {
     renderStatus();
     renderToolFlow();
     renderTrace();
@@ -1037,12 +1106,44 @@
       markScenePreview(false);
       activateScenePreview(activeScenePreview);
     }
-    if (focusedEntityId) window.setTimeout(function () { highlightFocusedEntity(focusedEntityId); }, 0);
+    if (focusedEntityId) {
+      var intent = pendingFocusNavigation;
+      var navigationURL = event && event.detail ? event.detail.url : window.location.href;
+      window.setTimeout(function () {
+        if (intent && pendingFocusNavigation === intent) {
+          if (focusNavigationLanded(intent, navigationURL)) {
+            highlightFocusedEntity(focusedEntityId);
+            return;
+          }
+          // Server HTML from the older navigation may have restored its own
+          // selection. Keep the viewport local-first while the bounded retry
+          // reconciles the Inspector and URL to the newer WebMCP intent.
+          if (window.__gosxStudioSelection && typeof window.__gosxStudioSelection.apply === "function") {
+            window.__gosxStudioSelection.apply(intent.id);
+          }
+          highlightFocusedEntity(intent.id);
+          scheduleFocusNavigation(intent);
+          return;
+        }
+        highlightFocusedEntity(focusedEntityId);
+      }, 0);
+    }
     discoverDemoState();
     discoverPendingProposal();
   });
 
+  document.addEventListener("gosx:scene3d:input", function (event) {
+    var detail = event && event.detail;
+    var input = detail && detail.kind === "pick" ? detail.input : null;
+    if (!input || (input.type !== "select" && input.type !== "click") || !input.selectedID) return;
+    clearAgentFocus();
+  });
+
   document.addEventListener("click", function (event) {
+    var hierarchySelection = event.target && event.target.closest
+      ? event.target.closest("a[data-entity-id]")
+      : null;
+    if (hierarchySelection) clearAgentFocus();
     var reset = event.target && event.target.closest ? event.target.closest("[data-studio-demo-reset]") : null;
     if (reset) {
       event.preventDefault();
