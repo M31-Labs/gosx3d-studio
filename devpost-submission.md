@@ -134,12 +134,14 @@ requirement.
 7. Confirm `Launch Board`, `Brushed Steel`, revision `R+1`, and separate
    agent proposal and human approval activity.
 
-Local GoSX `v0.55.1` release-candidate acceptance passed **162/162 assertions**
-in native Windows Chrome 152 with WebGPU, exact four-tool discovery, zero reload
-commands, one main-document request, and a clean reset. The final immutable
-public `v0.55.1` deployment and public-origin replay are still pending. A
-ChatGPT in-app-browser pass would provide useful cross-client assurance, but is
-not required in addition to the compatible Chrome path.
+The immutable public GoSX `v0.55.1` deployment passed **162/162 stress
+assertions** and **139/139 clean-recording assertions** in native Windows Chrome
+152. Chrome exposed `document.modelContext`, discovered exactly four tools, used
+WebGPU, issued zero reload commands, and made one main-document request. The
+flow applied the reviewed transaction exactly once through the visible human
+action, returned to a clean shared scene, and recorded no failures. A ChatGPT
+in-app-browser pass remains useful optional cross-client assurance, but is not
+required in addition to the compatible Chrome path.
 
 Local run and the full automated verification floor are documented in the
 public README and `docs/native-webmcp-qa.md`.
@@ -148,8 +150,10 @@ public README and `docs/native-webmcp-qa.md`.
 
 [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev)
 
-The URL is live; deploying and replaying the final immutable GoSX `v0.55.1`
-release candidate remains a readiness item.
+The live URL serves the immutable GoSX `v0.55.1` image built from commit
+`d6e18a637c4dc2d994079c30365a60193920e721`, pinned by digest
+`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+Its public health endpoint reports `0.55.1`.
 
 ## Public Repository Link
 
@@ -168,18 +172,19 @@ agent/human attribution in one continuous session.
 
 ## Screenshot Shot List
 
-Replace these three placeholders with high-resolution public-origin Windows
-Chrome frames after the final deployment replay:
+These high-resolution frames come from the immutable public deployment in
+native Windows Chrome:
 
-1. `[TODO GALLERY 1: CLEAN WORKBENCH]` — viewport, hierarchy, Inspector,
-   revision, WebGPU, and **Agent tools ready · 4 tools**. Caption: “One scene,
-   visible to both human and browser agent.”
-2. `[TODO GALLERY 2: STAGED REVIEW]` — semantic diff, Arbiter Allow, affected
-   ID, fingerprint, canonical `R` unchanged, and Apply/Discard. Caption: “The
-   agent proposes; Apply stays in the visible Studio UI.”
-3. `[TODO GALLERY 3: APPLIED HANDOFF]` — Launch Board, Brushed Steel, `R+1`,
-   and both actors in Agent Activity. Caption: “One reviewed proposal becomes
-   one attributed canonical change.”
+1. [`docs/assets/webmcp-clean.png`](docs/assets/webmcp-clean.png) — viewport,
+   hierarchy, Inspector, revision, WebGPU, and **Agent tools ready · 4 tools**.
+   Caption: “One scene, visible to both human and browser agent.”
+2. [`docs/assets/webmcp-staged-proposal.png`](docs/assets/webmcp-staged-proposal.png)
+   — semantic diff, Arbiter Allow, affected ID, fingerprint, canonical `R`
+   unchanged, and Apply/Discard. Caption: “The agent proposes; Apply stays in
+   the visible Studio UI.”
+3. [`docs/assets/webmcp-human-applied.png`](docs/assets/webmcp-human-applied.png)
+   — Launch Board, Brushed Steel, `R+1`, and both actors in Agent Activity.
+   Caption: “One reviewed proposal becomes one attributed canonical change.”
 
 ## Submission Readiness Notes
 
@@ -187,9 +192,10 @@ Chrome frames after the final deployment replay:
 - [x] Verify local GoSX `v0.55.1` in native Windows Chrome: 162/162, WebGPU,
       four tools, zero reload commands, one main-document request, clean reset.
 - [x] Publish the live URL, public repository, and root MIT License.
+- [x] Deploy the immutable `v0.55.1` image and repeat the public Windows Chrome
+      flow: 162/162 stress and 139/139 clean-recording assertions.
+- [x] Capture the three final gallery frames from the public run.
 - [ ] Commit and merge the release candidate to the public default branch.
-- [ ] Deploy its immutable image and repeat the public Windows Chrome flow.
-- [ ] Capture the three final gallery frames from that public run.
 - [ ] Record and publish the 2:22 YouTube demo with audio.
 - [ ] Confirm the remaining official form answers below.
 
@@ -205,9 +211,9 @@ Nothing in this draft has been sent to or updated on Devpost.
   requires visible human approval.
 - The broader editor includes capabilities whose certification state remains
   partial or planned; the demo claim is limited to the verified scene workflow.
-- The final public `v0.55.1` replay, gallery, YouTube upload, default-branch
-  merge, and official form review remain outstanding. ChatGPT in-app testing is
-  optional cross-client assurance and has not been completed.
+- The YouTube upload, default-branch merge, and official form review remain
+  outstanding. ChatGPT in-app testing is optional cross-client assurance and
+  has not been completed.
 
 ## TODO Official Form Fields
 
@@ -224,7 +230,7 @@ require the submitter's confirmation.
 | **Live URL** (required) | [https://gosx3d.m31labs.dev](https://gosx3d.m31labs.dev) |
 | **Testing instructions** (optional/private) | `No credentials required. Reset the shared scene, confirm four ready tools, use Copy demo prompt, inspect the staged non-mutating proposal, then click the visible Apply action and confirm revision R+1. See the Hosted judge flow above.` |
 | **Public code repository** (required) | [https://github.com/M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) |
-| **Tested WebMCP clients** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. Local GoSX v0.55.1 acceptance passed 162/162 assertions with native document.modelContext, WebGPU, exactly four tools, zero reload commands, one main-document request, and clean reset. Final public-origin replay remains pending; ChatGPT in-app testing is optional assurance and has not been completed.` |
+| **Tested WebMCP clients** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. The immutable public GoSX v0.55.1 build passed 162/162 stress assertions and 139/139 clean-recording assertions with native document.modelContext, WebGPU, exactly four tools, zero reload commands, one main-document request, exact-once visible human Apply, clean reset, and no failures. ChatGPT in-app testing is optional assurance and has not been completed.` |
 | **AI tools used** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification, documentation, and submission preparation. [TODO: add any other AI tools actually used.]` |
 | **Learning level** (required: None / Moderate / Significant) | `[TODO: choose one]` |
 | **Career AI value** (required: Yes / No) | `[TODO: choose one]` |

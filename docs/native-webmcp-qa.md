@@ -1,9 +1,10 @@
 # Native WebMCP verification
 
-Completed September 2, 2026 evidence covers the local GoSX `v0.55.1`
-release candidate in native Windows Chrome and an earlier deployed
-[public demo](https://gosx3d.m31labs.dev) pass. The final immutable image and
-public-origin `v0.55.1` replay remain explicit follow-up gates.
+Completed September 2, 2026 evidence covers the immutable GoSX `v0.55.1`
+[public demo](https://gosx3d.m31labs.dev) in native Windows Chrome. The public
+health endpoint reported `0.55.1`; the deployed image was built from commit
+`d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
+`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
 
 ## Client
 
@@ -11,9 +12,8 @@ public-origin `v0.55.1` replay remain explicit follow-up gates.
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
   `ModelContext.registerTool`; no injected compatibility object
-- Public GoSX `v0.55.1` pinned in the local release candidate, including the
-  upstream responsive `fillHeight` stabilization
-- GoSX `v0.55.0` on the latest completed public-origin verification
+- Public GoSX `v0.55.1`, including the upstream responsive `fillHeight`
+  stabilization
 
 This verifies the compatible Google Chrome path accepted by the Challenge.
 ChatGPT's in-app browser remains useful optional cross-client assurance.
@@ -30,8 +30,9 @@ Chrome discovered and invoked exactly these four webpage tools:
 The preview tool schema exposed exactly three operation kinds:
 `rename-entity`, `set-transform`, and `assign-material`.
 
-The local GoSX `v0.55.1` release-candidate run passed 162/162 acceptance
-assertions and proved this same-document flow:
+The public GoSX `v0.55.1` stress run passed 162/162 acceptance assertions, and
+the clean recording run passed 139/139. Together they proved this same-document
+flow:
 
 - native state inspection, stable-ID search, and visible focus;
 - a two-operation `Board` to `Launch Board` rename plus dedicated `Brushed
@@ -65,8 +66,8 @@ step in the demo path.
 
 ## Core Studio result
 
-The same native run also verified that the product surrounding WebMCP is real,
-not a protocol-only fixture:
+The same public native runs also verified that the product surrounding WebMCP
+is real, not a protocol-only fixture:
 
 - Scene3D negotiated its WebGPU-first path in native Windows Chrome, reached
   ready/revealed state, and used neither the WebGL capability fallback nor a
@@ -79,7 +80,7 @@ not a protocol-only fixture:
 - runtime exceptions, console errors, log errors, and HTTP responses at or
   above 400 were all empty.
 
-The local GoSX `v0.55.1` run also confirmed this material contract:
+The public GoSX `v0.55.1` run also confirmed this material contract:
 
 - glossy Coral Pieces use lit Standard PBR with authored
   color `#c8321f`, roughness `0.32`, and clearcoat `0.65`;
@@ -126,17 +127,18 @@ go run ./cmd/studio-certify
 ./scripts/render-build.sh
 ```
 
-The completed GoSX `v0.55.0` production/TLS run exercised the deployed
+The completed GoSX `v0.55.1` production/TLS run exercised the deployed
 `https://gosx3d.m31labs.dev` origin through Chrome's native WebMCP surface with
 no injected compatibility object. WebGPU initialized first, exactly four tools
 completed inspect/search/focus and a governed Brushed Steel preview, and the
-visible human Apply advanced the canonical revision once. The successful path
-used in-place reconciliation without a reload or second main-document request;
-the live root remained dynamic and `no-store`, with session/CSRF protection.
+visible human Apply advanced the canonical revision exactly once. The clean
+recording run restored the shared scene afterward. Both runs stayed in one main
+document with zero reload commands and one main-document request; runtime,
+console, network, and HTTP failure collections were empty. The live root
+remained dynamic and `no-store`, with session/CSRF protection.
 
-GoSX `v0.55.1` is the final target because its upstream `fillHeight` fix derives
-responsive height from the mount's layout box instead of feeding a stale canvas
-aspect ratio back into resize. That keeps grid- and flex-bound Scene3D canvases
-inside the workbench during hydration and soft navigation. The local acceptance
-run used that pin; this paragraph does not assert a final immutable image or
-public-origin `v0.55.1` pass.
+GoSX `v0.55.1` includes the upstream `fillHeight` fix that derives responsive
+height from the mount's layout box instead of feeding a stale canvas aspect
+ratio back into resize. That keeps grid- and flex-bound Scene3D canvases inside
+the workbench during hydration and soft navigation; the public acceptance runs
+verified that released path.

@@ -275,18 +275,24 @@ reachable without local network access.
 
 ### Verified compatible client
 
-The complete public-module flow passed locally in Google Chrome
-152.0.7977.65 on Windows with `WebMCPTesting,DevToolsWebMCPSupport` enabled.
-Chrome exposed its native `Document.modelContext` getter and
-`ModelContext.registerTool`, discovered exactly the four Studio tools, and
-completed inspect, find, focus, a two-operation non-mutating preview, full
-same-session reload recovery, and visible-UI Apply. Canonical name, material,
-and revision stayed unchanged before approval; Apply advanced the revision
-exactly once; and runtime exception, console-error, failed-request, and
-HTTP-error lists were empty. Broader tests cover discard, stale rejection,
-group-scale preview, client-side light-scale validation, and shared reset. This
-is native Chrome WebMCP evidence; it is not a claim that ChatGPT's in-app
-browser has already been tested.
+The immutable [public deployment](https://gosx3d.m31labs.dev) passed 162/162
+stress assertions and 139/139 clean-recording assertions in Google Chrome 152
+on Windows with `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome exposed
+its native `Document.modelContext` getter and `ModelContext.registerTool`,
+discovered exactly the four Studio tools, and completed inspect, find, focus, a
+two-operation non-mutating preview, and visible-UI Apply. Canonical name,
+material, and revision stayed unchanged before approval; Apply advanced the
+revision exactly once; and the clean flow reset the shared scene afterward.
+WebGPU initialized, the run issued zero reload commands and one main-document
+request, and runtime, console, network, and HTTP failure lists were empty.
+
+The public health endpoint reported GoSX `0.55.1`. The image was built from
+commit `d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
+`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+Broader tests cover discard, stale rejection, group-scale preview, client-side
+light-scale validation, and shared reset. This is native Chrome WebMCP
+evidence; it is not a claim that ChatGPT's in-app browser has already been
+tested.
 
 Browser-free verification remains part of the repository's evidence floor:
 

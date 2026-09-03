@@ -92,12 +92,15 @@ To exercise the WebMCP tools, use ChatGPT's in-app browser or Chrome 149+ with
 `chrome://flags/#enable-webmcp-testing` enabled. The Agent Collaboration panel
 reports whether the browser registered all four tools.
 
-The GoSX v0.55.1 release candidate passed 162/162 local acceptance assertions
-in Google Chrome 152.0.7977.65 on Windows with its native WebMCP experiment
-enabled, WebGPU active, zero reload commands, and one main-document request.
-ChatGPT's in-app browser remains useful optional cross-client assurance. See
-[Native WebMCP verification](docs/native-webmcp-qa.md) for the exact evidence
-boundary and exercised workflow.
+The immutable public GoSX v0.55.1 build passed 162/162 stress assertions and
+139/139 clean-recording assertions in Google Chrome 152 on Windows. Chrome used
+its native `document.modelContext`, discovered exactly four tools, negotiated
+WebGPU, issued zero reload commands, and made one main-document request. The
+flow staged a reversible preview, applied it exactly once through the visible
+human action, and reset to a clean shared scene with no failures. ChatGPT's
+in-app browser remains useful optional cross-client assurance. See [Native
+WebMCP verification](docs/native-webmcp-qa.md) for the exact evidence boundary
+and exercised workflow.
 
 For a disposable shared judge/demo workspace with a visible reset action that
 is not exposed as a WebMCP tool:
@@ -127,6 +130,11 @@ demo are documented in [deploy/README.md](deploy/README.md). The image runs as
 non-root with a read-only root filesystem, health probes, bounded resources,
 runtime secrets outside Git, an immutable Harbor digest, and TLS through the
 existing M31 Labs ingress.
+
+The current public deployment was built from commit
+`d6e18a637c4dc2d994079c30365a60193920e721` and is pinned to image digest
+`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+Its public health endpoint reports GoSX `0.55.1`.
 
 Keep the service at one instance: the demo intentionally shares process-local
 canonical state, and revision conflicts protect visitors from silently
