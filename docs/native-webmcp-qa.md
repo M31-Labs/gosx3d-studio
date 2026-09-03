@@ -45,7 +45,7 @@ they proved this same-document flow:
   non-Board selection, so the recorded agent must genuinely find Board;
 - matching short plan tokens for the staged and approved activity entries,
   with both operation kinds retained in their summaries;
-- zero runtime exceptions, console errors, failed requests, or HTTP error
+- zero failed assertions, runtime exceptions, console/log errors, or HTTP error
   responses during the complete flow;
 - non-mutating affine group-scale previews in the broader native QA suite;
 - a semantic scale diff (`1.00, 1.00, 1.00 → 1.05, 1.00, 0.95`);
@@ -134,8 +134,10 @@ completed inspect/search/focus and a governed Brushed Steel preview, and the
 visible human Apply advanced the canonical revision exactly once. The clean
 recording run restored the shared scene afterward. Both runs stayed in one main
 document with zero reload commands and one main-document request; runtime,
-console, network, and HTTP failure collections were empty. The live root
-remained dynamic and `no-store`, with session/CSRF protection.
+console/log, and HTTP error collections were empty. The loading-failure log
+contained only canceled best-effort `/_gosx/client-events` telemetry uploads;
+no request returned an HTTP error. The live root remained dynamic and
+`no-store`, with session/CSRF protection.
 
 GoSX `v0.55.1` includes the upstream `fillHeight` fix that derives responsive
 height from the mount's layout box instead of feeding a stale canvas aspect

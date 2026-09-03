@@ -140,7 +140,8 @@ Windows Chrome 152. Chrome exposed
 `document.modelContext`, discovered exactly four tools, used WebGPU, issued
 zero reload commands, and made one main-document request per run. The flow
 applied the reviewed transaction exactly once through the visible human
-action, returned to a clean shared scene, and recorded no failures. A ChatGPT
+action and returned to a clean shared scene. No failed assertion, runtime
+exception, console/log error, or HTTP error was recorded. A ChatGPT
 in-app-browser pass remains useful optional cross-client assurance, but is not
 required in addition to the compatible Chrome path.
 
@@ -225,7 +226,7 @@ require the submitter's confirmation.
 
 | Official field | Draft answer / status |
 | --- | --- |
-| **Submitter Type** (required) | `[TODO: choose Individual, Team, or Organization]` |
+| **Submitter Type** (required) | `[TODO: choose Individual, Team of Individuals, or Organization]` |
 | **Country of residence of yourself and team members if applicable** (required) | `[TODO: select every applicable country exactly as listed]` |
 | **Organization name** (optional when submitting for an organization) | `[TODO if applicable; otherwise leave blank]` |
 | **App Status** (required) | `Existing` |
@@ -233,7 +234,7 @@ require the submitter's confirmation.
 | **Live URL** (required) | [https://gosx3d.m31labs.dev](https://gosx3d.m31labs.dev) |
 | **Testing instructions** (optional/private) | `No credentials required. Reset the shared scene, confirm four ready tools, use Copy demo prompt, inspect the staged non-mutating proposal, then click the visible Apply action and confirm revision R+1. See the Hosted judge flow above.` |
 | **Public code repository** (required) | [https://github.com/M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) |
-| **Tested WebMCP clients** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. The immutable public GoSX v0.55.1 build passed 162/162 stress assertions and 139/139 clean-recording assertions with native document.modelContext, WebGPU, exactly four tools, zero reload commands, one main-document request, exact-once visible human Apply, clean reset, and no failures. ChatGPT in-app testing is optional assurance and has not been completed.` |
+| **Tested WebMCP clients** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. The immutable public GoSX v0.55.1 build passed a 162/162 stress run plus 139/139 clean-recording runs at 1920x1080 and 1440x900 with native document.modelContext, WebGPU, exactly four tools, zero reload commands, one main-document request per run, exact-once visible human Apply, and clean reset. No failed assertion, runtime exception, console/log error, or HTTP error was recorded. ChatGPT in-app testing is optional assurance and has not been completed.` |
 | **AI tools used** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification, documentation, and submission preparation. [TODO: add any other AI tools actually used.]` |
 | **Learning level** (required: None / Moderate / Significant) | `[TODO: choose one]` |
 | **Career AI value** (required: Yes / No) | `[TODO: choose one]` |

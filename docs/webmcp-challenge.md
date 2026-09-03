@@ -285,7 +285,9 @@ two-operation non-mutating preview, and visible-UI Apply. Canonical name,
 material, and revision stayed unchanged before approval; Apply advanced the
 revision exactly once; and the clean flow reset the shared scene afterward.
 WebGPU initialized, each run issued zero reload commands and one main-document
-request, and runtime, console, network, and HTTP failure lists were empty.
+request. No failed assertion, runtime exception, console/log error, or HTTP
+error was recorded; the loading-failure log contained only canceled best-effort
+`/_gosx/client-events` telemetry uploads.
 
 The public health endpoint reported GoSX `0.55.1`. The image was built from
 commit `1920e05447bfd5d98bee6b0c2576e9302734d46f` and pinned by digest
