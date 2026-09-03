@@ -244,7 +244,7 @@ or copy agent output between tools.
 
 ## Local compatible-browser test
 
-The project pins the current GoSX release, `v0.55.0`. From the repository root:
+The project pins the current GoSX release, `v0.55.1`. From the repository root:
 
 ```bash
 cp .env.example .env
@@ -291,7 +291,7 @@ browser has already been tested.
 Browser-free verification remains part of the repository's evidence floor:
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.55.0 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.55.1 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...
