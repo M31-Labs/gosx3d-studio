@@ -58,6 +58,7 @@ func TestShowcaseBoardUsesLayeredPhysicalMaterials(t *testing.T) {
 		"rgb(0.16, 0.065, 0.025)",
 		"rgb(0.66, 0.32, 0.14)",
 		"float = 0.045",
+		"1.0 - smoothstep(0.04, 0.34, length(holeUV))",
 	} {
 		if !strings.Contains(wood.Selena.Source, authoredLift) {
 			t.Fatalf("Carved Wood Selena source is missing calibrated display lift %q", authoredLift)

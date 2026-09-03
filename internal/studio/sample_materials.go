@@ -18,7 +18,10 @@ material CarvedWood {
         let grain     = grainLine * 0.5 + 0.5
         let endGrain  = sin((geo.uv.x + geo.uv.y) * 19.0) * 0.025
         let holeUV    = geo.uv - vec2f(0.5, 0.5)
-        let carved    = smoothstep(0.34, 0.04, length(holeUV)) * 0.10
+        // Reversing smoothstep's edges is undefined in GLSL and WGSL. Express
+        // the same inward mask explicitly so Dawn/WebGPU never turns the
+        // complete surface into NaNs that resolve as near-black.
+        let carved    = (1.0 - smoothstep(0.04, 0.34, length(holeUV))) * 0.10
         let body      = mix(darkWalnut.rgb, warmWalnut.rgb, 0.34 + grain * 0.30 + endGrain)
         return vec4f(body * (1.0 - carved) + vec3f(satinLift, satinLift, satinLift), 1.0)
     }
