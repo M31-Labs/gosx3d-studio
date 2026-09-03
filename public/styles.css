@@ -1803,6 +1803,10 @@ time,
   grid-template-areas: "hierarchy viewport inspector agent";
 }
 
+.studio-shell[data-studio-demo="true"] .telemetry-dock {
+  height: clamp(6.5rem, 12vh, 7.5rem);
+}
+
 .studio-shell[data-studio-demo="true"] .telemetry-content {
   grid-template-columns: minmax(0, 1fr);
 }
