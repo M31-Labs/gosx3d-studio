@@ -275,20 +275,21 @@ reachable without local network access.
 
 ### Verified compatible client
 
-The immutable [public deployment](https://gosx3d.m31labs.dev) passed 162/162
-stress assertions and 139/139 clean-recording assertions in Google Chrome 152
-on Windows with `WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome exposed
+The immutable [public deployment](https://gosx3d.m31labs.dev) passed a 162/162
+stress run plus 139/139 clean-recording runs at both 1920×1080 and 1440×900 in
+Google Chrome 152 on Windows with
+`WebMCPTesting,DevToolsWebMCPSupport` enabled. Chrome exposed
 its native `Document.modelContext` getter and `ModelContext.registerTool`,
 discovered exactly the four Studio tools, and completed inspect, find, focus, a
 two-operation non-mutating preview, and visible-UI Apply. Canonical name,
 material, and revision stayed unchanged before approval; Apply advanced the
 revision exactly once; and the clean flow reset the shared scene afterward.
-WebGPU initialized, the run issued zero reload commands and one main-document
+WebGPU initialized, each run issued zero reload commands and one main-document
 request, and runtime, console, network, and HTTP failure lists were empty.
 
 The public health endpoint reported GoSX `0.55.1`. The image was built from
-commit `d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
-`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+commit `1920e05447bfd5d98bee6b0c2576e9302734d46f` and pinned by digest
+`sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`.
 Broader tests cover discard, stale rejection, group-scale preview, client-side
 light-scale validation, and shared reset. This is native Chrome WebMCP
 evidence; it is not a claim that ChatGPT's in-app browser has already been

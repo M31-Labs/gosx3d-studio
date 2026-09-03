@@ -15,13 +15,14 @@
   and bounded edit proposals. Every proposal is evaluated by Arbiter and stays
   non-mutating until a person applies the exact staged transaction.
 - An immutable public GoSX v0.55.1 deployment built from commit
-  `d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
-  `sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`;
+  `1920e05447bfd5d98bee6b0c2576e9302734d46f` and pinned by digest
+  `sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`;
   public health reports `0.55.1`.
-- Native Windows Chrome 152 public-origin evidence: 162/162 stress assertions
-  and 139/139 clean-recording assertions, native `document.modelContext`, four
-  tools, WebGPU, zero reload commands, one main-document request, exact-once
-  human Apply, clean reset, and no failures.
+- Native Windows Chrome 152 public-origin evidence: a 162/162 stress run plus
+  139/139 clean-recording runs at 1920×1080 and 1440×900, native
+  `document.modelContext`, four tools, WebGPU, zero reload commands, one
+  main-document request per run, exact-once human Apply, clean reset, and no
+  failures.
 - A pinned production build, Render Blueprint, Linux evidence workflow, and a
   Windows workflow that stages an offline bundle and unsigned MSIX package.
 

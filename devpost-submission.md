@@ -134,11 +134,12 @@ requirement.
 7. Confirm `Launch Board`, `Brushed Steel`, revision `R+1`, and separate
    agent proposal and human approval activity.
 
-The immutable public GoSX `v0.55.1` deployment passed **162/162 stress
-assertions** and **139/139 clean-recording assertions** in native Windows Chrome
-152. Chrome exposed `document.modelContext`, discovered exactly four tools, used
-WebGPU, issued zero reload commands, and made one main-document request. The
-flow applied the reviewed transaction exactly once through the visible human
+The immutable public GoSX `v0.55.1` deployment passed a **162/162 stress run**
+plus **139/139 clean-recording runs** at both 1920×1080 and 1440×900 in native
+Windows Chrome 152. Chrome exposed
+`document.modelContext`, discovered exactly four tools, used WebGPU, issued
+zero reload commands, and made one main-document request per run. The flow
+applied the reviewed transaction exactly once through the visible human
 action, returned to a clean shared scene, and recorded no failures. A ChatGPT
 in-app-browser pass remains useful optional cross-client assurance, but is not
 required in addition to the compatible Chrome path.
@@ -151,18 +152,18 @@ public README and `docs/native-webmcp-qa.md`.
 [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev)
 
 The live URL serves the immutable GoSX `v0.55.1` image built from commit
-`d6e18a637c4dc2d994079c30365a60193920e721`, pinned by digest
-`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+`1920e05447bfd5d98bee6b0c2576e9302734d46f`, pinned by digest
+`sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`.
 Its public health endpoint reports `0.55.1`.
 
 ## Public Repository Link
 
 [M31-Labs/gosx3d-studio](https://github.com/M31-Labs/gosx3d-studio) — MIT
 
-The repository is public, the release candidate is merged to its default
-branch at merge commit `1a14cba13eaf82bae5ff510853fe533a95e5ddb8`, and the
-required source, MIT license, gallery assets, and testing instructions are
-available without authentication.
+The repository is public on its default `main` branch, and the required source,
+MIT license, gallery assets, and testing instructions are available without
+authentication. The deployed judge-clarity implementation is merge commit
+`1920e05447bfd5d98bee6b0c2576e9302734d46f`.
 
 ## Demo Video
 
