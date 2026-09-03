@@ -22,7 +22,7 @@
   139/139 clean-recording runs at 1920×1080 and 1440×900, native
   `document.modelContext`, four tools, WebGPU, zero reload commands, one
   main-document request per run, exact-once human Apply, clean reset, and no
-  failures.
+  failed assertion, runtime exception, console/log error, or HTTP error.
 - A pinned production build, Render Blueprint, Linux evidence workflow, and a
   Windows workflow that stages an offline bundle and unsigned MSIX package.
 

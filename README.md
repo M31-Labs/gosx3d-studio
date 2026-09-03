@@ -98,7 +98,8 @@ The immutable public GoSX v0.55.1 build passed a 162/162 stress run plus
 discovered exactly four tools, negotiated WebGPU, issued zero reload commands,
 and made one main-document request per run. The flow staged a reversible
 preview, applied it exactly once through the visible human action, and reset to
-a clean shared scene with no failures. ChatGPT's in-app browser remains useful
+a clean shared scene with no failed assertions, runtime exceptions,
+console/log errors, or HTTP errors. ChatGPT's in-app browser remains useful
 optional cross-client assurance. See [Native WebMCP
 verification](docs/native-webmcp-qa.md) for the exact evidence boundary and
 exercised workflow.
