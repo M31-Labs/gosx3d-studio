@@ -3,8 +3,8 @@
 Completed September 2, 2026 evidence covers the immutable GoSX `v0.55.1`
 [public demo](https://gosx3d.m31labs.dev) in native Windows Chrome. The public
 health endpoint reported `0.55.1`; the deployed image was built from commit
-`d6e18a637c4dc2d994079c30365a60193920e721` and pinned by digest
-`sha256:e4c38ac191c30fa681258ac88c66d0a964af7beb73423fec8a3280af1232d71b`.
+`1920e05447bfd5d98bee6b0c2576e9302734d46f` and pinned by digest
+`sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`.
 
 ## Client
 
@@ -31,8 +31,8 @@ The preview tool schema exposed exactly three operation kinds:
 `rename-entity`, `set-transform`, and `assign-material`.
 
 The public GoSX `v0.55.1` stress run passed 162/162 acceptance assertions, and
-the clean recording run passed 139/139. Together they proved this same-document
-flow:
+the clean recording run passed 139/139 at both 1920×1080 and 1440×900. Together
+they proved this same-document flow:
 
 - native state inspection, stable-ID search, and visible focus;
 - a two-operation `Board` to `Launch Board` rename plus dedicated `Brushed
