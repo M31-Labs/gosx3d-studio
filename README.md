@@ -6,10 +6,10 @@ path.
 
 **Live judge demo:** [gosx3d.m31labs.dev](https://gosx3d.m31labs.dev)
 
-> **Deployment status:** The live URL still serves the immutable build identified
-> under [Deploy on Kubernetes](#deploy-on-kubernetes). The judge-facing handoff
-> enhancements described below as release-candidate work are present in source,
-> but are not claimed as live until the next immutable deployment.
+> **Deployment status:** The live URL serves the final-polish build from main
+> merge commit `c2e9af06a67ed1aa95d61bf68aac903fa67fe80e`, pinned to image digest
+> `sha256:8b28089e5dd6c757744aeae3448d283388f52b0a49b6a2f61c2061d68c5062e7`.
+> Its public health endpoint reports GoSX `0.55.1`.
 
 ![GoSX 3D Studio showing a human-approved WebMCP scene change](docs/assets/webmcp-human-applied.png)
 
@@ -31,7 +31,7 @@ without surrendering scene authority.
 The Studio now exposes its existing human/agent scene contract directly to a
 compatible browser. An agent can inspect canonical scene state, search stable
 object IDs, focus the visible hierarchy, and stage a bounded edit preview. The
-release candidate names all four registrations and their roles in an in-app
+deployed Studio names all four registrations and their roles in an in-app
 **Native WebMCP** disclosure, with a direct link to the `registerTool` source.
 
 When the two-edit demo is staged, a presentation-size card mirrors the exact
@@ -104,16 +104,30 @@ To exercise the WebMCP tools, use ChatGPT's in-app browser or Chrome 149+ with
 `chrome://flags/#enable-webmcp-testing` enabled. The Agent Collaboration panel
 reports whether the browser registered all four tools.
 
-The immutable public GoSX v0.55.1 build passed a 162/162 stress run plus
-139/139 clean-recording runs at both 1920×1080 and 1440×900 in Google Chrome
-152 on Windows. Chrome used its native `document.modelContext`,
-discovered exactly four tools, negotiated WebGPU, issued zero reload commands,
-and made one main-document request per run. The flow staged a reversible
-preview, applied it exactly once through the visible human action, and reset to
-a clean shared scene with no failed assertions, runtime exceptions,
-console/log errors, or HTTP errors. ChatGPT's in-app browser remains useful
-optional cross-client assurance. See [Native WebMCP
-verification](docs/native-webmcp-qa.md) for the exact evidence boundary and
+The preceding immutable public GoSX v0.55.1 build (commit
+`1920e05447bfd5d98bee6b0c2576e9302734d46f`, image digest
+`sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`)
+passed a 162/162 stress run plus 139/139 clean-recording runs at both
+1920×1080 and 1440×900 in Google Chrome 152 on Windows. Chrome used its native
+`document.modelContext`, discovered exactly four tools, negotiated WebGPU,
+issued zero reload commands, and made one main-document request per run. The
+flow staged a reversible preview, applied it exactly once through the visible
+human action, and reset to a clean shared scene with no failed assertions,
+runtime exceptions, console/log errors, or HTTP errors.
+
+The final-polish deployment then passed a separate public acceptance in native
+Windows Chrome 152 at both 1920×1080 and 1440×900. It negotiated WebGPU,
+rendered 145 meshes, and exposed exactly four tools. Starting at revision 1,
+the flow staged exactly `Board → Launch Board` and
+`Carved Wood (board-material) → Brushed Steel (board-steel-material)`; visible
+human approval advanced the scene to revision 2 and left a persistent approval
+outcome. Evidence remained **31/31 · current**, the PROPOSED and APPROVED
+activity records stayed paired, and the original canvas remained mounted
+through five managed same-document transitions. The guarded flow observed zero
+new top-level document loads, zero camera writes from hierarchy keyboard input,
+and no failures. ChatGPT's in-app browser remains useful optional cross-client
+assurance; this acceptance claim is for native Windows Chrome. See [Native
+WebMCP verification](docs/native-webmcp-qa.md) for the evidence boundary and
 exercised workflow.
 
 For the final public take, `scripts/record-public-demo.mjs` attaches to an
@@ -153,9 +167,9 @@ non-root with a read-only root filesystem, health probes, bounded resources,
 runtime secrets outside Git, an immutable Harbor digest, and TLS through the
 existing M31 Labs ingress.
 
-The current public deployment was built from commit
-`1920e05447bfd5d98bee6b0c2576e9302734d46f` and is pinned to image digest
-`sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`.
+The current public deployment was built from main merge commit
+`c2e9af06a67ed1aa95d61bf68aac903fa67fe80e` and is pinned to image digest
+`sha256:8b28089e5dd6c757744aeae3448d283388f52b0a49b6a2f61c2061d68c5062e7`.
 Its public health endpoint reports GoSX `0.55.1`.
 
 Keep the service at one instance: the demo intentionally shares process-local
