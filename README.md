@@ -31,12 +31,12 @@ semantic changes, deterministic fingerprint, and Arbiter Allow evidence. It
 does not change the scene until a person uses the visible **Apply staged
 changes** action, which is not exposed as a WebMCP tool.
 
-A persistent typed-call trace makes the collaboration legible in the page: it
-records the inspected revision, the object the agent found, the visible focus
-request, and the bounded operation count staged for review. Focus, preview,
-discard, and approval reconcile in place without tearing down the live Scene3D
-canvas. The trace and server-owned proposal also survive a deliberate
-same-session reload as a separate recovery guarantee.
+A persistent **WebMCP tool receipts** trace makes the collaboration legible in
+the page: it records the inspected revision, the object the agent found, the
+visible focus request, and the bounded operation count staged for review.
+Focus, preview, discard, and approval reconcile in place without tearing down
+the live Scene3D canvas. The trace and server-owned proposal also survive a
+deliberate same-session reload as a separate recovery guarantee.
 
 Four tools are registered in `public/studio-webmcp.js`:
 

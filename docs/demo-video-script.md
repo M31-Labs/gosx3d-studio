@@ -18,6 +18,9 @@ For the operator's compact timeline and recording settings, keep
 
 - Use the exact hosted build and browser that will appear in the video. Wait
   until **Agent Collaboration** reads **Agent tools ready** and **4 tools**.
+- At 1920×1080, confirm the viewport card reads **Delegate scene busywork.
+  Keep creative control.** and its **4 WebMCP tools · 0 commit tools** proof is
+  legible without covering the sample scene.
 - Wait for the viewport to show the live WebGPU scene and for the compact
   **Evidence 31/31 · current · rev [R]** status in the Agent Activity bar. Do
   not open on a negotiating renderer or stale/recomputing evidence state.
@@ -65,10 +68,10 @@ agent-callable commit tool.
 ### 1. 0:00-0:17 - Start with the problem in motion
 
 **On screen:** Begin on the clean Studio prepared before capture, with the
-non-Board selection created by reset. Hold for two seconds, then make one small,
-controlled orbit across the polished wood board and glossy coral pieces. Do
-not point to or select `Board`. Add the restrained caption **Shared ephemeral
-demo workspace · WebGPU**.
+non-Board selection created by reset. Hold the plain-language value card for
+two seconds, then make one small, controlled orbit across the polished wood
+board and glossy coral pieces. Do not point to or select `Board`. Add the
+restrained caption **Shared ephemeral demo workspace · WebGPU**.
 
 **Voiceover:**
 
@@ -78,9 +81,10 @@ demo workspace · WebGPU**.
 
 ### 2. 0:17-0:27 - Establish the live boundary
 
-**On screen:** Point to `WEBGPU`, **Agent tools ready**, **4 tools**, canonical
-revision `[R]`, and **Evidence 31/31 · current**. Add the caption **150 entities
-· 145 meshes · 4 page tools · 0 commit tools**.
+**On screen:** Point to `WEBGPU`, **Agent tools ready**, the value-card proof
+**150 entities · 4 WebMCP tools · 0 commit tools**, canonical revision `[R]`,
+and **Evidence 31/31 · current**. Add the caption **150 entities · 145 meshes ·
+4 page tools · 0 commit tools**.
 
 **Voiceover:**
 
@@ -102,10 +106,10 @@ selection to Board.
 > Board to stable ID `board`, and moves the hierarchy and Inspector to that same
 > object.
 
-### 4. 0:57-1:08 - Show the typed-call trace
+### 4. 0:57-1:08 - Show the WebMCP tool receipts
 
-**On screen:** Use a 150% punch-in on the completed trace. Make all four concise
-results readable in order: Inspect, Find, Focus, Stage.
+**On screen:** Use a 150% punch-in on **WebMCP tool receipts**. Make all four
+concise results readable in order: Inspect, Find, Focus, Stage.
 
 **Voiceover:**
 
@@ -212,8 +216,8 @@ approval**.
       visible.
 - [ ] The opening and closing show the live WebGPU scene plus compact
       **Evidence 31/31 · current** status for the visible revision.
-- [ ] The persistent typed-call trace shows concise real results for all four
-      steps without interrupting the flow for a reload.
+- [ ] **WebMCP tool receipts** shows concise real results for all four steps
+      without interrupting the flow for a reload.
 - [ ] The exact prompt, stable ID `board`, and baseline `[R]` are shown; Board
       is found and focused by the agent rather than selected in advance.
 - [ ] Both staged operations are visible: `Board -> Launch Board` and

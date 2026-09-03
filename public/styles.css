@@ -697,6 +697,12 @@ time,
   background: color-mix(in srgb, var(--color-panel-sunken) 90%, transparent);
   box-shadow: 0 var(--space-sm) var(--space-xl) var(--color-shadow);
   pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+
+.scene-stage[data-webmcp-preview="true"] .judge-value-card {
+  opacity: 0;
+  transform: translateY(calc(0rem - var(--space-xs)));
 }
 
 @media (min-width: 100rem) and (min-height: 60rem) {
