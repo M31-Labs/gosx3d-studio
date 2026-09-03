@@ -469,10 +469,46 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	for _, required := range []string{
 		"Canonical material",
 		"One ephemeral scene shared across visitors.",
+		"Delegate scene busywork. Keep creative control.",
+		"0 commit tools",
+		"no auto-commit",
+		"WebMCP tool receipts",
+		"Try it in 30 seconds",
 	} {
 		if !strings.Contains(page, required) {
 			t.Errorf("review truth copy is missing %q", required)
 		}
+	}
+	for _, required := range []string{
+		"Browser agents can find and preview exact scene edits. Only you can apply them.",
+	} {
+		if !strings.Contains(adapter, required) {
+			t.Errorf("judge-facing WebMCP value copy is missing %q", required)
+		}
+	}
+	for _, required := range []string{
+		"awaiting your review",
+		"Human approved ",
+		"same reviewed transaction",
+	} {
+		if !strings.Contains(review, required) {
+			t.Errorf("judge-facing proposal outcome copy is missing %q", required)
+		}
+	}
+	for _, required := range []string{
+		`.studio-shell[data-studio-demo="true"] .judge-value-card`,
+		`.scene-stage[data-webmcp-preview="true"] .judge-value-card`,
+		`--panel-agent: 21rem`,
+		`pointer-events: none`,
+	} {
+		if !strings.Contains(styles, required) {
+			t.Errorf("judge-facing demo presentation is missing %q", required)
+		}
+	}
+	missionIndex := strings.Index(page, `class="webmcp-demo-mission"`)
+	receiptsIndex := strings.Index(page, `class="webmcp-trace-shell"`)
+	if missionIndex < 0 || receiptsIndex < 0 || missionIndex > receiptsIndex {
+		t.Fatal("the 30-second judge task must appear before lower-priority WebMCP receipts")
 	}
 	if !strings.Contains(adapter, "· visible UI") {
 		t.Error("focus receipt does not distinguish visible UI synchronization")

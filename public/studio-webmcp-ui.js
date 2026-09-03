@@ -535,6 +535,10 @@
     lockSceneMutationControls(true);
     var receipt = pendingProposal.receipt || {};
     var affected = Array.isArray(receipt.affected) ? receipt.affected : [];
+    var operationCount = Number(receipt.operations || (
+      Array.isArray(pendingProposal.sceneCommands) ? pendingProposal.sceneCommands.length : 0
+    ));
+    var editSummary = operationCount === 1 ? "1 exact edit" : operationCount + " exact edits";
     var rationale = one("[data-webmcp-proposal-rationale]");
     var agentPanel = one(".agent-panel");
     if (agentPanel) agentPanel.classList.add("has-pending-proposal");
@@ -578,10 +582,9 @@
     updateStatus({
       state: "proposal",
       tool: "scene_preview_actions",
-      message: (Array.isArray(pendingProposal.sceneCommands) && pendingProposal.sceneCommands.length
-        ? "The viewport is showing a reversible agent preview. "
-        : "") + "Canonical revision " + canonicalRevision +
-        " is unchanged. Scene edits pause during review; orbit and selection stay live."
+      message: (operationCount > 0 ? editSummary + " prepared. " : "Exact edits prepared. ") +
+        "Canonical revision " + canonicalRevision +
+        " is unchanged and awaiting your review. Orbit and selection stay live."
     });
     var proposalCard = one("[data-webmcp-proposal]");
     if (proposalCard && agentPanel && typeof agentPanel.scrollTo === "function") {
@@ -951,13 +954,23 @@
     }).then(function (payload) {
       proposalHydration++;
       return scenePreviewChain.then(function () {
+        var receipt = proposal.receipt || {};
+        var beforeRevision = receipt.beforeRevision == null ? "?" : String(receipt.beforeRevision);
+        var afterRevision = payload && payload.receipt && payload.receipt.afterRevision != null
+          ? String(payload.receipt.afterRevision)
+          : "current";
+        var operationCount = Number(receipt.operations || (
+          Array.isArray(proposal.sceneCommands) ? proposal.sceneCommands.length : 0
+        ));
+        var editSummary = operationCount === 1 ? "1 exact edit" : operationCount + " exact edits";
         activeScenePreview = null;
         markScenePreview(false);
         clearProposal("The reviewed proposal was applied to the canonical scene.");
         updateStatus({
           state: "applied",
-          message: "Applied by human review at scene revision " +
-            String(payload && payload.receipt ? payload.receipt.afterRevision : "current") + "."
+          message: "Human approved " + (operationCount > 0 ? editSummary : "the exact staged edits") +
+            " · revision " + beforeRevision + " → " + afterRevision +
+            " · same reviewed transaction."
         });
         scrollAgentPanelTop();
         return refreshPage();

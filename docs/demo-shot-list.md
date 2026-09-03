@@ -7,10 +7,10 @@ Use this as the recording-day operator sheet. The complete narration is in
 
 | Time | Operator action | Proof that must be readable |
 | --- | --- | --- |
-| 0:00-0:17 | Hold the clean scene for two seconds, then make one controlled orbit without selecting Board | Polished wood and glossy coral, caption: **Shared ephemeral demo workspace · WebGPU** |
-| 0:17-0:27 | Establish the live boundary | Baseline `[R]`, **Agent tools ready**, **4 tools**, **Evidence 31/31 · current**, caption: **150 entities · 145 meshes · 4 page tools · 0 commit tools** |
+| 0:00-0:17 | Hold the value card and clean scene for two seconds, then make one controlled orbit without selecting Board | **Delegate scene busywork. Keep creative control.**, polished wood and glossy coral, caption: **Shared ephemeral demo workspace · WebGPU** |
+| 0:17-0:27 | Establish the live boundary | Baseline `[R]`, **Agent tools ready**, **150 entities · 4 WebMCP tools · 0 commit tools**, **Evidence 31/31 · current** |
 | 0:27-0:57 | Copy and send the exact in-product prompt; let the agent complete its calls | Inspect/Find/Focus/Stage completion, stable ID `board`, visible focus moving from the reset selection |
-| 0:57-1:08 | Punch into the completed trace at 150% | Four concise real results in order; no reload |
+| 0:57-1:08 | Punch into **WebMCP tool receipts** at 150% | Four concise real results in order; no reload |
 | 1:08-1:39 | Punch into the proposal at 165%; open Arbiter reasons for three seconds, then close | Exact rename/material diff, agent actor, Allow 2/2, fingerprint, canonical `[R]` unchanged |
 | 1:39-1:51 | Return wide and orbit the live Brushed Steel preview once | **Agent preview · not committed**, unchanged canonical revision, live Scene3D response |
 | 1:51-2:02 | Move deliberately to **Apply staged changes** and click once | Visible human decision outside the WebMCP tool surface; no canvas blink |

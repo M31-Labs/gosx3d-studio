@@ -54,6 +54,12 @@ func TestAgentViewNeverProjectsSharedReceiptsAsSessionOwnedProposals(t *testing.
 	if view["agentCount"] != "1" {
 		t.Fatalf("shared agent activity count = %#v, want 1", view["agentCount"])
 	}
+	authority, _ := view["authority"].(string)
+	if !strings.Contains(authority, "WebMCP proposals stop at a reversible preview") ||
+		!strings.Contains(authority, "you decide whether to apply them") ||
+		!strings.Contains(authority, "automation API disabled") {
+		t.Fatalf("agent authority copy does not explain the human decision boundary: %q", authority)
+	}
 }
 
 // The evidence suite renders frames and builds workspaces. Measured on the

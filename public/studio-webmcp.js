@@ -812,7 +812,7 @@
     Promise.all(registrations).then(function () {
       if (registrationController.signal.aborted) return;
       registrationState = "ready";
-      emitStatus("ready", "Four WebMCP tools are ready for human-agent scene collaboration.", { tools: TOOL_NAMES.slice() });
+      emitStatus("ready", "Browser agents can find and preview exact scene edits. Only you can apply them.", { tools: TOOL_NAMES.slice() });
     }).catch(function (caught) {
       registrationController.abort();
       registrationState = "failed";
