@@ -37,8 +37,8 @@ deployed Studio names all four registrations and their roles in an in-app
 When the two-edit demo is staged, a presentation-size card mirrors the exact
 rename and material before/after values over the live viewport while marking
 canonical revision `R` unchanged. The detailed review keeps its rationale,
-affected objects, deterministic fingerprint, and Arbiter Allow evidence in
-view; sticky **Discard** and human-only **Apply 2 exact edits** controls keep the
+affected objects, deterministic fingerprint, and passed server checks in view;
+sticky **Discard** and human-only **Apply 2 exact edits** controls keep the
 decision reachable while the artist inspects the result. Apply is not exposed
 as a WebMCP tool. After approval, a persistent **Human approved** outcome records
 the exact edit count and `R → R+1` handoff in the workspace.
@@ -75,8 +75,8 @@ document.modelContext.registerTool({
 Agent proposals and visible UI approvals converge on the same revision-safe
 `Workspace.Execute` path that predates the browser adapter. The server retains
 the exact previewed transaction behind an opaque proposal ID, so the approval
-step cannot silently substitute different operations. An embedded Arbiter
-strategy evaluates every proposed operation before staging and returns an
+step cannot silently substitute different operations. A fail-closed server
+check evaluates every proposed operation before staging and returns an
 inspectable decision trace. See
 [docs/webmcp-challenge.md](docs/webmcp-challenge.md) for the architecture,
 baseline/new-work split, safety boundaries, examples, and compatible-browser

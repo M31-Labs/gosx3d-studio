@@ -52,8 +52,9 @@ and a shared transaction path for human and agent commands. Those foundations
 are not claimed as Challenge work.
 
 During the submission period we added the WebMCP adapter; structured
-inspection, search, and focus; session-owned non-canonical proposals; Arbiter
-policy; the visible review and exact-commit boundary; typed-call evidence;
+inspection, search, and focus; session-owned non-canonical proposals;
+fail-closed server checks; the visible review and exact-commit boundary;
+typed-call evidence;
 shared-demo reset; focused tests; and deployment materials. We also added
 same-document Scene3D reconciliation, WebGPU-first rendering, a compact
 evidence dock, and a refined PBR sample scene. The final polish serializes demo
@@ -108,7 +109,7 @@ prepare documentation and demo materials.
   sticky human-only approval, and a persistent revision outcome.
 - One-use session proposals with expiry, revision checks, CSRF protection, and
   exact stored-transaction commit.
-- Fail-closed Arbiter policy with visible Allow evidence for each staged edit.
+- Fail-closed server checks with visible pass evidence for each staged edit.
 - WebGPU-first Scene3D rendering, in-place updates, and WebGL fallback.
 - Shared-demo reset that invalidates proposals and advances revision; reset is
   deliberately outside the WebMCP surface.
@@ -117,7 +118,7 @@ prepare documentation and demo materials.
 
 ```text
 browser agent -> four WebMCP tools -> same-origin proposal service
-              -> Arbiter policy -> Workspace.Execute(propose, revision R)
+              -> server checks -> Workspace.Execute(propose, revision R)
               -> visible non-applied review card
               -> human Apply UI -> exact stored transaction
               -> Workspace.Execute(direct, revision R) -> canonical R+1
@@ -129,7 +130,7 @@ scene model. The pre-Challenge comparison point is commit
 
 ## Built With
 
-Go, GoSX, WebMCP, WebGPU, JavaScript, and Arbiter. The hosted release can run on
+Go, GoSX, WebMCP, WebGPU, and JavaScript. The hosted release can run on
 Kubernetes, but Kubernetes is deployment infrastructure rather than a product
 requirement.
 
@@ -147,8 +148,8 @@ requirement.
    schemas shown in the panel.
 4. Confirm **Inspect → Find → Focus → Stage** completes and the hierarchy
    and Inspector focus stable ID `board`.
-5. Confirm the staged card shows both edits, `agent://webmcp`, Arbiter Allow,
-   the fingerprint, and canonical revision `R` unchanged.
+5. Confirm the staged card shows both edits, `agent://webmcp`, two passed review
+   checks, the fingerprint, and canonical revision `R` unchanged.
 6. Orbit the live Brushed Steel preview, then click **Apply 2 exact edits**.
 7. Confirm `Launch Board`, `Brushed Steel`, revision `R+1`, and separate
    agent proposal and human approval activity.
@@ -212,7 +213,12 @@ authentication. The deployed judge-clarity implementation is main merge commit
 
 `[OWNER INPUT REQUIRED: PUBLIC YOUTUBE URL — UNDER 3 MINUTES WITH AUDIO]`
 
-The 2:28 plan in `docs/demo-video-script.md` covers four native page tools,
+A visually reviewed 2:16 silent master is captured locally. The remaining
+owner step is to record narration, export with audio, upload it publicly to
+YouTube, and paste the URL above.
+
+The operator-ready runbook in `docs/submission-recording-runbook.md` and the
+2:28 plan in `docs/demo-video-script.md` cover four native page tools,
 reversible preview, policy, visible Apply, and separate agent/human attribution
 in one session. Its Windows-only helper invokes the four tools but never Apply,
 then rejects the take unless it observes the exact `R+1` scene, **Evidence
@@ -239,9 +245,9 @@ native Windows Chrome:
    hierarchy, Inspector, revision, WebGPU, and **Agent tools ready · 4 tools**.
    Caption: “One scene, visible to both human and browser agent.”
 2. [`docs/assets/webmcp-staged-proposal.png`](docs/assets/webmcp-staged-proposal.png)
-   — semantic diff, Arbiter Allow, affected ID, fingerprint, canonical `R`
-   unchanged, and Apply/Discard. Caption: “The agent proposes; Apply stays in
-   the visible Studio UI.”
+   — semantic diff, passed review checks, affected ID, fingerprint, canonical
+   `R` unchanged, and Apply/Discard. Caption: “The agent proposes; Apply stays
+   in the visible Studio UI.”
 3. [`docs/assets/webmcp-human-applied.png`](docs/assets/webmcp-human-applied.png)
    — Launch Board, Brushed Steel, `R+1`, and both actors in Agent Activity.
    Caption: “One reviewed proposal becomes one attributed canonical change.”
@@ -260,9 +266,11 @@ native Windows Chrome:
 - [x] Repeat the short public native-WebMCP acceptance after deployment:
       revision 2 → 3, WebGPU, four tools, paired activity, current evidence,
       same canvas, zero document reloads, then a clean reset at revision 4.
-- [ ] Record and publish the 2:28 YouTube demo with audio, then verify the app,
-      repository, and video while signed out.
-- [ ] Supply the six owner-confirmed answers clearly marked below.
+- [x] Capture and visually verify the 2:16 silent demo master from native
+      Windows Chrome, including the exact four-call and approval handoff.
+- [ ] Add narration to the silent master, publish it publicly to YouTube, then
+      verify the app, repository, and video while signed out.
+- [x] Supply the six owner-confirmed form answers below.
 - [x] Document existing foundations separately from Challenge-period work.
 - [x] Verify local GoSX `v0.55.1` in native Windows Chrome: 162/162, WebGPU,
       four tools, zero reload commands, one main-document request, clean reset.
@@ -294,7 +302,7 @@ but it has not been submitted to The WebMCP Challenge.
   requires visible human approval.
 - The broader editor includes capabilities whose certification state remains
   partial or planned; the demo claim is limited to the verified scene workflow.
-- The public YouTube upload and owner-confirmed form answers remain outstanding.
+- The public YouTube upload and gallery-form upload remain outstanding.
 
 ## TODO Official Form Fields
 
@@ -304,16 +312,16 @@ choose for the submitter.
 
 | ID | Official field | Paste-ready answer / status |
 | --- | --- | --- |
-| 28249 | **Submitter Type** (required: Individual / Team of Individuals / Organization) | `[OWNER INPUT REQUIRED: choose one]` |
-| 28250 | **Country of residence of yourself and team members if applicable** (required, multi-select) | `[OWNER INPUT REQUIRED: select every applicable country exactly as listed]` |
-| 28251 | **If submitting on behalf of an organization, what is the organization name?** (optional) | `[OWNER INPUT REQUIRED IF ORGANIZATION: enter the legal organization name; otherwise leave blank]` |
+| 28249 | **Submitter Type** (required: Individual / Team of Individuals / Organization) | `Individual` |
+| 28250 | **Country of residence of yourself and team members if applicable** (required, multi-select) | `United States` |
+| 28251 | **If submitting on behalf of an organization, what is the organization name?** (optional) | `M31 Labs` — the individual submitter's consultancy represented by this entry. |
 | 28252 | **App Status** (required: New / Existing) | `Existing` |
-| 28253 | **If Existing, explain what you updated during the submission period. (We recommend explaining this in your text description, too!)** (optional) | `GoSX 3D Studio existed before August 25 with its SceneDoc workbench and revision-safe human/agent transaction engine. During the Challenge we added four webpage-registered WebMCP tools for canonical inspection, stable-ID search, visible focus, and bounded non-canonical proposals; session-owned review; executable Arbiter policy evidence; a visible human-only exact-commit boundary; typed-call receipts and actor attribution; same-document Scene3D reconciliation; WebGPU-first rendering; and a polished PBR sample scene. The final deployed polish adds an in-app native-tool disclosure, a presentation-size reversible diff, sticky human-only approval, a persistent revision outcome, race-safe demo reset, conflict-free hierarchy keyboard control, and a recording verifier for the exact handoff. We do not claim the pre-existing editor or transaction foundations as Challenge work.` |
+| 28253 | **If Existing, explain what you updated during the submission period. (We recommend explaining this in your text description, too!)** (optional) | `GoSX 3D Studio existed before August 25 with its SceneDoc workbench and revision-safe human/agent transaction engine. During the Challenge we added four webpage-registered WebMCP tools for canonical inspection, stable-ID search, visible focus, and bounded non-canonical proposals; session-owned review; fail-closed server checks; a visible human-only exact-commit boundary; typed-call receipts and actor attribution; same-document Scene3D reconciliation; WebGPU-first rendering; and a polished PBR sample scene. The final deployed polish adds an in-app native-tool disclosure, a presentation-size reversible diff, sticky human-only approval, a persistent revision outcome, race-safe demo reset, conflict-free hierarchy keyboard control, and a recording verifier for the exact handoff. We do not claim the pre-existing editor or transaction foundations as Challenge work.` |
 | 28254 | **Live URL that judges can access using ChatGPT's in-app browser or Google Chrome with WebMCP enabled** (required) | [GoSX 3D Studio live demo](https://gosx3d.m31labs.dev) |
 | 28255 | **If applicable, testing instructions for application - If you have credentials for your URL, you can put them here.** (optional/private) | `No credentials required. Reset the shared scene and wait for Agent tools ready · 4 tools. In an agent-enabled client, use Copy demo prompt. In Chrome, the same four tools can be invoked from DevTools → Application → WebMCP. Confirm Inspect → Find → Focus → Stage, inspect the non-committed preview at canonical revision R, then click the visible Apply 2 exact edits action and confirm Launch Board, Brushed Steel, and revision R+1.` |
 | 28256 | **URL to your PUBLIC Code Repo (on Github, Gitlab, or Bitbucket)** (required) | [Public GitHub repository](https://github.com/M31-Labs/gosx3d-studio) |
 | 28257 | **Which agent(s) or client(s) did you test your WebMCP tools with?** (required) | `Google Chrome 152 on Windows with WebMCPTesting and DevToolsWebMCPSupport. The preceding immutable public GoSX v0.55.1 build passed a 162/162 stress run plus 139/139 clean-recording runs. The preceding final-polish deployment passed a separate acceptance at 1920×1080 and 1440×900 using native document.modelContext, WebGPU, 145 meshes, exactly four tools, an exact revision 1→2 staged-and-approved handoff, current 31/31 evidence, paired activity, the same mounted canvas, zero new document loads, five managed same-document transitions, zero hierarchy-keyboard camera writes, and no failures. The current compact-review deployment then passed a fresh 1920×1080 acceptance with revision 2→3, the same four tools/WebGPU/145-mesh boundary, paired activity, current evidence, the same canvas, zero document reloads, three managed same-document transitions, and a clean reset at revision 4. ChatGPT in-app testing was not completed and is not claimed.` |
-| 28258 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification, documentation, and submission preparation. Buckley generated and pushed the final structured commit, and Buckbot ran the pre-merge review. [OWNER INPUT REQUIRED: confirm this is the complete AI-tool list, or add every other AI tool used.]` |
-| 28259 | **Describe the level of learning you/your team derived from the project** (required: None / Moderate / Significant) | `[OWNER INPUT REQUIRED: choose one]` |
-| 28260 | **Did you gain AI value that you can use in your career?** (required: Yes / No) | `[OWNER INPUT REQUIRED: choose one]` |
+| 28258 | **Which AI tools have you leveraged while working on this project?** (required) | `OpenAI Codex for repository analysis, implementation, test authoring, debugging, verification, documentation, and submission preparation; and Buckley/Buckbot across multiple configured models for structured commit generation and independent pre-merge review.` |
+| 28259 | **Describe the level of learning you/your team derived from the project** (required: None / Moderate / Significant) | `Moderate` — the project applied and sharpened an existing GoSX/Scene3D stack through a new native WebMCP collaboration boundary, rather than introducing the underlying domain from scratch. |
+| 28260 | **Did you gain AI value that you can use in your career?** (required: Yes / No) | `Yes` — the result is reusable public proof of GoSX/Scene3D and human-gated agent workflows for M31 Labs consulting work. |
 | — | **Public YouTube demo** (required deliverable, under 3 minutes with audio) | `[OWNER INPUT REQUIRED: paste the public YouTube URL]` |

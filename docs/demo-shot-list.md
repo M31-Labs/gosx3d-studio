@@ -18,7 +18,7 @@ tool** flow is backup only. Use the clean
 | 0:28-0:40 | Hold the task; open the in-app **Native WebMCP** disclosure, then close it | Exact intent, four registered tool names and roles, source link |
 | 0:40-1:07 | Follow the off-capture helper cues for state, find, focus, and preview; hold the full presentation viewport after Stage | Four native results; stable ID `board`; hierarchy/Inspector focus; readable two-edit viewport diff |
 | 1:07-1:18 | With the in-app disclosure closed, punch into **WebMCP tool receipts** at 150% | Inspect/Find/Focus/Stage, same document, no reload |
-| 1:18-1:43 | Punch into the proposal without losing the sticky Apply; open Arbiter reasons for two seconds | Exact diff, actor, Allow 2/2, fingerprint, canonical `[R]` unchanged, **Apply 2 exact edits** |
+| 1:18-1:43 | Punch into the proposal without losing the sticky Apply; open **What was checked** for two seconds | Exact diff, actor, 2/2 checks passed, fingerprint, canonical `[R]` unchanged, **Apply 2 exact edits** |
 | 1:43-1:53 | Return to the presentation-size viewport and orbit Brushed Steel once | Readable viewport diff, **Agent preview · not committed**, unchanged revision |
 | 1:53-2:03 | Click sticky **Apply 2 exact edits** exactly once | Visible human decision outside the four-tool surface |
 | 2:03-2:20 | Land on the persistent **Human approved** outcome; show evidence and paired activity | `Launch Board`, `Brushed Steel`, `[R+1]`, **Evidence 31/31 · current**, matching proposed/approved token |
@@ -27,8 +27,9 @@ tool** flow is backup only. Use the clean
 ## Primary sequence — cue-driven Windows Chrome
 
 1. Start the already-validated native Windows Chrome with WebMCP and remote
-   debugging enabled. Open exactly one tab at
-   `https://gosx3d.m31labs.dev`. Do not start or attach to a Linux browser.
+   debugging enabled. Open exactly one tab at the
+   [public Studio](https://gosx3d.m31labs.dev). Do not start or attach to a
+   Linux browser.
 2. In the operator terminal, run:
 
    ```bash
@@ -151,13 +152,13 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
 
 - [ ] Use the verified native Windows Chrome installation; never use Linux.
 - [ ] Enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, and load
-      `https://gosx3d.m31labs.dev` signed out.
+      the [public Studio](https://gosx3d.m31labs.dev) signed out.
 - [ ] Run the helper, coordinate the shared reset, and wait for **Preflight
       passed** plus **READY TO RECORD**. Record its `[R]`; do not reset again.
 - [ ] Rehearse opening the in-app **Native WebMCP** disclosure and verify four
       registered tool names and roles. Close it before the tool-call beat.
-- [ ] Prepare the signed-out source tab:
-      `https://github.com/M31-Labs/gosx3d-studio/blob/main/public/studio-webmcp.js#L747-L802`.
+- [ ] Prepare the signed-out
+      [WebMCP source tab](https://github.com/M31-Labs/gosx3d-studio/blob/main/public/studio-webmcp.js#L747-L802).
 - [ ] Keep this operator sheet on the second device. Do not expose a text
       editor, clipboard manager, terminal, or private notes in the capture.
 - [ ] Record ten seconds of UI motion and narration; inspect it at 100% scale.
@@ -191,8 +192,8 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
    the Studio.
 6. After Stage, hold the presentation-size viewport diff before punching into
    the detailed proposal.
-7. Open the Arbiter disclosure with a click, hold two seconds, then close it;
-   keep sticky **Apply 2 exact edits** visible.
+7. Open **What was checked** with a click, hold two seconds, then close it; keep
+   sticky **Apply 2 exact edits** visible.
 8. Orbit the reversible preview before approval, then click **Apply 2 exact
    edits** once.
 9. Show the paired `agent://webmcp` **PROPOSED** and
@@ -212,9 +213,9 @@ and the Studio's visible receipt rail. Apply remains a visible human click.
 - Watch the exported file end-to-end with headphones at 100% scale.
 - Upload to YouTube as **Public**, add accurate captions, and verify the video
   signed out after HD processing completes.
-- Put both links in the description:
-  `https://gosx3d.m31labs.dev` and
-  `https://github.com/M31-Labs/gosx3d-studio`.
+- Put both links in the description: the
+  [public Studio](https://gosx3d.m31labs.dev) and the
+  [public source](https://github.com/M31-Labs/gosx3d-studio).
 - Confirm the final edit says **Chrome invokes** for the deterministic take,
   shows exactly one `[R] -> [R+1]` advance, and never claims agent-selected
   calls.

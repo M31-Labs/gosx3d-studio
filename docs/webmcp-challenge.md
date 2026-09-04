@@ -47,8 +47,8 @@ experience:
 - `webmcp.go` adds a deliberately narrow, session-authorized proposal service
   over `Workspace.Execute`; it never creates a second scene model.
 - `internal/studio/rules/webmcp-operations.arb` makes the reversible operation
-  allowlist executable policy. Successfully staged operations carry an Arbiter
-  Allow decision and trace; a Deny prevents staging.
+  allowlist executable policy. Successfully staged operations carry passed
+  review checks and a trace; a denial prevents staging.
 - `app/page.gsx`, `public/studio-webmcp-ui.js`, and `public/styles.css` expose
   tool readiness, agent-requested focus, and a visible proposal-review surface
   outside the registered WebMCP tools in the existing editor.
@@ -200,10 +200,10 @@ mutation authority.
   shapes. The server independently rejects unknown fields, bodies beyond its
   JSON limit, empty or oversized edit batches, unsupported operation kinds,
   and oversized title/rationale fields.
-- **The operation boundary is executable and fail-closed.** An embedded Arbiter
-  strategy selects Allow only for the three reversible operation kinds. A
-  missing, malformed, inconsistent, or denying policy decision stops staging;
-  successful proposals return visible Allow evidence in the review surface.
+- **The operation boundary is executable and fail-closed.** An embedded rules
+  strategy passes only the three reversible operation kinds. A missing,
+  malformed, inconsistent, or denying decision stops staging; successful
+  proposals return visible check evidence in the review surface.
 - **Pending authority is short-lived and bounded.** Proposals expire after 15
   minutes, the in-memory store retains at most 64, and a successful proposal ID
   is removed so it cannot be committed twice.

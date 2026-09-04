@@ -12,8 +12,9 @@
 - Deterministic browser-free frame, exact-pick, simulation, rigging, animation,
   export, and certification evidence.
 - Four browser-native WebMCP tools for scene inspection, search, visible focus,
-  and bounded edit proposals. Every proposal is evaluated by Arbiter and stays
-  non-mutating until a person applies the exact staged transaction.
+  and bounded edit proposals. Every proposed change passes server-side review
+  checks and stays non-mutating until a person applies the exact staged
+  transaction.
 - An immutable public GoSX v0.55.1 deployment built from commit
   `1920e05447bfd5d98bee6b0c2576e9302734d46f` and pinned by digest
   `sha256:0ec822b383c8d75536351f7cd6118961340dc93267691b4b67399c74f4774e10`;

@@ -61,9 +61,9 @@ they proved this same-document flow:
   responses during the complete flow;
 - non-mutating affine group-scale previews in the broader native QA suite;
 - a semantic scale diff (`1.00, 1.00, 1.00 → 1.05, 1.00, 0.95`);
-- Arbiter Allow evidence for the bounded group-scale operation;
-- adapter input-validation rejection of meaningless light scale, not an
-  Arbiter Deny claim;
+- passed server-check evidence for the bounded group-scale operation;
+- adapter input-validation rejection of meaningless light scale, not a server
+  policy denial;
 - discard with no canonical revision change;
 - stale proposal rejection and distinct proposal/UI-approval attribution; and
 - a coordinate-clicked, browser-confirmed visible reset back to the sample
@@ -115,7 +115,7 @@ and Stage, resolved stable ID `board` among 150 entities, and staged the atomic
 `Launch Board` plus `Brushed Steel` proposal. Canonical revision 3, name
 `Board`, and material `board-material` remained unchanged during review. The
 proposal and visible Apply control survived a full same-session reload,
-displayed `Arbiter · Allow · 2/2`, and committed once through the visible human
+displayed `2/2 checks passed`, and committed once through the visible human
 Apply button. The human-attributed receipt advanced revision 3 to 4 and
 assigned `board-steel-material`; the smooth machined rim, dark fillet, chassis,
 and sockets remained independent. The run then restored a clean scene at
