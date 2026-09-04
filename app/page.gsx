@@ -793,7 +793,7 @@ func Page() Node {
 						<input type="hidden" name="selection" value={data.inspector.id}></input>
 						<input type="hidden" name="expectedRevision" value={data.revision}></input>
 						<input type="hidden" name="machineId" value={data.timeline.machineId}></input>
-						<strong>Governed transition · Arbiter</strong>
+						<strong>Governed transition</strong>
 						<label>Δ seconds <input name="deltaTime" value={data.timeline.deltaTime} inputmode="decimal" disabled={!data.timeline.machineAvailable}></input></label>
 						<button type="submit" disabled={!data.timeline.machineAvailable}>Evaluate + sample</button>
 					</form>
@@ -883,8 +883,8 @@ func Page() Node {
 							<dd data-webmcp-proposal-actor>{data.agent.proposalActor}</dd>
 						</div>
 						<div>
-							<dt>Policy</dt>
-							<dd data-webmcp-proposal-policy>Arbiter · awaiting proposal</dd>
+							<dt>Review checks</dt>
+							<dd data-webmcp-proposal-policy>Waiting for proposal</dd>
 						</div>
 						<div>
 							<dt>Revision boundary</dt>
@@ -904,8 +904,8 @@ func Page() Node {
 						</div>
 					</dl>
 					<details class="webmcp-policy-details">
-						<summary>Why Arbiter allowed this proposal</summary>
-						<p data-webmcp-proposal-policy-reasons>Stage a proposal to see the policy decision for every operation.</p>
+						<summary>What was checked</summary>
+						<p data-webmcp-proposal-policy-reasons>Stage a proposal to see the safety checks for each change.</p>
 					</details>
 					<div class="webmcp-review-actions" data-webmcp-review-actions hidden>
 						<small class="webmcp-review-gate" data-webmcp-review-gate>Human-only approval · creates the next revision</small>

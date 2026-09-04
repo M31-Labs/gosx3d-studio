@@ -725,7 +725,7 @@ try {
       ui.proposal.reviewHidden === false && ui.proposal.commitDisabled === false &&
       ui.proposal.commitVisible === true && ui.proposal.commitText === "Apply 2 exact edits" &&
       ui.proposal.summary === "Prepare Launch Board" && ui.proposal.actor === "agent://webmcp" &&
-      ui.proposal.policy === "Arbiter · Allow · 2/2" &&
+      ui.proposal.policy === "2/2 checks passed" &&
       ui.proposal.revision?.includes(`canonical ${baseline} unchanged`) && exactChanges &&
       ui.preview.active && ui.preview.badgeHidden === false && ui.preview.badgeText?.includes("not committed")
       ? { ui, canonical }
@@ -735,7 +735,7 @@ try {
 
   console.log(`\nPROPOSAL READY · canonical revision ${baseline} remains unchanged · proposal ${preview.proposalId}`);
   await cue(
-    "REVIEW / ORBIT: show the four-call trace, exact two-edit proposal, Arbiter reasons, and fingerprint. Orbit the live Brushed Steel preview once; close the reasons before continuing.",
+    "REVIEW / ORBIT: show the four-call trace, exact two-edit proposal, review checks, and fingerprint. Orbit the live Brushed Steel preview once; close the check details before continuing.",
   );
 
   const beforeApply = await canonicalSummary();

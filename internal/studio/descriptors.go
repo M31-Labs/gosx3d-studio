@@ -93,7 +93,7 @@ func ActionDescriptors() []ActionDescriptor {
 	descriptions[OpSetSimulationJoint] = "Add, replace, or remove a distance joint (limits/motor/spring) on a simulation profile."
 	descriptions[OpRetargetAnimation] = "Retarget a stable bone clip through a validated armature map."
 	descriptions[OpSetAnimationParameter] = "Set a declared animation-state-machine parameter."
-	descriptions[OpStepAnimationMachine] = "Advance an Arbiter-governed animation state machine and sample its active clip."
+	descriptions[OpStepAnimationMachine] = "Advance a governed animation state machine and sample its active clip."
 	descriptions[OpSetRenderGraph] = "Replace the retained render/resource graph after deterministic schedule and lifetime validation."
 	descriptions[OpCollectUnusedAssets] = "Plan or checkpoint deletion of unreachable asset records and payload bytes."
 	required := map[OperationKind][]string{OpSetField: {"target", "field", "value"}, OpSetTransform: {"target", "transform"}, OpAssignMaterial: {"target", "material"}, OpRenameEntity: {"target", "name"}, OpCreateEntity: {"entity"}, OpDeleteEntity: {"target"}, OpReparentEntity: {"target", "parent"}, OpDuplicateEntity: {"target", "newId"}, OpExtrudeFaces: {"target", "faces", "distance"}, OpInsetFaces: {"target", "faces", "amount"}, OpTriangulateFaces: {"target", "faces"}, OpWeldVertices: {"target", "vertices", "tolerance"}, OpFillFace: {"target", "vertices", "newId"}, OpRecalculateNormals: {"target"}, OpProjectPlanarUV: {"target", "projection"}, OpDissolveEdges: {"target", "edges"}, OpBevelEdges: {"target", "edges", "amount", "newId"}, OpBridgeLoops: {"target", "loops", "newId", "closed"}, OpLoopCut: {"target", "edges", "amount", "newId"}, OpSetCurveControlPoint: {"target", "controlPoint"}}

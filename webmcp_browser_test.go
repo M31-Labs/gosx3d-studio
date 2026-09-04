@@ -274,7 +274,7 @@ func TestWebMCPHumanReviewRemainsASeparateUIStep(t *testing.T) {
 	if !strings.Contains(page, "data-webmcp-commit") || !strings.Contains(page, "Apply staged changes") {
 		t.Fatal("page has no explicit human proposal approval control")
 	}
-	if !strings.Contains(page, "data-webmcp-proposal-policy") || !strings.Contains(review, "Arbiter · Allow") {
+	if !strings.Contains(page, "data-webmcp-proposal-policy") || !strings.Contains(review, "checks passed") {
 		t.Fatal("human review does not surface the governed operation decision")
 	}
 	if !strings.Contains(review, "navigation.revalidate") || !strings.Contains(review, "force: true, revalidate: true") {

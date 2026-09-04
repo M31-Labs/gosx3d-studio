@@ -637,10 +637,10 @@
     var allowed = governance.filter(function (decision) { return decision && decision.allowed === true; }).length;
     var policy = one("[data-webmcp-proposal-policy]");
     if (policy) {
-      policy.textContent = governance.length ? "Arbiter · Allow · " + allowed + "/" + governance.length : "Arbiter · evidence unavailable";
+      policy.textContent = governance.length ? allowed + "/" + governance.length + " checks passed" : "Checks unavailable";
       var reasons = governance.map(function (decision) { return decision && decision.reason; }).filter(Boolean);
-      policy.setAttribute("title", reasons.length ? reasons.join(" · ") : "Every operation is evaluated by the server policy before preview.");
-      setText("[data-webmcp-proposal-policy-reasons]", reasons.length ? reasons.join(" · ") : "Every operation is evaluated by the server policy before preview.");
+      policy.setAttribute("title", reasons.length ? reasons.join(" · ") : "Each change is checked by the server before its preview appears.");
+      setText("[data-webmcp-proposal-policy-reasons]", reasons.length ? reasons.join(" · ") : "Each change is checked by the server before its preview appears.");
     }
     var canonicalRevision = receipt.beforeRevision == null ? "?" : String(receipt.beforeRevision);
     var approvalRevision = pendingProposal.preview && pendingProposal.preview.revision != null
@@ -710,11 +710,11 @@
     renderChanges(null, null);
     setText("[data-webmcp-proposal-summary]", message || "No staged WebMCP proposal is awaiting review.");
     setText("[data-webmcp-proposal-actor]", "none");
-    setText("[data-webmcp-proposal-policy]", "Arbiter · awaiting proposal");
+    setText("[data-webmcp-proposal-policy]", "Waiting for proposal");
     setText("[data-webmcp-proposal-revision]", "current");
     setText("[data-webmcp-proposal-affected]", "0 entities");
     setText("[data-webmcp-proposal-fingerprint]", "not staged");
-    setText("[data-webmcp-proposal-policy-reasons]", "Stage a proposal to see the policy decision for every operation.");
+    setText("[data-webmcp-proposal-policy-reasons]", "Stage a proposal to see the safety checks for each change.");
     setText("[data-webmcp-proposal-expiry]", "not staged");
     setText("[data-webmcp-preview-revision]", "Canonical revision unchanged · human Apply only");
     setText("[data-webmcp-review-gate]", "Human-only approval · creates the next revision");

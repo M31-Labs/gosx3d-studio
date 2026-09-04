@@ -162,11 +162,11 @@ the sticky **Apply 2 exact edits** review action visible. Point to:
 1. `Board -> Launch Board`;
 2. `board-material -> board-steel-material`;
 3. `agent://webmcp`;
-4. **Arbiter · Allow · 2/2** and its visible reasons;
+4. **2/2 checks passed** and the visible check details;
 5. the affected stable ID and result fingerprint; and
 6. **canonical [R] unchanged · approval [R+1]**.
 
-Open **Why Arbiter allowed this proposal**, hold for two seconds, then close it.
+Open **What was checked**, hold for two seconds, then close it.
 Caption: **Reversible preview · canonical rev [R] unchanged**.
 
 **Voiceover:**
@@ -274,8 +274,8 @@ agent chose the calls.
       **Evidence 31/31 · current** are readable.
 - [ ] The in-app **Native WebMCP** disclosure shows four registrations, and the
       Studio records four completed native invocations in the intended order.
-- [ ] Stable ID `board`, both staged operations, Arbiter Allow, fingerprint,
-      and unchanged canonical `[R]` are readable.
+- [ ] Stable ID `board`, both staged operations, two passed review checks,
+      fingerprint, and unchanged canonical `[R]` are readable.
 - [ ] The reversible preview orbits before one visible human Apply.
 - [ ] Canonical state advances exactly once to `[R+1]`, with matching
       **PROPOSED** and **APPROVED** activity and the persistent **Human
