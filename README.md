@@ -7,8 +7,8 @@ path.
 **Live judge demo:** [gosx3d.m31labs.dev](https://gosx3d.m31labs.dev)
 
 > **Deployment status:** The live URL serves the product-depth build from main
-> commit `ec1c2682a408c0c32192c6fdc68025af51e28271`, pinned to image digest
-> `sha256:f7c6c7a0eca13322f210c8e3f10cfb20d468044436d1e27039909e0f8d0725f4`.
+> commit `80d73479e4bf8a494689cab993061ded751b8152`, pinned to image digest
+> `sha256:6aaa6c0c1966f8881cd488ac0b106b40e1be40508737122cdb0154eea895692f`.
 > Its public health endpoint reports GoSX `0.55.1`.
 
 ![GoSX 3D Studio showing a human-approved WebMCP scene change](docs/assets/webmcp-human-applied.png)
@@ -178,8 +178,8 @@ runtime secrets outside Git, an immutable Harbor digest, and TLS through the
 existing M31 Labs ingress.
 
 The current public deployment was built from main commit
-`ec1c2682a408c0c32192c6fdc68025af51e28271` and is pinned to image digest
-`sha256:f7c6c7a0eca13322f210c8e3f10cfb20d468044436d1e27039909e0f8d0725f4`.
+`80d73479e4bf8a494689cab993061ded751b8152` and is pinned to image digest
+`sha256:6aaa6c0c1966f8881cd488ac0b106b40e1be40508737122cdb0154eea895692f`.
 Its public health endpoint reports GoSX `0.55.1`.
 
 Keep the service at one instance: the demo intentionally shares process-local
