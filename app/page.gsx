@@ -235,18 +235,6 @@ func Page() Node {
 						<span>REVISION</span>
 						<strong>{data.revision}</strong>
 					</div>
-					<section class="judge-value-card" aria-label="Why agent-assisted scene editing is useful">
-						<span class="overline runtime-label">Production pattern · live now</span>
-						<strong>Give agents scene context. Keep scene authority.</strong>
-						<p>Four native tools inspect, find, focus, and stage inside the real workbench. You review the exact result before it becomes canonical.</p>
-						<p class="judge-value-audience">For technical art, simulation, and spatial-product teams.</p>
-						<ul aria-label="Demo capabilities">
-							<li>150 scene entities</li>
-							<li>4 native tools</li>
-							<li>31 live checks</li>
-							<li>0 commit tools</li>
-						</ul>
-					</section>
 					<Scene3D class="studio-scene" {...data.scene}>
 						<div class="viewport-empty-state">
 							<span class="overline">Scene3D unavailable</span>

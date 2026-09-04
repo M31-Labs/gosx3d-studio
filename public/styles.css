@@ -678,82 +678,6 @@ time,
   font-weight: 500;
 }
 
-.judge-value-card {
-  display: none;
-}
-
-.studio-shell[data-studio-demo="true"] .judge-value-card {
-  position: absolute;
-  top: 5.4rem;
-  left: var(--space-md);
-  z-index: 3;
-  width: min(23rem, calc(100% - var(--space-2xl)));
-  display: none;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-  border: 1px solid color-mix(in srgb, var(--color-runtime) 34%, var(--color-border));
-  border-left: 2px solid var(--color-runtime);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-panel-sunken) 90%, transparent);
-  box-shadow: 0 var(--space-sm) var(--space-xl) var(--color-shadow);
-  pointer-events: none;
-  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
-}
-
-.scene-stage[data-webmcp-preview="true"] .judge-value-card {
-  opacity: 0;
-  transform: translateY(calc(0rem - var(--space-xs)));
-}
-
-@media (min-width: 100rem) and (min-height: 60rem) {
-  .studio-shell[data-studio-demo="true"] .judge-value-card {
-    display: grid;
-  }
-}
-
-.judge-value-card > strong {
-  color: var(--color-text);
-  font-family: var(--font-display);
-  font-size: var(--type-lg);
-  line-height: 1.2;
-}
-
-.judge-value-card p {
-  max-width: 37ch;
-  color: var(--color-text-secondary);
-  font-size: var(--type-xs);
-  line-height: 1.45;
-}
-
-.judge-value-card .judge-value-audience {
-  color: var(--color-runtime);
-  font-family: var(--font-mono);
-}
-
-.judge-value-card .overline.runtime-label {
-  color: var(--color-runtime);
-}
-
-.judge-value-card ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin: var(--space-xs) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.judge-value-card li {
-  padding: 0.18rem var(--space-xs);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-round);
-  background: var(--color-panel);
-  color: var(--color-runtime);
-  font-family: var(--font-mono);
-  font-size: var(--type-xs);
-  white-space: nowrap;
-}
-
 .viewport-preview-card,
 .viewport-approval-outcome {
   position: absolute;
@@ -2531,12 +2455,6 @@ time,
   }
 
   .studio-shell[data-studio-demo="true"] .inspector-panel {
-    display: none;
-  }
-}
-
-@media (max-height: 48rem) {
-  .studio-shell[data-studio-demo="true"] .judge-value-card {
     display: none;
   }
 }

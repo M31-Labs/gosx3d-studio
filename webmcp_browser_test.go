@@ -474,9 +474,6 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	for _, required := range []string{
 		"Canonical material",
 		"One ephemeral scene shared across visitors.",
-		"Give agents scene context. Keep scene authority.",
-		"150 scene entities",
-		"31 live checks",
 		"Certified foundation",
 		"SceneDoc + SceneIR",
 		"Broader authoring workflows remain in active development.",
@@ -500,6 +497,14 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 			t.Errorf("review truth copy is missing %q", required)
 		}
 	}
+	for _, forbidden := range []string{
+		`class="judge-value-card"`,
+		"Give agents scene context. Keep scene authority.",
+	} {
+		if strings.Contains(page, forbidden) {
+			t.Errorf("the live viewport must not contain permanent marketing overlay %q", forbidden)
+		}
+	}
 	for _, required := range []string{
 		"Browser agents can find and preview exact scene edits. Only you can apply them.",
 	} {
@@ -519,8 +524,6 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 		}
 	}
 	for _, required := range []string{
-		`.studio-shell[data-studio-demo="true"] .judge-value-card`,
-		`.scene-stage[data-webmcp-preview="true"] .judge-value-card`,
 		`--panel-agent: 23rem`,
 		`.viewport-preview-card`,
 		`.viewport-approval-outcome`,
