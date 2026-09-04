@@ -1,7 +1,7 @@
 # Submission recording runbook
 
 Use this runbook for the final public YouTube take. The target is one truthful,
-uninterrupted 2:28 master recorded from the public GoSX 3D Studio in native
+uninterrupted master under three minutes, recorded from the public GoSX 3D Studio in native
 Windows Chrome. The cue driver invokes the four registered WebMCP tools through
 Chrome's native protocol, but it never clicks **Apply 2 exact edits**.
 
@@ -119,16 +119,15 @@ the two terminals stay off camera.
 
 | Time | Operator action and spoken point |
 | --- | --- |
-| 0:00–0:16 | Hold two seconds, orbit once without selecting Board, and explain that pixel hunting is fragile while invisible write access is worse. |
-| 0:16–0:28 | Show WebGPU, 150 entities, 145 meshes, revision `[R]`, four tools, zero commit tools, and current 31/31 evidence. |
-| 0:28–0:40 | Show the task card; open **Native WebMCP**, show all four registrations, then close it. |
-| 0:40–1:07 | Press Enter once for each **INSPECT**, **FIND**, **FOCUS**, and **STAGE** cue. Let the rail and receipts complete in order. |
-| 1:07–1:18 | Show all four receipts and explain that the page did not reload and no hidden scene was used. |
-| 1:18–1:43 | Show both exact edits, `agent://webmcp`, 2/2 passed review checks, stable ID, fingerprint, and canonical `[R]` unchanged. Open **What was checked** for two seconds, then close it. |
-| 1:43–1:53 | Orbit the live Brushed Steel preview while **Agent preview · not committed** remains visible. |
-| 1:53–2:03 | At **MANUAL HUMAN APPROVAL**, click **Apply 2 exact edits** exactly once. Do not press Enter in the terminal yet. |
-| 2:03–2:20 | Wait for persistent **Human approved**, `Launch Board`, `Brushed Steel`, `[R+1]`, current evidence, and paired PROPOSED/APPROVED activity. |
-| 2:20–2:28 | Switch to the prepared signed-out GitHub source tab, show the registrations and repository URL, then hold two seconds. |
+| 0:00–0:22 | Hold the clean scene and establish why pixel hunting and invisible write access are both inadequate. |
+| 0:22–0:38 | Show WebGPU, the four WebMCP tools, zero commit tools, and current evidence. |
+| 0:38–0:55 | Advance **INSPECT** and **FIND**; leave Coral Piece selected until the structured result resolves stable ID `board`. |
+| 0:55–1:10 | Advance **FOCUS** and **STAGE**; let the hierarchy, Inspector, and reversible viewport proposal settle. |
+| 1:10–1:45 | Show the two exact edits, not-committed badge, review checks, fingerprint, and unchanged canonical revision. |
+| 1:45–2:15 | Keep the live Brushed Steel proposal and human-facing approval boundary readable. |
+| 2:15–2:25 | At **MANUAL HUMAN APPROVAL**, click **Apply 2 exact edits** exactly once. Do not press Enter in the terminal yet. |
+| 2:25–2:46 | Hold persistent **Human approved**, `Launch Board`, `Brushed Steel`, `[R+1]`, current evidence, and paired PROPOSED/APPROVED activity. |
+| 2:46–2:54 | Hold the final state and disclose the Cedar-generated narration. |
 
 Stop OBS before returning to terminal B. Only after recording has stopped, press
 Enter at the helper's approval cue. A usable take ends with a line equivalent
@@ -167,8 +166,13 @@ creates another canonical revision.
    that same master. Return wide for orbit, Apply, and final evidence.
 3. Keep only the captions named in the full script.
 4. Export a 1920×1080 H.264 MP4 with 48 kHz AAC audio.
-5. Keep the final runtime around 2:28 and strictly below 3:00.
+5. Keep the final runtime strictly below 3:00. The verified Cedar master is
+   2:54.
 6. Watch the export end to end with headphones at 100% scale.
+
+If using the generated voiceover, follow the exact timed text in the detailed
+narration card, identify it as OpenAI text-to-speech with the Cedar voice, and
+upload the matching `.srt` captions with the video.
 
 ## Publish and verify
 
