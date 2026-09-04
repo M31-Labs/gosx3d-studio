@@ -47,7 +47,7 @@ func Page() Node {
 		</header>
 		<nav class="workspace-tabs" aria-label="Studio workspaces">
 			<button type="button" class="active" aria-current="page">Layout</button>
-			<span class="demo-mode-label">PUBLIC DEMO · AGENT PREP · HUMAN APPROVAL</span>
+			<span class="demo-mode-label">LIVE PLATFORM PROOF · SCENE-NATIVE · REVISION-SAFE · HUMAN-GATED</span>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Modeling</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Sculpt</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Rigging</button>
@@ -236,12 +236,14 @@ func Page() Node {
 						<strong>{data.revision}</strong>
 					</div>
 					<section class="judge-value-card" aria-label="Why agent-assisted scene editing is useful">
-						<span class="overline">Agent-assisted scene editing</span>
-						<strong>Find 1 object in 150. Stage 2 exact edits. Keep the only Apply.</strong>
-						<p>A browser agent handles precise scene busywork in the live viewport. You inspect the reversible result and decide.</p>
+						<span class="overline runtime-label">Production pattern · live now</span>
+						<strong>Give agents scene context. Keep scene authority.</strong>
+						<p>Four native tools inspect, find, focus, and stage inside the real workbench. You review the exact result before it becomes canonical.</p>
+						<p class="judge-value-audience">For technical art, simulation, and spatial-product teams.</p>
 						<ul aria-label="Demo capabilities">
-							<li>3 action types</li>
-							<li>12 edits max</li>
+							<li>150 scene entities</li>
+							<li>4 native tools</li>
+							<li>31 live checks</li>
 							<li>0 commit tools</li>
 						</ul>
 					</section>
@@ -854,6 +856,43 @@ func Page() Node {
 					<small class="webmcp-chrome-help">Chrome 149+: DevTools → Application → WebMCP</small>
 					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
 				</section>
+				<details class="platform-depth" data-webmcp-idle-only>
+					<summary>
+						<span>Certified foundation</span>
+						<strong>Built beyond the walkthrough</strong>
+					</summary>
+					<div class="platform-depth-content">
+						<p>The public preview stays focused on one collaboration boundary. Its product foundation already spans typed scene truth, runtime rendering, asset pipelines, and revision-safe commands.</p>
+						<ul aria-label="GoSX 3D Studio platform foundations">
+							<li>
+								<strong>SceneDoc + SceneIR</strong>
+								<span>One typed graph from server intent to browser runtime.</span>
+							</li>
+							<li>
+								<strong>WebGPU + WebGL</strong>
+								<span>Capability-aware rendering through a shared Scene3D surface.</span>
+							</li>
+							<li>
+								<strong>Spatial authoring</strong>
+								<span>Picking, transforms, PBR materials, and inspected glTF/GLB assets.</span>
+							</li>
+							<li>
+								<strong>Deterministic control</strong>
+								<span>Revision-safe commands, undo, and browser-free behavior evidence.</span>
+							</li>
+						</ul>
+						<small>Available here: the live collaboration path above. Broader authoring workflows remain in active development.</small>
+						<div class="platform-depth-links">
+							<a class="platform-depth-cta" href="mailto:oscar@m31labs.dev?subject=GoSX%203D%20Studio%20for%20my%20workflow">Talk to M31 Labs ↗</a>
+							<a href="/api/studio/actions">Action catalog ↗</a>
+							<a href="/api/studio/manifest">Runtime manifest ↗</a>
+						</div>
+					</div>
+				</details>
+				<div class="agent-actions">
+					<a class="proof" href="https://youtu.be/Db0ux98XyNA" target="_blank" rel="noreferrer">Watch 2:55 proof ↗</a>
+					<a href="https://github.com/M31-Labs/gosx3d-studio" target="_blank" rel="noreferrer">Explore source ↗</a>
+				</div>
 				<section class="webmcp-trace-shell" aria-labelledby="webmcp-trace-title">
 					<header>
 						<span class="overline" id="webmcp-trace-title">WebMCP tool receipts</span>
@@ -926,10 +965,6 @@ func Page() Node {
 						</div>
 					</dl>
 					<p class="placeholder-copy">Agent proposals and visible UI approvals share one canonical, revision-safe workspace.</p>
-				</div>
-				<div class="agent-actions">
-					<a class="primary" href="/api/studio/actions">Action catalog ↗</a>
-					<a href="/api/studio/manifest">Inspect manifest ↗</a>
 				</div>
 			</aside>
 		</div>

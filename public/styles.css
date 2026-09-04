@@ -725,6 +725,15 @@ time,
   line-height: 1.45;
 }
 
+.judge-value-card .judge-value-audience {
+  color: var(--color-runtime);
+  font-family: var(--font-mono);
+}
+
+.judge-value-card .overline.runtime-label {
+  color: var(--color-runtime);
+}
+
 .judge-value-card ul {
   display: flex;
   flex-wrap: wrap;
@@ -1694,6 +1703,142 @@ time,
   color: var(--color-runtime);
 }
 
+.platform-depth {
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-certified) 3%, var(--color-panel-sunken));
+}
+
+.platform-depth summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--color-certified);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  list-style: none;
+}
+
+.platform-depth summary::-webkit-details-marker {
+  display: none;
+}
+
+.platform-depth summary::before {
+  content: "+";
+  grid-column: 3;
+  grid-row: 1;
+  color: var(--color-text-muted);
+}
+
+.platform-depth[open] summary::before {
+  content: "−";
+}
+
+.platform-depth summary span {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.platform-depth summary strong {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  font-weight: 500;
+}
+
+.platform-depth-content {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+}
+
+.platform-depth-content > p,
+.platform-depth-content > small {
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  line-height: 1.5;
+}
+
+.platform-depth-content > small {
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--color-certified);
+  color: var(--color-text-muted);
+}
+
+.platform-depth-content ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.platform-depth-content li {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel);
+}
+
+.platform-depth-content li strong {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--type-xs);
+  font-weight: 500;
+}
+
+.platform-depth-content li span {
+  color: var(--color-text-muted);
+  font-size: var(--type-xs);
+  line-height: 1.4;
+}
+
+.platform-depth-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+
+.platform-depth-links a {
+  min-width: 0;
+  padding: var(--space-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--type-xs);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.platform-depth-links a:hover {
+  border-color: var(--color-runtime);
+  background: var(--color-panel-raised);
+  color: var(--color-runtime);
+}
+
+.platform-depth-links a:active {
+  transform: translateY(1px);
+}
+
+.platform-depth-links .platform-depth-cta {
+  grid-column: 1 / -1;
+  border-color: var(--color-runtime);
+  color: var(--color-runtime);
+  font-family: var(--font-display);
+}
+
 .studio-demo-reset {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1975,9 +2120,9 @@ time,
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-sm);
-  margin-top: auto;
   padding: var(--space-sm);
   border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .agent-actions a {
@@ -2018,6 +2163,18 @@ time,
   color: var(--color-canvas);
   border-color: var(--color-focus);
   background: var(--color-focus);
+}
+
+.agent-actions a.proof {
+  border-color: var(--color-runtime);
+  background: color-mix(in srgb, var(--color-runtime) 7%, var(--color-panel-sunken));
+  color: var(--color-runtime);
+}
+
+.agent-actions a.proof:hover {
+  border-color: var(--color-runtime);
+  background: color-mix(in srgb, var(--color-runtime) 11%, var(--color-panel-raised));
+  color: var(--color-text);
 }
 
 .telemetry-dock {

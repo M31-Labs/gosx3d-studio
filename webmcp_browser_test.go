@@ -474,7 +474,15 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 	for _, required := range []string{
 		"Canonical material",
 		"One ephemeral scene shared across visitors.",
-		"Find 1 object in 150. Stage 2 exact edits. Keep the only Apply.",
+		"Give agents scene context. Keep scene authority.",
+		"150 scene entities",
+		"31 live checks",
+		"Certified foundation",
+		"SceneDoc + SceneIR",
+		"Broader authoring workflows remain in active development.",
+		"Talk to M31 Labs ↗",
+		"Watch 2:55 proof ↗",
+		"https://github.com/M31-Labs/gosx3d-studio",
 		"Native WebMCP",
 		"scene_get_state",
 		"scene_find_objects",
@@ -524,9 +532,10 @@ func TestWebMCPReviewKeepsTheHumanDecisionVisuallyPrimary(t *testing.T) {
 		}
 	}
 	missionIndex := strings.Index(page, `class="webmcp-demo-mission"`)
+	platformIndex := strings.Index(page, `class="platform-depth"`)
 	receiptsIndex := strings.Index(page, `class="webmcp-trace-shell"`)
-	if missionIndex < 0 || receiptsIndex < 0 || missionIndex > receiptsIndex {
-		t.Fatal("the 30-second judge task must appear before lower-priority WebMCP receipts")
+	if missionIndex < 0 || platformIndex < 0 || receiptsIndex < 0 || missionIndex > platformIndex || platformIndex > receiptsIndex {
+		t.Fatal("the 30-second judge task and platform proof must appear before lower-priority WebMCP receipts")
 	}
 	if !strings.Contains(adapter, "· visible UI") {
 		t.Error("focus receipt does not distinguish visible UI synchronization")
