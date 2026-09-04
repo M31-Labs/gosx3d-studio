@@ -2,7 +2,7 @@
 
 The September 3, 2026 submission checkpoint covers the immutable GoSX `v0.55.1`
 [public demo](https://gosx3d.m31labs.dev) in native Windows Chrome. The public
-health endpoint reports `0.55.1`; the current image was built from main merge
+health endpoint reports `0.55.1`; the image under test was built from main merge
 commit `1e68684cbe6d5a8a10257c1ea9b85e40c9046125` and pinned by digest
 `sha256:facffa246e9377d49db38c5d0c008e4e6db1a593f10e1e5ebfaff8f2475e9b9c`.
 The broader September 2 stress and clean-recording corpus remains documented
@@ -10,7 +10,7 @@ below as evidence for the preceding immutable deployment.
 
 ## Client
 
-- Google Chrome stable `152.0.7977.76` on Windows for the current deployment;
+- Google Chrome stable `152.0.7977.76` on Windows for the accepted deployment;
   the broader preceding corpus used `152.0.7977.65`
 - `WebMCPTesting,DevToolsWebMCPSupport`
 - Native `Document.modelContext` getter and native
