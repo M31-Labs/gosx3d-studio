@@ -126,9 +126,7 @@ activity records stayed paired, and the original canvas remained mounted
 through five managed same-document transitions. The guarded flow observed zero
 new top-level document loads, zero camera writes from hierarchy keyboard input,
 and no failures. ChatGPT's in-app browser remains useful optional cross-client
-assurance; this acceptance claim is for native Windows Chrome. See [Native
-WebMCP verification](docs/native-webmcp-qa.md) for the evidence boundary and
-exercised workflow.
+assurance; this acceptance claim is for native Windows Chrome.
 
 The preceding compact-review deployment passed a fresh public acceptance in
 native Windows Chrome `152.0.7977.76` at 1920×1080. Chrome discovered exactly
@@ -312,8 +310,7 @@ share state across goroutines, so the race detector is part of the floor. The
 `-race` run names its packages because `./...` picks up generated `dist/`
 copies once a bundle has been built.
 
-See [docs/handoff.md](docs/handoff.md) for the next implementation slice and
-[docs/design-spec.md](docs/design-spec.md) for the binding visual system.
+See [docs/design-spec.md](docs/design-spec.md) for the binding visual system.
 Desktop truth is tracked in
 [docs/platform-capabilities.md](docs/platform-capabilities.md).
 
