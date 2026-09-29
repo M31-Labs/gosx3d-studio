@@ -47,7 +47,8 @@ references it without copying registry credentials into source control.
 
 ## Render and validate the manifest
 
-Set `GOSX3D_IMAGE` to the immutable Harbor digest and render only that variable:
+Set `GOSX3D_IMAGE` to the immutable image digest from your registry (replace
+`registry.example.com/team` with your registry path) and render only that variable:
 
 ```bash
 export GOSX3D_IMAGE="registry.example.com/team/gosx3d-studio@sha256:<digest>"
