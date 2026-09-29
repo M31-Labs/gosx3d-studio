@@ -36,7 +36,7 @@ spec:
       containers:
         - name: studio
           # REQUIRED: render this template with GOSX3D_IMAGE set to an immutable
-          # Harbor digest, never a mutable tag. See deploy/README.md.
+          # image digest, never a mutable tag. See deploy/README.md.
           image: ${GOSX3D_IMAGE}
           imagePullPolicy: IfNotPresent
           securityContext:

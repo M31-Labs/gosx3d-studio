@@ -10,7 +10,7 @@ you intend to deploy:
 
 ```bash
 studio_revision=$(git rev-parse HEAD)
-studio_tag="harbor.draco.quest/orchard/gosx3d-studio:${studio_revision}"
+studio_tag="registry.example.com/team/gosx3d-studio:${studio_revision}"
 docker build --platform linux/amd64 \
   --build-arg "VCS_REF=${studio_revision}" \
   --tag "${studio_tag}" .
@@ -21,7 +21,7 @@ Record the `sha256:` manifest digest returned by the push. The deployment input
 must use the complete immutable reference:
 
 ```text
-harbor.draco.quest/orchard/gosx3d-studio@sha256:<64 hexadecimal characters>
+registry.example.com/team/gosx3d-studio@sha256:<64 hexadecimal characters>
 ```
 
 Do not substitute a tag, including the revision tag above, into the Kubernetes
@@ -47,10 +47,11 @@ references it without copying registry credentials into source control.
 
 ## Render and validate the manifest
 
-Set `GOSX3D_IMAGE` to the immutable Harbor digest and render only that variable:
+Set `GOSX3D_IMAGE` to the immutable image digest from your registry (replace
+`registry.example.com/team` with your registry path) and render only that variable:
 
 ```bash
-export GOSX3D_IMAGE="harbor.draco.quest/orchard/gosx3d-studio@sha256:<digest>"
+export GOSX3D_IMAGE="registry.example.com/team/gosx3d-studio@sha256:<digest>"
 envsubst '${GOSX3D_IMAGE}' < deploy/kubernetes.yaml \
   | kubectl create --dry-run=client --validate=false -f - -o name
 ```
