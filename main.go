@@ -878,11 +878,12 @@ func (e statusError) Error() string   { return e.err.Error() }
 func (e statusError) Unwrap() error   { return e.err }
 func (e statusError) StatusCode() int { return e.status }
 
-// sharedSecretPlaceholders are the values .env.example ships. They exist so a
-// fresh checkout runs; they must never authenticate anything, because they are
-// published in this repository.
+// sharedSecretPlaceholders include the Studio and GoSX scaffold defaults.
+// Published values must never authenticate anything.
 var sharedSecretPlaceholders = map[string]bool{
+	"change-me-in-production":                 true,
 	"gosx-app-session-secret":                 true,
+	"gosx-docs-session-secret":                true,
 	"replace-with-a-local-development-secret": true,
 }
 
@@ -919,14 +920,19 @@ func resolveActionToken(configured string) (string, error) {
 func resolveSessionSecret(configured string) (string, error) {
 	configured = strings.TrimSpace(configured)
 	if configured != "" && !sharedSecretPlaceholders[configured] {
+		if len(configured) < 16 {
+			return "", fmt.Errorf("SESSION_SECRET must be at least 16 bytes")
+		}
 		return configured, nil
 	}
 	reason := "SESSION_SECRET is not set"
 	if configured != "" {
 		reason = "SESSION_SECRET is still the published placeholder"
 	}
-	if studioProductionMode() {
-		return "", fmt.Errorf("%s; production requires a private session secret", reason)
+	mode := strings.TrimSpace(os.Getenv("GOSX_ENV"))
+	development := strings.EqualFold(mode, "development") || (mode == "" && os.Getenv("GOSX_DEV") == "1")
+	if !development {
+		return "", fmt.Errorf("%s; outside development a private session secret is required", reason)
 	}
 	ephemeral := make([]byte, 32)
 	if _, err := rand.Read(ephemeral); err != nil {
