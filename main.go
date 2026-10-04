@@ -177,6 +177,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 	app.EnableISR()
 	app.EnableNavigation()
 	app.Use(sessions.Middleware)
+	app.Use(studioBrowserSession(sessions))
 	app.Use(studioCSRF(sessions, actionToken))
 	app.SetPublicDir(filepath.Join(root, "public"))
 	webMCPOperationPolicy, err := compileWebMCPOperationPolicy()
@@ -960,6 +961,22 @@ func authorizeAction(request *http.Request, token string) error {
 	return nil
 }
 
+func studioBrowserSession(sessions *session.Manager) server.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			// GoSX leaves anonymous token reads stateless. The workbench needs
+			// a session before rendering forms and session-owned proposals.
+			if request.URL.Path == "/" && (request.Method == http.MethodGet || request.Method == http.MethodHead) {
+				store := sessions.Get(request)
+				if store.Value("studio_browser") != true {
+					store.Set("studio_browser", true)
+				}
+			}
+			next.ServeHTTP(writer, request)
+		})
+	}
+}
+
 func studioCSRF(sessions *session.Manager, token string) server.Middleware {
 	protected := sessions.Protect
 	return func(next http.Handler) http.Handler {
@@ -974,6 +991,12 @@ func studioCSRF(sessions *session.Manager, token string) server.Middleware {
 			pattern := request.Method + " " + request.URL.Path
 			if studioRouteAuthority[pattern] == authorityToken && bearerMatches(request.Header.Get("Authorization"), token) {
 				next.ServeHTTP(writer, request)
+				return
+			}
+			// Studio mutations require an established browser session even
+			// when GoSX permits a same-origin anonymous form submission.
+			if request.Method != http.MethodGet && request.Method != http.MethodHead && request.Method != http.MethodOptions && sessions.Token(request) == "" {
+				http.Error(writer, "browser session required", http.StatusForbidden)
 				return
 			}
 			csrf.ServeHTTP(writer, request)

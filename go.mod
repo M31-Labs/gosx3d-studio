@@ -4,11 +4,12 @@ go 1.26
 
 require (
 	m31labs.dev/arbiter v1.9.0
-	m31labs.dev/gosx v0.57.1
+	m31labs.dev/gosx v0.57.4
 )
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/odvcencio/corkscrewdb v0.2.0 // indirect
 	github.com/odvcencio/gotreesitter v0.50.1 // indirect
