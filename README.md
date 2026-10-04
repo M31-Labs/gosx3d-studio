@@ -207,17 +207,23 @@ session-bound CSRF token.
 
 ## Dependencies
 
-`go.mod` pins GoSX `v0.57.1` and Arbiter `v1.9.0`, and `go.sum` checksums the
+`go.mod` pins GoSX `v0.57.4` and Arbiter `v1.9.0`, and `go.sum` checksums the
 complete dependency graph. The Studio exercises the affine group-scale path
 introduced in GoSX v0.54.0 through SceneDoc compilation, nested prefab lowering,
 exact picking, preview evidence, and gizmo commits; non-unit light scale remains
 rejected because it has no render meaning. CI, releases, and fresh clones all
 build those pinned versions rather than an ambient local checkout.
 
+GoSX v0.57.4 includes default Brotli/gzip response compression, a controllable
+Scene3D animation clock, and fixes for mixed WebGPU shader geometry and scaled
+responsive canvases. Anonymous CSRF-token reads now stay stateless, so opening
+the workbench explicitly creates a browser session. Browser mutations still
+require that session and its CSRF token, including same-origin submissions.
+
 The sample's Carved Wood, Imperial Jade, Midnight Lacquer, and Moon Porcelain
 finishes use portable Selena surface programs with physical fallback metadata.
 Brushed Steel and the machined rim, blackened-steel chassis, and countersunk
-sockets remain Standard PBR. GoSX v0.57.1 keeps selected PBR surfaces solid
+sockets remain Standard PBR. GoSX v0.57.4 keeps selected PBR surfaces solid
 without generated triangulation spokes; explicit outline styling and
 `wireframe: true` remain supported authoring choices.
 
@@ -293,7 +299,7 @@ return to the pinned versions.
 ## Verify
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.57.1 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.57.4 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...

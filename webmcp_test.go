@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"html"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -826,5 +828,79 @@ func TestProductionSessionCookieAttributes(t *testing.T) {
 	}
 	if !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Path != "/" {
 		t.Fatalf("production cookie attributes: Secure=%t HttpOnly=%t SameSite=%v Path=%q", cookie.Secure, cookie.HttpOnly, cookie.SameSite, cookie.Path)
+	}
+}
+
+func TestWorkbenchSessionSurvivesResponseCompression(t *testing.T) {
+	handler, _ := newTestStudio(t)
+	for _, encoding := range []string{"identity", "gzip"} {
+		t.Run(encoding, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
+			request.Header.Set("Accept-Encoding", encoding)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			result := response.Result()
+			if result.StatusCode != http.StatusOK || len(result.Cookies()) != 1 {
+				t.Fatalf("workbench session response = %d, cookies = %d", result.StatusCode, len(result.Cookies()))
+			}
+			defer result.Body.Close()
+			var body io.Reader = result.Body
+			if encoding == "gzip" {
+				if result.Header.Get("Content-Encoding") != "gzip" {
+					t.Fatalf("Content-Encoding = %q, want gzip", result.Header.Get("Content-Encoding"))
+				}
+				reader, err := gzip.NewReader(body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer reader.Close()
+				body = reader
+			}
+			contents, err := io.ReadAll(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			csrf := webMCPTestCSRFToken(t, string(contents))
+			if csrf == "" || result.Header.Get("Cache-Control") != "private, no-store" || !strings.Contains(strings.Join(result.Header.Values("Vary"), ","), "Cookie") {
+				t.Fatalf("workbench lost session token or private cache policy: %v", result.Header)
+			}
+
+			browser := &webMCPTestBrowser{handler: handler, cookies: map[string]*http.Cookie{}, csrf: csrf}
+			browser.captureCookies(result.Cookies())
+			current := browser.getJSON(t, "/api/studio/webmcp/proposals/current")
+			if current.Code != http.StatusOK || len(current.Result().Cookies()) != 0 {
+				t.Fatalf("existing session response = %d, cookies = %d", current.Code, len(current.Result().Cookies()))
+			}
+		})
+	}
+}
+
+func TestBrowserMutationsRequireSessionAndToken(t *testing.T) {
+	handler, _ := newTestStudio(t)
+	browser := newWebMCPTestBrowser(t, handler)
+	for _, path := range []string{"/api/studio/webmcp/proposals", "/api/studio/webmcp/commits", "/api/studio/demo/reset", "/__actions/setTransform"} {
+		for _, authority := range []string{"anonymous", "missing-token", "cross-origin"} {
+			t.Run(path+"/"+authority, func(t *testing.T) {
+				request := httptest.NewRequest(http.MethodPost, path, strings.NewReader("{}"))
+				request.Header.Set("Content-Type", "application/json")
+				request.Header.Set("Origin", "http://example.com")
+				request.Header.Set("Sec-Fetch-Site", "same-origin")
+				if authority != "anonymous" {
+					for _, cookie := range browser.cookies {
+						request.AddCookie(cookie)
+					}
+				}
+				if authority == "cross-origin" {
+					request.Header.Set("Origin", "https://other.example")
+					request.Header.Set("Sec-Fetch-Site", "cross-site")
+					request.Header.Set("X-CSRF-Token", browser.csrf)
+				}
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, request)
+				if response.Code != http.StatusForbidden {
+					t.Fatalf("mutation status = %d, want 403: %s", response.Code, response.Body.String())
+				}
+			})
+		}
 	}
 }
