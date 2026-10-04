@@ -207,12 +207,18 @@ session-bound CSRF token.
 
 ## Dependencies
 
-`go.mod` pins GoSX `v0.57.4` and Arbiter `v1.9.0`, and `go.sum` checksums the
+`go.mod` pins GoSX `v0.57.5` and Arbiter `v1.9.0`, and `go.sum` checksums the
 complete dependency graph. The Studio exercises the affine group-scale path
 introduced in GoSX v0.54.0 through SceneDoc compilation, nested prefab lowering,
 exact picking, preview evidence, and gizmo commits; non-unit light scale remains
 rejected because it has no render meaning. CI, releases, and fresh clones all
 build those pinned versions rather than an ambient local checkout.
+
+GoSX v0.57.5 fixes passkey enrollment and magic-link delivery in the optional
+`auth` package (GHSA-847f-9jr3-mfqp). Studio does not mount those auth handlers.
+Session-secret handling follows the new scaffold rules: missing or published
+placeholder secrets are allowed only in explicit development mode, which gets
+a random per-process secret. Configured secrets must be at least 16 bytes.
 
 GoSX v0.57.4 includes default Brotli/gzip response compression, a controllable
 Scene3D animation clock, and fixes for mixed WebGPU shader geometry and scaled
@@ -299,7 +305,7 @@ return to the pinned versions.
 ## Verify
 
 ```bash
-go run m31labs.dev/gosx/cmd/gosx@v0.57.4 check app/page.gsx
+go run m31labs.dev/gosx/cmd/gosx@v0.57.5 check app/page.gsx
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 fmt internal/studio/rules/webmcp-operations.arb --check
 go run m31labs.dev/arbiter/cmd/arbiter@v1.9.0 check internal/studio/rules/webmcp-operations.arb --strict
 go vet ./...

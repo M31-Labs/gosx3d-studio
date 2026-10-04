@@ -127,7 +127,8 @@ func TestTokenAuthorityRoutesCheckTheActionToken(t *testing.T) {
 // browser-authority route.
 func TestSessionSecretRefusesPublishedPlaceholders(t *testing.T) {
 	t.Setenv("GOSX_ENV", "development")
-	for _, placeholder := range []string{"", "  ", "gosx-app-session-secret", "replace-with-a-local-development-secret"} {
+	placeholders := []string{"", "  ", "change-me-in-production", "gosx-app-session-secret", "gosx-docs-session-secret", "replace-with-a-local-development-secret"}
+	for _, placeholder := range placeholders {
 		secret, err := resolveSessionSecret(placeholder)
 		if err != nil {
 			t.Fatalf("development fallback for %q: %v", placeholder, err)
@@ -140,15 +141,47 @@ func TestSessionSecretRefusesPublishedPlaceholders(t *testing.T) {
 		}
 	}
 
-	t.Setenv("GOSX_ENV", "production")
-	for _, placeholder := range []string{"", "gosx-app-session-secret", "replace-with-a-local-development-secret"} {
-		if _, err := resolveSessionSecret(placeholder); err == nil {
-			t.Fatalf("production accepted %q as a session secret", placeholder)
+	t.Setenv("GOSX_DEV", "")
+	for _, mode := range []string{"", "production", "staging", "test"} {
+		t.Setenv("GOSX_ENV", mode)
+		for _, placeholder := range placeholders {
+			if _, err := resolveSessionSecret(placeholder); err == nil {
+				t.Fatalf("mode %q accepted %q as a session secret", mode, placeholder)
+			}
 		}
 	}
+	t.Setenv("GOSX_ENV", "production")
 	configured, err := resolveSessionSecret("a-real-private-production-secret")
 	if err != nil || configured != "a-real-private-production-secret" {
 		t.Fatalf("configured production secret = %q, %v", configured, err)
+	}
+}
+
+func TestSessionSecretDevelopmentFlagAndMinimumLength(t *testing.T) {
+	t.Setenv("GOSX_ENV", "")
+	t.Setenv("GOSX_DEV", "1")
+	first, err := resolveSessionSecret("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := resolveSessionSecret("")
+	if err != nil || first == second || len(first) < 32 {
+		t.Fatalf("development secrets must be independently random: %v", err)
+	}
+	for _, mode := range []string{"production", "staging"} {
+		t.Setenv("GOSX_ENV", mode)
+		if _, err := resolveSessionSecret(""); err == nil {
+			t.Fatalf("GOSX_DEV bypassed mode %q", mode)
+		}
+	}
+	for _, mode := range []string{"development", "production"} {
+		t.Setenv("GOSX_ENV", mode)
+		if _, err := resolveSessionSecret("123456789012345"); err == nil {
+			t.Fatalf("mode %q accepted a 15-byte secret", mode)
+		}
+		if secret, err := resolveSessionSecret(" 1234567890123456 "); err != nil || secret != "1234567890123456" {
+			t.Fatalf("mode %q rejected a 16-byte secret: %v", mode, err)
+		}
 	}
 }
 
