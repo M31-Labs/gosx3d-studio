@@ -1,7 +1,7 @@
 package app
 
 func Page() Node {
-	return <main class="studio-shell" data-studio-demo={data.demoMode} aria-label="GoSX 3D Studio shared scene workbench">
+	return <main class="studio-shell" data-studio-demo={data.demoMode} data-studio-panel="scene" aria-label="GoSX 3D Studio shared scene workbench">
 		<a class="skip-link" href="#inspector-panel">Skip to Inspector</a>
 		<a class="skip-link skip-link-agent" href="#agent-panel">Skip to Agent review</a>
 		<h1 class="sr-only">GoSX 3D Studio</h1>
@@ -47,6 +47,10 @@ func Page() Node {
 		</header>
 		<nav class="workspace-tabs" aria-label="Studio workspaces">
 			<button type="button" class="active" aria-current="page">Layout</button>
+			<button type="button" class="compact-panel-tab" data-studio-panel-choice="scene" aria-controls="viewport-panel" aria-pressed="true">Scene</button>
+			<button type="button" class="compact-panel-tab" data-studio-panel-choice="objects" aria-controls="hierarchy-panel" aria-pressed="false">Objects</button>
+			<button type="button" class="compact-panel-tab" data-studio-panel-choice="inspector" aria-controls="inspector-panel" aria-pressed="false">Inspector</button>
+			<button type="button" class="compact-panel-tab" data-studio-panel-choice="agent" aria-controls="agent-panel" aria-pressed="false">Agent review</button>
 			<span class="demo-mode-label">LIVE PLATFORM PROOF · SCENE-NATIVE · REVISION-SAFE · HUMAN-GATED</span>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Modeling</button>
 			<button type="button" disabled aria-disabled="true" title="Unavailable in this public build">Sculpt</button>
@@ -149,7 +153,7 @@ func Page() Node {
 					<button type="submit" class="inspector-apply" disabled={!data.assetGC.available}>Checkpoint and collect</button>
 				</form>
 			</aside>
-			<aside class="panel hierarchy-panel" aria-labelledby="hierarchy-title">
+			<aside id="hierarchy-panel" class="panel hierarchy-panel" aria-labelledby="hierarchy-title">
 				<header class="panel-heading">
 					<h2 id="hierarchy-title">Scene Hierarchy</h2>
 					<span class="panel-count" data-hierarchy-filter-count>{data.entityCount}</span>
@@ -201,7 +205,7 @@ func Page() Node {
 					<button type="submit" class="inspector-apply">Apply entity operation</button>
 				</form>
 			</aside>
-			<section class="viewport-panel" aria-labelledby="viewport-title">
+			<section id="viewport-panel" class="viewport-panel" aria-labelledby="viewport-title">
 				<header class="viewport-header">
 					<h2 id="viewport-title">Viewport</h2>
 					<div role="toolbar" aria-label="Camera views">
@@ -808,9 +812,9 @@ func Page() Node {
 				<details class="webmcp-tool-disclosure" data-webmcp-idle-only>
 					<summary>
 						<span>Native WebMCP</span>
-						<strong>4 registered tools</strong>
+						<strong data-webmcp-registration-summary>4 tool definitions</strong>
 					</summary>
-					<ul aria-label="Registered WebMCP tools">
+					<ul aria-label="WebMCP tool definitions">
 						<li><code>scene_get_state</code><span>inspect canonical state</span></li>
 						<li><code>scene_find_objects</code><span>find stable object IDs</span></li>
 						<li><code>scene_focus_object</code><span>focus the visible Studio UI</span></li>
@@ -836,13 +840,13 @@ func Page() Node {
 					<li data-webmcp-flow-tool="scene_preview_actions" data-label="Stage" data-state="idle" aria-label="Stage: idle"><span aria-hidden="true">4</span><strong aria-hidden="true">Stage</strong></li>
 				</ol>
 				<section class="webmcp-demo-mission" data-webmcp-idle-only aria-labelledby="webmcp-mission-title">
-					<span class="overline" id="webmcp-mission-title">Try it in 30 seconds</span>
-					<strong class="webmcp-mission-heading">Ask for one precise scene edit.</strong>
+					<span class="overline" id="webmcp-mission-title" data-webmcp-mission-title>Agent workflow</span>
+					<strong class="webmcp-mission-heading" data-webmcp-mission-heading>Checking this browser's agent support.</strong>
 					<p data-webmcp-demo-prompt>Inspect the current scene, find and focus the object named Board, then stage—without committing—a proposal that renames it Launch Board and assigns the Brushed Steel material. Explain the revision boundary.</p>
 					<button type="button" data-webmcp-copy-prompt disabled>Copy demo prompt</button>
 					<small class="webmcp-mission-steps">1 Copy task · 2 Watch four calls · 3 Review and decide</small>
-					<small class="webmcp-chrome-help">Chrome 149+: DevTools → Application → WebMCP</small>
-					<small data-webmcp-copy-status aria-live="polite">Paste it into the browser agent.</small>
+					<small class="webmcp-chrome-help" data-webmcp-browser-help>Agent tools need a compatible browser exposing document.modelContext.registerTool. Human editing does not require WebMCP.</small>
+					<small data-webmcp-copy-status aria-live="polite">Checking browser support and the shared scene baseline.</small>
 				</section>
 				<details class="platform-depth" data-webmcp-idle-only>
 					<summary>

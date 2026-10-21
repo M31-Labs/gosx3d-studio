@@ -26,21 +26,37 @@
     return match ? match[1] : "";
   }
 
+  function revision(root) {
+    var field = root.querySelector('input[name="expectedRevision"]');
+    return field ? String(field.value || field.getAttribute("value") || "") : "";
+  }
+
   function refresh() {
-    var navigation = window.__gosx && window.__gosx.navigation
-      ? window.__gosx.navigation
-      : window.__gosx_page_nav;
-    if (navigation && typeof navigation.revalidate === "function") {
-      navigation.revalidate({ replace: true, preserveScroll: true }).catch(function () { window.location.reload(); });
-      return;
-    }
-    if (navigation && typeof navigation.navigate === "function") {
-      navigation.navigate(window.location.href, {
-        replace: true, preserveScroll: true, force: true, revalidate: true
-      }).catch(function () { window.location.reload(); });
-      return;
-    }
-    window.location.reload();
+    var expectedRevision = revision(document);
+    return request("/", { headers: { Accept: "text/html" }, cache: "no-store", credentials: "same-origin" })
+      .then(function (response) { return response && response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (!html || !expectedRevision || revision(document) !== expectedRevision) return;
+        var rendered = new DOMParser().parseFromString(html, "text/html");
+        if (revision(rendered) !== expectedRevision) return;
+        // Evidence completing is not a navigation. Reconcile only its
+        // canonical markup; never race a selection with an older full page.
+        [".certification-card", ".telemetry-proof.certification-state"].forEach(function (selector) {
+          var current = document.querySelector(selector);
+          var next = rendered.querySelector(selector);
+          if (!current || !next) return;
+          var details = current.querySelector("details");
+          var open = details && details.open;
+          current.className = next.className;
+          current.replaceChildren.apply(current, Array.prototype.map.call(next.childNodes, function (child) {
+            return document.importNode(child, true);
+          }));
+          if (details) {
+            var replacement = current.querySelector("details");
+            if (replacement) replacement.open = open;
+          }
+        });
+      });
   }
 
   function request(url, options) {
@@ -63,16 +79,16 @@
         return response && response.ok ? response.json() : null;
       })
       .then(function (payload) {
-        inFlight = false;
         if (!payload) return;
         // The finished run has to describe the document on screen. A newer
         // edit started another run, and a later tick catches that one.
         if (payload.state === "current" && payload.revision === payload.documentRevision) {
           waitingTicks = 0;
-          refresh();
+          return refresh();
         }
       })
-      .catch(function () {
+      .catch(function () {})
+      .finally(function () {
         inFlight = false;
       });
   }

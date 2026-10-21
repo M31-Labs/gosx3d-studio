@@ -496,7 +496,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		if err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		proposal, err := webMCPProposals.Stage(request, sessions.Token(ctx.Request))
+		proposal, err := webMCPProposals.Stage(request, studioBrowserOwner(ctx.Request))
 		if err != nil {
 			return nil, commandError(err)
 		}
@@ -504,7 +504,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 	})
 	app.API("GET /api/studio/webmcp/proposals/current", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
-		return map[string]any{"proposal": webMCPProposals.Current(sessions.Token(ctx.Request))}, nil
+		return map[string]any{"proposal": webMCPProposals.Current(studioBrowserOwner(ctx.Request))}, nil
 	})
 	app.API("POST /api/studio/webmcp/commits", func(ctx *server.Context) (any, error) {
 		ctx.NoStore()
@@ -512,7 +512,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		if err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		result, err := webMCPProposals.Commit(request.ProposalID, sessions.Token(ctx.Request))
+		result, err := webMCPProposals.Commit(request.ProposalID, studioBrowserOwner(ctx.Request))
 		if err != nil {
 			switch {
 			case errors.Is(err, errWebMCPProposalNotFound):
@@ -531,7 +531,7 @@ func buildStudioApp(config studioConfig) (*server.App, error) {
 		if err != nil {
 			return nil, statusError{http.StatusBadRequest, err}
 		}
-		result, err := webMCPProposals.Discard(request.ProposalID, sessions.Token(ctx.Request))
+		result, err := webMCPProposals.Discard(request.ProposalID, studioBrowserOwner(ctx.Request))
 		if err != nil {
 			if errors.Is(err, errWebMCPProposalNotFound) {
 				return nil, statusError{http.StatusNotFound, err}
@@ -977,10 +977,24 @@ func studioBrowserSession(sessions *session.Manager) server.Middleware {
 				if store.Value("studio_browser") != true {
 					store.Set("studio_browser", true)
 				}
+				if store.String("studio_proposal_owner") == "" {
+					identity := make([]byte, 32)
+					if _, err := rand.Read(identity); err != nil {
+						http.Error(writer, "Could not initialize the editor session", http.StatusInternalServerError)
+						return
+					}
+					store.Set("studio_proposal_owner", base64.RawURLEncoding.EncodeToString(identity))
+				}
 			}
 			next.ServeHTTP(writer, request)
 		})
 	}
+}
+
+func studioBrowserOwner(request *http.Request) string {
+	// Response-masked CSRF tokens prove request authority but change between
+	// responses. Keep proposal ownership bound to a stable signed session ID.
+	return session.Current(request).String("studio_proposal_owner")
 }
 
 func studioCSRF(sessions *session.Manager, token string) server.Middleware {

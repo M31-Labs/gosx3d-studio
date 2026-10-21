@@ -304,6 +304,10 @@ time,
   background: var(--color-panel-raised);
 }
 
+.workspace-tabs .compact-panel-tab {
+  display: none;
+}
+
 .demo-mode-label {
   display: none;
   margin-left: auto;
@@ -1340,6 +1344,17 @@ time,
   color: var(--color-text-secondary);
   font-size: var(--type-xs);
   line-height: 1.5;
+  /* One- and two-line tool receipts share a slot instead of shifting all
+     review controls on every running/completed status transition. */
+  min-block-size: calc(3em + 2 * var(--space-xs));
+}
+
+@media (max-width: 88rem) {
+  /* The full exact diff stays in the adjacent review pane. Keep the canvas
+     disclosure compact so it cannot cover the board on smaller desktops. */
+  .viewport-preview-card .viewport-preview-changes {
+    display: none;
+  }
 }
 
 .webmcp-tool-disclosure {
@@ -2203,6 +2218,29 @@ time,
   display: inline-flex;
 }
 
+.selection-feedback {
+  position: fixed;
+  inset: auto var(--space-md) 3rem;
+  z-index: 100;
+  width: fit-content;
+  max-width: calc(100vw - 2 * var(--space-md));
+  margin-inline: auto;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-runtime);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-sunken);
+  color: var(--color-text);
+  box-shadow: 0 0.5rem 2rem var(--color-shadow);
+}
+
+.selection-feedback[hidden] { display: none; }
+.selection-feedback[data-state="error"] { border-color: var(--color-error); }
+.selection-feedback button {
+  margin-left: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-color: var(--color-border-strong);
+}
+
 @media (min-width: 88.01rem) {
   .studio-shell[data-studio-demo="true"] {
     --panel-inspector: 15rem;
@@ -2226,11 +2264,24 @@ time,
 }
 
 .studio-shell[data-studio-demo="true"] .workbench {
+  /* Assets is optional, not permission to push the review pane offscreen.
+     Let the viewport use the remaining width while side panes stay usable. */
+  grid-template-columns:
+    var(--panel-project)
+    var(--panel-hierarchy)
+    minmax(0, 1fr)
+    var(--panel-inspector)
+    var(--panel-agent);
   grid-template-rows: minmax(28rem, 1fr);
   grid-template-areas: "project hierarchy viewport inspector agent";
 }
 
 .studio-shell[data-studio-demo="true"].project-panel-collapsed .workbench {
+  grid-template-columns:
+    var(--panel-hierarchy)
+    minmax(0, 1fr)
+    var(--panel-inspector)
+    var(--panel-agent);
   grid-template-rows: minmax(28rem, 1fr);
   grid-template-areas: "hierarchy viewport inspector agent";
 }
@@ -2389,7 +2440,7 @@ time,
   }
 }
 
-@media (max-width: 75rem) {
+@media (max-width: 76rem) {
   html,
   body {
     min-width: 0;
@@ -2439,7 +2490,7 @@ time,
   }
 }
 
-@media (max-width: 56rem) {
+@media (max-width: 60rem) {
   :root {
     --panel-hierarchy: 8rem;
     --panel-agent: 16rem;
@@ -2455,6 +2506,114 @@ time,
   }
 
   .studio-shell[data-studio-demo="true"] .inspector-panel {
+    display: none;
+  }
+
+  /* Compact review keeps the existing scene mounted. One full-width pane is
+     visible at a time instead of silently clipping the inspector and agent. */
+  .studio-shell[data-studio-demo="true"] {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+  }
+
+  .studio-shell[data-studio-demo="true"] .menu-bar {
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-sm);
+    padding-block: var(--space-xs);
+  }
+
+  .studio-shell[data-studio-demo="true"] .build-badge {
+    width: 100%;
+    margin-left: 0;
+    padding-block: 0;
+    border: 0;
+  }
+
+  .studio-shell[data-studio-demo="true"] .workspace-tabs {
+    padding: 0;
+    min-height: 2.75rem;
+  }
+
+  .studio-shell[data-studio-demo="true"] .workspace-tabs > :not(.compact-panel-tab) {
+    display: none;
+  }
+
+  .studio-shell[data-studio-demo="true"] .workspace-tabs .compact-panel-tab {
+    display: block;
+    flex: 1;
+    min-height: 2.75rem;
+    padding: var(--space-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .studio-shell[data-studio-demo="true"] .compact-panel-tab[aria-pressed="true"] {
+    color: var(--color-author);
+    border-bottom-color: var(--color-author);
+    background: var(--color-panel-raised);
+  }
+
+  .studio-shell[data-studio-demo="true"] .workbench,
+  .studio-shell[data-studio-demo="true"].project-panel-collapsed .workbench {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "compact";
+  }
+
+  .studio-shell[data-studio-demo="true"] .workbench > * {
+    grid-area: compact;
+    min-height: 0;
+    display: none;
+  }
+
+  .studio-shell[data-studio-demo="true"][data-studio-panel="scene"] .viewport-panel,
+  .studio-shell[data-studio-demo="true"][data-studio-panel="objects"] .hierarchy-panel {
+    display: grid;
+  }
+
+  .studio-shell[data-studio-demo="true"][data-studio-panel="inspector"] .inspector-panel {
+    display: block;
+  }
+
+  .studio-shell[data-studio-demo="true"][data-studio-panel="agent"] .agent-panel {
+    display: flex;
+  }
+
+  .studio-shell[data-studio-demo="true"] .viewport-header h2 {
+    display: none;
+  }
+
+  .studio-shell[data-studio-demo="true"] .viewport-header div {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .studio-shell[data-studio-demo="true"] .viewport-header button,
+  .studio-shell[data-studio-demo="true"] .application-menu button,
+  .studio-shell[data-studio-demo="true"] .hierarchy-tree a,
+  .studio-shell[data-studio-demo="true"] .inspector-form input:not([type="hidden"]),
+  .studio-shell[data-studio-demo="true"] .inspector-apply {
+    min-height: 2.5rem;
+  }
+
+  .studio-shell[data-studio-demo="true"] .telemetry-dock {
+    height: 5.5rem;
+  }
+
+  .studio-shell[data-studio-demo="true"] .telemetry-proof {
+    white-space: normal;
+    text-align: right;
+    padding-inline: var(--space-xs);
+  }
+
+  .studio-shell[data-studio-demo="true"] .status-bar {
+    min-height: 2rem;
+    justify-content: space-between;
+  }
+
+  .studio-shell[data-studio-demo="true"] .status-bar > :not([data-scene-runtime-status]):not(strong) {
     display: none;
   }
 }
