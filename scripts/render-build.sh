@@ -2,6 +2,13 @@
 
 set -eu
 
+# Each TinyGo runtime variant can retain a large LLVM graph. Serialize variants
+# by default on constrained build hosts; explicit caller settings still win.
+# These are build-process settings, not runtime-container environment variables.
+GOMAXPROCS="${GOMAXPROCS:-1}"
+BINARYEN_CORES="${BINARYEN_CORES:-2}"
+export GOMAXPROCS BINARYEN_CORES
+
 # GoSX production packaging compiles its browser runtime with TinyGo. Render's
 # native Go image does not bundle TinyGo, so install the exact compiler release
 # used by the Studio when it is not already available on PATH.
@@ -60,4 +67,4 @@ case "$studio_tinygo_report" in
 		;;
 esac
 
-go run m31labs.dev/gosx/cmd/gosx@v0.57.5 build --prod .
+go run m31labs.dev/gosx/cmd/gosx@v0.57.18 build --prod .
