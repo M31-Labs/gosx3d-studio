@@ -8,22 +8,68 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "public", "studio-webmcp-ui.js"), "utf8");
 
-function element() {
+function element(tagName = "div") {
   const attributes = new Map();
-  return {
+  const node = {
+    tagName: tagName.toUpperCase(),
+    children: [],
+    parentNode: null,
+    className: "",
+    textContent: "",
+    isConnected: true,
     hidden: true,
+    get firstChild() { return this.children[0] || null; },
+    get firstElementChild() { return this.firstChild; },
+    appendChild(child) {
+      if (child.parentNode) child.parentNode.removeChild(child);
+      this.children.push(child);
+      child.parentNode = this;
+      return child;
+    },
+    removeChild(child) {
+      const index = this.children.indexOf(child);
+      assert.notEqual(index, -1, "removing a detached mock child");
+      this.children.splice(index, 1);
+      child.parentNode = null;
+      return child;
+    },
+    querySelector(selector) {
+      for (const child of this.children) {
+        if (child.matches(selector)) return child;
+        const nested = child.querySelector(selector);
+        if (nested) return nested;
+      }
+      return null;
+    },
+    matches(selector) {
+      if (selector.startsWith(".")) return this.className.split(/\s+/).includes(selector.slice(1));
+      const attribute = selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/);
+      if (attribute) return this.hasAttribute(attribute[1]) && (attribute[2] === undefined || this.getAttribute(attribute[1]) === attribute[2]);
+      return this.tagName.toLowerCase() === selector;
+    },
     setAttribute(name, value) { attributes.set(String(name), String(value)); },
     removeAttribute(name) { attributes.delete(String(name)); },
     getAttribute(name) { return attributes.has(String(name)) ? attributes.get(String(name)) : null; },
     hasAttribute(name) { return attributes.has(String(name)); }
   };
+  node.classList = {
+    add(value) { if (!node.matches("." + value)) node.className = (node.className + " " + value).trim(); },
+    remove(value) { node.className = node.className.split(/\s+/).filter((name) => name !== value).join(" "); }
+  };
+  return node;
 }
 
 function response(payload) {
   return { ok: true, status: 200, json: () => Promise.resolve(payload) };
 }
 
-function previewHarness() {
+function previewHarness(options = {}) {
+  const support = Object.fromEntries([
+    "data-webmcp-registration-summary", "data-webmcp-mission-title",
+    "data-webmcp-mission-heading", "data-webmcp-browser-help",
+    "data-webmcp-copy-status", "data-webmcp-copy-prompt",
+    "data-studio-demo-panel", "data-studio-demo-reset", "data-studio-demo-state"
+  ].map((name) => [name, element()]));
   const stage = element();
   const badge = element();
   let mount = element();
@@ -35,23 +81,43 @@ function previewHarness() {
   };
   const navigationCalls = [];
   const selectionCalls = [];
+  let mutationForm = null;
+  let traceHost = options.trace ? element() : null;
+  const agentPanel = options.review ? element() : null;
+  const proposalCard = options.review ? element() : null;
+  const scrollCalls = [];
+  if (agentPanel) {
+    agentPanel.scrollTop = 0;
+    agentPanel.getBoundingClientRect = () => ({ top: 100 });
+    agentPanel.scrollTo = (value) => { scrollCalls.push(value); agentPanel.scrollTop = value.top; };
+    proposalCard.getBoundingClientRect = () => ({ top: 250 });
+  }
+  let fetchHandler = (url) => response(String(url).includes("/demo/status")
+    ? options.support ? { enabled: true, clean: true, revision: 1 } : { enabled: false }
+    : { proposal: null });
   let reloadCalls = 0;
   const listeners = new Map();
   const document = {
     activeElement: null,
     querySelector(selector) {
+      if (options.support && /^\[[^\]]+\]$/.test(selector) && support[selector.slice(1, -1)]) return support[selector.slice(1, -1)];
       if (selector === ".scene-stage") return stage;
       if (selector === "[data-webmcp-preview-badge]") return badge;
       if (selector === "[data-gosx-scene3d]") return mount;
+      if (selector === "[data-webmcp-trace]") return traceHost;
+      if (selector === ".agent-panel") return agentPanel;
+      if (selector === "[data-webmcp-proposal]") return proposalCard;
       return null;
     },
-    querySelectorAll() { return []; },
+    querySelectorAll(selector) {
+      return selector === 'form[data-gosx-form], [data-gizmo-mode]' && mutationForm ? [mutationForm] : [];
+    },
     addEventListener(name, listener) {
       const values = listeners.get(name) || [];
       values.push(listener);
       listeners.set(name, values);
     },
-    createElement() { return element(); },
+    createElement(tagName) { return element(tagName); },
     body: element()
   };
   const window = {
@@ -84,6 +150,12 @@ function previewHarness() {
       apply(id) { selectionCalls.push(String(id)); }
     }
   };
+  if (options.boundedSelection) {
+    window.__gosxStudioSelection.select = (id) => {
+      selectionCalls.push(String(id));
+      return Promise.resolve(true);
+    };
+  }
   const sandbox = {
     window,
     document,
@@ -99,11 +171,7 @@ function previewHarness() {
     JSON,
     Math,
     isFinite,
-    fetch(url) {
-      return Promise.resolve(response(String(url).includes("/demo/status")
-        ? { enabled: false }
-        : { proposal: null }));
-    }
+    fetch(url, requestOptions) { return Promise.resolve(fetchHandler(url, requestOptions)); }
   };
   vm.runInNewContext(source, sandbox, { filename: "studio-webmcp-ui.js" });
   return {
@@ -114,8 +182,21 @@ function previewHarness() {
     replaceMount() { mount = element(); return mount; },
     onCommands(handler) { commandHandler = handler; },
     onNavigate(handler) { navigationHandler = handler; },
+    onFetch(handler) { fetchHandler = handler; },
+    traceHost: () => traceHost,
+    replaceTraceHost() { traceHost = element(); return traceHost; },
+    agentPanel,
+    support,
+    scrollCalls,
     navigationCalls,
     selectionCalls,
+    replaceMutationForm() {
+      mutationForm = element("form");
+      const button = element("button");
+      button.disabled = false;
+      mutationForm.querySelectorAll = () => [button];
+      return { form: mutationForm, button };
+    },
     setHref(value) { window.location.href = String(value); },
     dispatch(name, detail, fields) {
       const event = Object.assign({ detail: detail || null }, fields || {});
@@ -128,6 +209,51 @@ function previewHarness() {
 function nextTask() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+test("WebMCP focus uses bounded selection without scheduling whole-page navigation", async () => {
+  const harness = previewHarness({ boundedSelection: true });
+  harness.dispatch("studio:webmcp:focus", { id: "board" });
+  await nextTask();
+  assert.deepEqual(harness.selectionCalls, ["board"]);
+  assert.deepEqual(harness.navigationCalls, []);
+});
+
+test("in-place Inspector selection preserves the active preview's human-review lock", async () => {
+  const harness = previewHarness();
+  await harness.api.activate(proposal("selection-lock"));
+  const { form, button } = harness.replaceMutationForm();
+  harness.dispatch("studio:selection", { selected: "board" });
+  assert.equal(button.disabled, true);
+  assert.equal(form.getAttribute("data-webmcp-review-locked"), "true");
+  assert.equal(harness.commandCalls.length, 1, "restoring form locks must not replay the preview");
+  assert.equal(harness.navigationCalls.length, 0);
+});
+
+test("a clean scene does not claim unavailable browser tools are ready", async () => {
+  const harness = previewHarness({ support: true });
+  harness.dispatch("studio:webmcp:status", { state: "unavailable", toolCount: 0 });
+  await nextTask();
+  assert.equal(harness.support["data-webmcp-registration-summary"].textContent, "4 tool definitions");
+  assert.equal(harness.support["data-webmcp-mission-heading"].textContent, "Human editing works in this browser.");
+  assert.match(harness.support["data-webmcp-copy-status"].textContent, /agent tools are unavailable here/);
+  assert.match(harness.support["data-webmcp-browser-help"].textContent, /confirm that it reports 4 tools/);
+  harness.dispatch("gosx:navigate");
+  await nextTask();
+  assert.doesNotMatch(harness.support["data-webmcp-copy-status"].textContent, /Ready for the browser agent/);
+});
+
+test("tool registration, not Chrome version or clean baseline, controls ready copy", async () => {
+  const harness = previewHarness({ support: true });
+  await nextTask();
+  assert.equal(harness.support["data-webmcp-registration-summary"].textContent, "4 tool definitions");
+  assert.match(harness.support["data-webmcp-copy-status"].textContent, /still being checked/);
+  harness.dispatch("studio:webmcp:status", { state: "ready", toolCount: 4 });
+  assert.equal(harness.support["data-webmcp-registration-summary"].textContent, "4 registered tools");
+  assert.equal(harness.support["data-webmcp-copy-status"].textContent, "Ready for the browser agent.");
+  harness.dispatch("studio:webmcp:status", { state: "unavailable", toolCount: 0 });
+  assert.equal(harness.support["data-webmcp-registration-summary"].textContent, "4 tool definitions");
+  assert.match(harness.support["data-webmcp-copy-status"].textContent, /unavailable here/);
+});
 
 function proposal(id) {
   return {
@@ -304,4 +430,77 @@ test("a newer human hierarchy selection cancels a pending focus retry", async ()
   await nextTask();
 
   assert.equal(harness.navigationCalls.length, 1, "human selection must supersede the pending agent retry");
+});
+
+test("unchanged native-call receipts retain list and item nodes across managed navigation", async () => {
+  const harness = previewHarness({ trace: true });
+  await nextTask();
+  harness.dispatch("studio:webmcp:trace", { callId: "call-a", tool: "scene_get_state", message: "Inspected scene revision 1" });
+  harness.dispatch("studio:webmcp:trace", { callId: "call-b", tool: "scene_find_objects", message: "Found Board" });
+  const host = harness.traceHost();
+  const list = host.querySelector(".webmcp-trace-list");
+  const items = [...list.children];
+  host.scrollTop = 17;
+
+  harness.dispatch("gosx:navigate", { url: "https://studio.test/?selection=board" });
+  await nextTask();
+  await nextTask();
+
+  assert.equal(host.querySelector(".webmcp-trace-list"), list, "unchanged receipts must not rebuild the trace list");
+  assert.deepEqual(list.children, items, "receipt nodes should preserve identity and accessibility state");
+  assert.equal(host.scrollTop, 17, "navigation must not reset a reader's trace scroll position");
+});
+
+test("native-call receipts hydrate a replacement host without dropping retained history", async () => {
+  const harness = previewHarness({ trace: true });
+  await nextTask();
+  harness.dispatch("studio:webmcp:trace", { callId: "call-a", tool: "scene_get_state", message: "Inspected scene revision 1" });
+  const oldList = harness.traceHost().querySelector(".webmcp-trace-list");
+  const replacement = harness.replaceTraceHost();
+
+  harness.dispatch("gosx:navigate", { url: "https://studio.test/?selection=board" });
+  await nextTask();
+  const list = replacement.querySelector(".webmcp-trace-list");
+  assert.ok(list, "a newly reconciled host still needs its retained receipts");
+  assert.notEqual(list, oldList);
+  assert.equal(list.children.length, 1);
+  assert.equal(list.children[0].textContent, "Inspected scene revision 1");
+});
+
+test("review reveals a newly staged proposal once without repeated hydration scrolls", async () => {
+  const harness = previewHarness({ review: true });
+  await nextTask();
+  let currentProposal = proposal("A");
+  harness.onFetch((url) => response(String(url).includes("/demo/status")
+    ? { enabled: false }
+    : { proposal: currentProposal }));
+
+  harness.dispatch("studio:webmcp:proposal", currentProposal);
+  await nextTask();
+  assert.equal(harness.scrollCalls.length, 1, "a new proposal should reveal its review card");
+  harness.agentPanel.scrollTop = 37;
+
+  harness.dispatch("gosx:navigate", { url: "https://studio.test/?selection=board" });
+  await nextTask();
+  await nextTask();
+  harness.dispatch("studio:webmcp:proposal", currentProposal);
+  await nextTask();
+  assert.equal(harness.scrollCalls.length, 1, "same-id navigation, hydration, and redelivery must not scroll again");
+  assert.equal(harness.agentPanel.scrollTop, 37, "reviewer scroll position should survive rehydration");
+
+  currentProposal = proposal("B");
+  harness.dispatch("studio:webmcp:proposal", currentProposal);
+  await nextTask();
+  assert.equal(harness.scrollCalls.length, 2, "a different newly staged proposal should reveal its review card");
+});
+
+test("a queued reveal for a superseded proposal cannot scroll the current review", async () => {
+  const harness = previewHarness({ review: true });
+  await nextTask();
+  harness.dispatch("studio:webmcp:proposal", proposal("A"));
+  harness.dispatch("studio:webmcp:proposal", proposal("B"));
+  await nextTask();
+
+  assert.equal(harness.scrollCalls.length, 1, "only the still-current proposal may perform its queued reveal");
+  assert.equal(harness.api.activeProposalID(), "B");
 });

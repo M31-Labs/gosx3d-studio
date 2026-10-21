@@ -19,6 +19,7 @@
   var latestApprovalOutcome = null;
   var scenePreviewChain = Promise.resolve();
   var traceEntries = [];
+  var lastRevealedProposalID = "";
   var toolStates = {
     scene_get_state: "idle",
     scene_find_objects: "idle",
@@ -116,6 +117,25 @@
     setText("[data-webmcp-status-label]", latestStatus.label || statusLabel(latestStatus.state));
     setText("[data-webmcp-status-message]", latestStatus.message);
     setText("[data-webmcp-tool-count]", latestStatus.toolCount + (latestStatus.toolCount === 1 ? " tool" : " tools"));
+    renderMissionSupport();
+  }
+
+  function renderMissionSupport() {
+    var supported = latestStatus.toolCount > 0;
+    var unavailable = latestStatus.state === "unavailable";
+    setText("[data-webmcp-registration-summary]", supported ? latestStatus.toolCount + " registered tools" : "4 tool definitions");
+    setText("[data-webmcp-mission-title]", supported ? "Try it in 30 seconds" : "Agent workflow");
+    setText("[data-webmcp-mission-heading]", supported
+      ? "Ask for one precise scene edit."
+      : unavailable ? "Human editing works in this browser." : "Checking this browser's agent support.");
+    setText("[data-webmcp-browser-help]", supported
+      ? "This browser registered the tools. Use its WebMCP-capable agent to run the task below."
+      : "Agent tools need a compatible browser exposing document.modelContext.registerTool. Some Chromium builds require WebMCP testing to be enabled. Reopen this page and confirm that it reports 4 tools. Human editing does not require WebMCP.");
+    setText("[data-webmcp-copy-status]", !demoClean
+      ? "Wait for a clean shared baseline before running the showcase task."
+      : supported ? "Ready for the browser agent."
+      : unavailable ? "You can copy the task for a compatible browser; agent tools are unavailable here."
+      : "The scene is ready; browser agent support is still being checked.");
   }
 
   function renderToolFlow() {
@@ -142,6 +162,11 @@
   function renderTrace() {
     var host = one("[data-webmcp-trace]");
     if (!host) return;
+    var signature = JSON.stringify(traceEntries);
+    // Managed navigation can retain this host. Do not tear down the same
+    // receipts (and its scroll position/live region) merely to hydrate it.
+    if (host.getAttribute("data-webmcp-trace-signature") === signature) return;
+    host.setAttribute("data-webmcp-trace-signature", signature);
     host.setAttribute("aria-busy", "true");
     host.setAttribute("aria-live", "off");
     while (host.firstChild) host.removeChild(host.firstChild);
@@ -198,6 +223,7 @@
     host.setAttribute("aria-live", "polite");
     list.appendChild(traceItem(entry));
     while (list.children.length > traceEntries.length) list.removeChild(list.firstElementChild);
+    host.setAttribute("data-webmcp-trace-signature", JSON.stringify(traceEntries));
     host.scrollTop = host.scrollHeight;
   }
 
@@ -477,6 +503,9 @@
   }
 
   function renderChangeList(list, changes, materials) {
+    var signature = JSON.stringify([changes, materials]);
+    if (list.getAttribute("data-webmcp-changes-signature") === signature) return;
+    list.setAttribute("data-webmcp-changes-signature", signature);
     while (list.firstChild) list.removeChild(list.firstChild);
     changes.forEach(function (change) {
       var presentation = changePresentation(change, materials);
@@ -679,8 +708,12 @@
         " is unchanged and awaiting your review. Orbit and selection stay live."
     });
     var proposalCard = one("[data-webmcp-proposal]");
-    if (proposalCard && agentPanel && typeof agentPanel.scrollTo === "function") {
+    var proposalID = String(pendingProposal.proposalId || "");
+    var revealProposal = proposalID !== lastRevealedProposalID;
+    lastRevealedProposalID = proposalID;
+    if (revealProposal && proposalCard && agentPanel && typeof agentPanel.scrollTo === "function") {
       window.setTimeout(function () {
+        if (!pendingProposal || pendingProposal.proposalId !== proposalID || !proposalCard.isConnected) return;
         var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         var panelTop = agentPanel.getBoundingClientRect().top;
         var proposalTop = proposalCard.getBoundingClientRect().top;
@@ -882,6 +915,12 @@
     };
     pendingFocusNavigation = intent;
     highlightFocusedEntity(id);
+    if (window.__gosxStudioSelection && typeof window.__gosxStudioSelection.select === "function") {
+      window.__gosxStudioSelection.select(id).then(function () {
+        if (pendingFocusNavigation === intent) pendingFocusNavigation = null;
+      });
+      return;
+    }
     if (window.__gosxStudioSelection && typeof window.__gosxStudioSelection.apply === "function") {
       window.__gosxStudioSelection.apply(id);
     }
@@ -1001,10 +1040,7 @@
           ? "Clean baseline ready · the exact prompt is safe to run."
           : "Demo result preserved · reset when you are ready for another run."
       );
-      setText(
-        "[data-webmcp-copy-status]",
-        demoClean ? "Ready for the browser agent." : "Current result preserved. Reset before another agent run."
-      );
+      renderMissionSupport();
     }).catch(function () {
       if (generation !== demoStatusGeneration || demoResetInFlight) return;
       renderDemoStateFailure();
@@ -1228,7 +1264,9 @@
     }
     button.disabled = true;
     Promise.resolve(copied).then(function () {
-      if (status) status.textContent = "Copied. Paste it into the browser agent.";
+      if (status) status.textContent = latestStatus.toolCount > 0
+        ? "Copied. Paste it into the browser agent."
+        : "Copied. Open the task in a browser with active WebMCP tools.";
       button.textContent = "Prompt copied";
     }).catch(function () {
       if (status) status.textContent = "Select the prompt text and copy it manually.";
@@ -1256,6 +1294,13 @@
 
   document.addEventListener("studio:webmcp:focus", function (event) {
     focusEntity(event && event.detail);
+  });
+
+  document.addEventListener("studio:selection", function () {
+    // The bounded Inspector update replaces form children, not the scene.
+    // Keep newly rendered forms human-review locked while a preview remains
+    // visible; do not replay or remount the active preview to restore a lock.
+    if (pendingProposal || activeScenePreview) lockSceneMutationControls(true);
   });
 
   document.addEventListener("gosx:navigate", function (event) {

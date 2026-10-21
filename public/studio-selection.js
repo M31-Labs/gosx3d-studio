@@ -3,6 +3,41 @@
 
   if (typeof document === "undefined" || window.__gosxStudioSelectionBridge) return;
   window.__gosxStudioSelectionBridge = true;
+  var selectionGeneration = 0;
+  var selectionController = null;
+  var handledHostPopstate = false;
+
+  function selectedURL(selected) {
+    var url = new URL(window.location.href);
+    url.searchParams.set("selection", selected);
+    return url;
+  }
+
+  function selectionFeedback(message, retry) {
+    var host = document.querySelector("[data-selection-feedback]");
+    if (!host) {
+      host = document.createElement("div");
+      host.className = "selection-feedback";
+      host.setAttribute("data-selection-feedback", "");
+      host.setAttribute("role", "status");
+      document.body.appendChild(host);
+    }
+    host.textContent = message || "";
+    host.hidden = !message;
+    host.setAttribute("data-state", retry ? "error" : "loading");
+    if (retry) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Retry selection";
+      button.addEventListener("click", retry);
+      host.appendChild(button);
+      var reload = document.createElement("button");
+      reload.type = "button";
+      reload.textContent = "Reload workspace";
+      reload.addEventListener("click", function () { window.location.reload(); });
+      host.appendChild(reload);
+    }
+  }
 
   function request(url, options) {
     if (window.__gosx && typeof window.__gosx.request === "function") {
@@ -80,7 +115,7 @@
     var previous = stage ? String(stage.getAttribute("data-selection-id") || "") : "";
     if ((!options || options.pending !== false) && previous && previous !== selected) {
       // Inspector values still describe the previous server selection until
-      // navigation reconciles. Prevent a fast Apply click from sending those
+      // the Inspector reconciles. Prevent a fast Apply click from sending those
       // values to either entity while the local highlight moves immediately.
       markInspectorSelectionPending();
     }
@@ -91,6 +126,7 @@
       var row = item.closest("[data-hierarchy-row]");
       if (row) row.classList.toggle("selected", active);
       item.setAttribute("aria-selected", active ? "true" : "false");
+      item.setAttribute("aria-current", active ? "true" : "false");
       item.setAttribute("tabindex", active ? "0" : "-1");
     });
     document.querySelectorAll("[data-selection-id]").forEach(function (stage) {
@@ -103,9 +139,130 @@
     return true;
   }
 
-  window.__gosxStudioSelection = {
-    apply: applyLocalSelection
-  };
+  function currentRevision(root) {
+    var field = root.querySelector('input[name="expectedRevision"]');
+    return field ? String(field.value || field.getAttribute("value") || "") : "";
+  }
+
+  function rememberSelection(selected, replace) {
+    var url = selectedURL(selected);
+    var state = Object.assign({}, window.history.state || {}, { studioSelection: selected });
+    if (replace || url.href === window.location.href) window.history.replaceState(state, "", url.href);
+    else window.history.pushState(state, "", url.href);
+  }
+
+  // Keep the canonical server template as Inspector truth. Fetching HTML is
+  // not navigation: only this panel's children reconcile, never the document,
+  // head, scene mount, camera, other panes, or bootstrap runtime.
+  function selectInPlace(selected, options) {
+    selected = String(selected || "");
+    options = options || {};
+    if (!selected) return Promise.resolve(false);
+    var generation = ++selectionGeneration;
+    if (selectionController) selectionController.abort();
+    selectionController = new AbortController();
+    var controller = selectionController;
+    var inspector = document.getElementById("inspector-panel");
+    var expectedRevision = currentRevision(document);
+    applyLocalSelection(selected);
+    markInspectorSelectionPending();
+    var loading = window.setTimeout(function () {
+      if (generation === selectionGeneration) selectionFeedback("Loading selected object…");
+    }, 180);
+    var timeout = window.setTimeout(function () { controller.abort(); }, 10000);
+    return request(selectedURL(selected).href, {
+      method: "GET", headers: { Accept: "text/html" },
+      cache: "no-store", credentials: "same-origin", signal: controller.signal
+    }).then(function (response) {
+      if (!response || !response.ok) throw new Error("The selected object's Inspector could not be loaded.");
+      return response.text();
+    }).then(function (html) {
+      if (generation !== selectionGeneration) return false;
+      var rendered = new DOMParser().parseFromString(html, "text/html");
+      var nextInspector = rendered.getElementById("inspector-panel");
+      var nextStage = rendered.querySelector(".scene-stage[data-selection-id]");
+      if (!inspector || !nextInspector || !nextStage || nextStage.getAttribute("data-selection-id") !== selected) {
+        throw new Error("That object is no longer available. Choose another object or reload the workspace.");
+      }
+      if (!expectedRevision || currentRevision(nextInspector) !== expectedRevision) {
+        throw new Error("The scene changed elsewhere. Reload the workspace before editing.");
+      }
+      var scrollTop = inspector.scrollTop;
+      var disclosure = {};
+      inspector.querySelectorAll(":scope > details").forEach(function (item) {
+        var summary = item.querySelector("summary");
+        if (summary) disclosure[summary.textContent.trim()] = item.open;
+      });
+      var children = Array.prototype.map.call(nextInspector.childNodes, function (child) {
+        return document.importNode(child, true);
+      });
+      inspector.replaceChildren.apply(inspector, children);
+      inspector.querySelectorAll(":scope > details").forEach(function (item) {
+        var summary = item.querySelector("summary");
+        if (summary && Object.prototype.hasOwnProperty.call(disclosure, summary.textContent.trim())) {
+          item.open = disclosure[summary.textContent.trim()];
+        }
+      });
+      inspector.scrollTop = scrollTop;
+      var stage = document.querySelector(".scene-stage[data-selection-id]");
+      if (stage) ["data-camera-focus-x", "data-camera-focus-y", "data-camera-focus-z"].forEach(function (name) {
+        stage.setAttribute(name, nextStage.getAttribute(name) || "0");
+      });
+      applyLocalSelection(selected, { pending: false });
+      clearInspectorSelectionPending();
+      selectionFeedback("");
+      if (options.history !== false) rememberSelection(selected, options.replace === true);
+      document.dispatchEvent(new CustomEvent("studio:selection", { detail: { selected: selected, revision: expectedRevision } }));
+      return true;
+    }).catch(function (error) {
+      if (generation !== selectionGeneration) return false;
+      selectionFeedback(error && error.name === "AbortError"
+        ? "Selection timed out. Your scene and camera have not been reset."
+        : error.message || "Selection failed. Your scene and camera have not been reset.",
+      function () { selectInPlace(selected, options); });
+      return false;
+    }).finally(function () {
+      window.clearTimeout(loading);
+      window.clearTimeout(timeout);
+      if (generation === selectionGeneration) selectionController = null;
+    });
+  }
+
+  window.__gosxStudioSelection = { apply: applyLocalSelection, select: selectInPlace };
+
+  function confirmViewportSelection(payload) {
+    var generation = ++selectionGeneration;
+    if (selectionController) selectionController.abort();
+    selectionController = new AbortController();
+    var controller = selectionController;
+    applyLocalSelection(payload.selected);
+    markInspectorSelectionPending();
+    var headers = { "Accept": "application/json", "Content-Type": "application/json" };
+    var token = csrfToken();
+    if (token) headers["X-CSRF-Token"] = token;
+    var timeout = window.setTimeout(function () { controller.abort(); }, 10000);
+    return request("/api/studio/viewport-selection", {
+      method: "POST", headers: headers, body: JSON.stringify(payload), signal: controller.signal
+    }).then(function (response) {
+      if (!response || !response.ok) throw new Error("The scene could not confirm that selection.");
+      return response.json();
+    }).then(function (confirmation) {
+      if (generation !== selectionGeneration) return false;
+      // The canonical CPU query decides; never silently treat a GPU hit as
+      // authority when the two disagree or an older request finishes late.
+      var confirmed = confirmation && confirmation.selected ? String(confirmation.selected) : "";
+      if (!confirmed) throw new Error("That object is no longer available.");
+      return selectInPlace(confirmed);
+    }).catch(function (error) {
+      if (generation !== selectionGeneration) return false;
+      selectionFeedback(error.name === "AbortError" ? "Selection confirmation timed out." : error.message,
+        function () { confirmViewportSelection(payload); });
+      return false;
+    }).finally(function () {
+      window.clearTimeout(timeout);
+      if (generation === selectionGeneration) selectionController = null;
+    });
+  }
 
   document.addEventListener("click", function (event) {
     var link = event.target && typeof event.target.closest === "function"
@@ -114,15 +271,46 @@
     if (!link) return;
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
         link.hasAttribute("download") || link.getAttribute("target") === "_blank") return;
-    applyLocalSelection(link.getAttribute("data-entity-id"));
+    event.preventDefault();
+    selectInPlace(link.getAttribute("data-entity-id"));
+  }, true);
+
+  function isSelectionHistory(state) {
+    return state && state.studioSelection && window.location.pathname === "/";
+  }
+
+  document.addEventListener("gosx:popstate", function (event) {
+    var state = event.detail && event.detail.state;
+    if (!isSelectionHistory(state)) return;
+    event.preventDefault();
+    handledHostPopstate = true;
+    selectInPlace(state.studioSelection, { history: false });
   });
 
+  window.addEventListener("popstate", function (event) {
+    if (handledHostPopstate) {
+      handledHostPopstate = false;
+      return;
+    }
+    if (!isSelectionHistory(event.state)) return;
+    event.stopImmediatePropagation();
+    selectInPlace(event.state.studioSelection, { history: false });
+  }, true);
+
+  var initialStage = document.querySelector(".scene-stage[data-selection-id]");
+  if (initialStage) rememberSelection(initialStage.getAttribute("data-selection-id"), true);
+
   document.addEventListener("gosx:navigate", function () {
+    ++selectionGeneration;
+    if (selectionController) selectionController.abort();
+    selectionController = null;
+    selectionFeedback("");
     window.setTimeout(function () {
       clearInspectorSelectionPending();
       var stage = document.querySelector("[data-selection-id]");
       var selected = stage ? String(stage.getAttribute("data-selection-id") || "") : "";
       if (selected) applyLocalSelection(selected, { pending: false });
+      if (selected) rememberSelection(selected, true);
     }, 0);
   });
 
@@ -147,36 +335,6 @@
         direction: { x: Number(input.rayDirX), y: Number(input.rayDirY), z: Number(input.rayDirZ) }
       };
     }
-    var headers = { "Accept": "application/json", "Content-Type": "application/json" };
-    var token = csrfToken();
-    if (token) headers["X-CSRF-Token"] = token;
-    request("/api/studio/viewport-selection", {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify(payload)
-    }).then(function (response) {
-      if (!response || !response.ok) return;
-      return response.json().catch(function () { return null; }).then(function (confirmation) {
-        // The canonical CPU query decides the selection; follow its answer so
-        // a GPU/CPU disagreement never becomes silent editor selection truth.
-        var confirmed = confirmation && confirmation.selected ? String(confirmation.selected) : selected;
-        applyLocalSelection(confirmed);
-        var url = new URL(window.location.href);
-        url.searchParams.set("selection", confirmed);
-        var target = url.pathname + url.search;
-        if (window.__gosx_page_nav && typeof window.__gosx_page_nav.navigate === "function") {
-          // Morph in place: panels refresh, the Scene3D mount stays alive.
-          window.__gosx_page_nav.navigate(target, { preserveScroll: true });
-        } else {
-          window.location.assign(target);
-        }
-      });
-    }).catch(function (error) {
-      if (window.__gosx && typeof window.__gosx.reportFailure === "function") {
-        window.__gosx.reportFailure("viewport selection", error, {
-          scope: "studio", type: "selection", fallback: "hierarchy"
-        });
-      }
-    });
+    confirmViewportSelection(payload);
   });
 })();

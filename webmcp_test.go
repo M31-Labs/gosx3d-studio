@@ -717,6 +717,25 @@ func TestWebMCPHTTPProposalRequiresBrowserAuthorityAndHumanCommit(t *testing.T) 
 	if afterStage.Revision != document.Revision {
 		t.Fatal("HTTP proposal mutated canonical state")
 	}
+	// In-place selection fetches fresh canonical HTML and therefore a newly
+	// masked CSRF token. Proposal ownership must remain the signed browser
+	// identity, not a response-specific token that changes between panels.
+	selectedRequest := httptest.NewRequest(http.MethodGet, "/?selection=board", nil)
+	selectedRequest.Header.Set("Accept", "text/html")
+	for _, cookie := range browserA.cookies {
+		selectedRequest.AddCookie(cookie)
+	}
+	selectedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(selectedResponse, selectedRequest)
+	if selectedResponse.Code != http.StatusOK {
+		t.Fatalf("selection HTML status = %d", selectedResponse.Code)
+	}
+	browserA.captureCookies(selectedResponse.Result().Cookies())
+	previousToken := browserA.csrf
+	browserA.csrf = webMCPTestCSRFToken(t, selectedResponse.Body.String())
+	if browserA.csrf == previousToken {
+		t.Fatal("expected a fresh response-masked CSRF token")
+	}
 	current := browserA.getJSON(t, "/api/studio/webmcp/proposals/current")
 	if current.Code != http.StatusOK || !strings.Contains(current.Body.String(), proposal.ProposalID) {
 		t.Fatalf("same-session current proposal = %d: %s", current.Code, current.Body.String())

@@ -8,7 +8,27 @@
   var publicDemo = document.querySelector('.studio-shell[data-studio-demo="true"]') !== null;
   var projectPanelCollapsed = publicDemo || (typeof window.matchMedia === "function" &&
     window.matchMedia("(max-width: 88rem)").matches);
+  var projectPanelObserver = null;
+  var observedProjectShell = null;
   var sceneRuntimeObserver = null;
+  var compactPanel = "scene";
+
+  function syncCompactPanel() {
+    var shell = document.querySelector(".studio-shell");
+    if (!shell) return;
+    if (shell.getAttribute("data-studio-panel") !== compactPanel) {
+      shell.setAttribute("data-studio-panel", compactPanel);
+    }
+    document.querySelectorAll("[data-studio-panel-choice]").forEach(function (button) {
+      button.setAttribute("aria-pressed", button.getAttribute("data-studio-panel-choice") === compactPanel ? "true" : "false");
+    });
+  }
+
+  function chooseCompactPanel(panel) {
+    if (["scene", "objects", "inspector", "agent"].indexOf(panel) === -1) return;
+    compactPanel = panel;
+    syncCompactPanel();
+  }
 
   function closest(target, selector) {
     if (!target || typeof target.closest !== "function") return null;
@@ -96,10 +116,35 @@
     var panel = document.getElementById("project-panel");
     if (!shell || !button || !panel) return;
 
-    shell.classList.toggle("project-panel-collapsed", projectPanelCollapsed);
+    if (shell.classList.contains("project-panel-collapsed") !== projectPanelCollapsed) {
+      shell.classList.toggle("project-panel-collapsed", projectPanelCollapsed);
+    }
     button.setAttribute("aria-expanded", projectPanelCollapsed ? "false" : "true");
     button.setAttribute("title", projectPanelCollapsed ? "Show Project / Assets panel" : "Hide Project / Assets panel");
     panel.setAttribute("aria-hidden", projectPanelCollapsed ? "true" : "false");
+    syncCompactPanel();
+  }
+
+  function observeProjectPanel() {
+    if (typeof MutationObserver !== "function" || !document.body) return;
+    var shell = document.querySelector(".studio-shell");
+    if (projectPanelObserver && observedProjectShell === shell) return;
+    if (!projectPanelObserver) {
+      // Managed navigation reconciles the server's expanded shell before it
+      // awaits runtime bootstrap. Restore local layout in the mutation
+      // microtask, before a frame can paint or resize the preserved canvas.
+      projectPanelObserver = new MutationObserver(function () {
+        syncProjectPanel();
+        observeProjectPanel();
+      });
+    } else {
+      projectPanelObserver.disconnect();
+    }
+    projectPanelObserver.observe(document.body, { childList: true });
+    if (shell) {
+      projectPanelObserver.observe(shell, { attributes: true, attributeFilter: ["class", "data-studio-panel"] });
+    }
+    observedProjectShell = shell;
   }
 
   function syncSceneRuntimeStatus() {
@@ -140,11 +185,12 @@
   }
 
   function syncPage() {
+    syncProjectPanel();
+    observeProjectPanel();
     var search = document.querySelector("[data-hierarchy-filter]");
     if (search) search.value = hierarchyQuery;
     filterHierarchy(hierarchyQuery);
     revealHierarchySelection();
-    syncProjectPanel();
     syncSceneRuntimeStatus();
     observeSceneRuntime();
   }
@@ -157,6 +203,10 @@
   });
 
   document.addEventListener("click", function (event) {
+    var panelChoice = closest(event.target, "[data-studio-panel-choice]");
+    if (panelChoice) chooseCompactPanel(panelChoice.getAttribute("data-studio-panel-choice"));
+    if (closest(event.target, 'a[href="#inspector-panel"]')) chooseCompactPanel("inspector");
+    if (closest(event.target, 'a[href="#agent-panel"]')) chooseCompactPanel("agent");
     var projectToggle = closest(event.target, "[data-project-panel-toggle]");
     if (projectToggle) {
       projectPanelCollapsed = !projectPanelCollapsed;
@@ -187,9 +237,7 @@
     next.scrollIntoView({ block: "nearest" });
   });
 
-  document.addEventListener("gosx:navigate", function () {
-    window.setTimeout(syncPage, 0);
-  });
+  document.addEventListener("gosx:navigate", syncPage);
   document.addEventListener("gosx:ready", syncSceneRuntimeStatus);
   document.addEventListener("gosx:error", syncSceneRuntimeStatus);
 

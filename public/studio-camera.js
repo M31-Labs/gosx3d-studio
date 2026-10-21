@@ -8,6 +8,8 @@
   var OUTPUT = "studio.viewport.cameraOut";
   var lastPose = null;
   var activeView = "perspective";
+  var observedStage = null;
+  var stageObserver = null;
 
   function setSignal(value) {
     var runtime = window.__gosx_runtime_api;
@@ -49,6 +51,38 @@
     return lastPose;
   }
 
+  function stageAspect() {
+    var stage = document.querySelector(".scene-stage");
+    if (!stage || !stage.clientWidth || !stage.clientHeight) return null;
+    return stage.clientWidth / stage.clientHeight;
+  }
+
+  function resizeOrthographicView() {
+    var pose = readPose();
+    var aspect = stageAspect();
+    if (!pose || pose.kind !== "orthographic" || !aspect) return;
+    var halfHeight = (Number(pose.top) - Number(pose.bottom)) / 2;
+    if (!Number.isFinite(halfHeight) || halfHeight <= 0) return;
+    var center = (Number(pose.left) + Number(pose.right)) / 2;
+    var halfWidth = halfHeight * aspect;
+    if (Math.abs(Number(pose.right) - Number(pose.left) - halfWidth * 2) < 0.001) return;
+    // Changing panel widths must not reset an orbit, pan, or zoom. Only the
+    // projection bounds follow the actual canvas aspect ratio.
+    var next = Object.assign({}, pose, { left: center - halfWidth, right: center + halfWidth });
+    lastPose = next;
+    setSignal(next);
+  }
+
+  function observeStage() {
+    var stage = document.querySelector(".scene-stage");
+    if (stage === observedStage) return;
+    if (stageObserver) stageObserver.disconnect();
+    observedStage = stage;
+    if (!stage || typeof ResizeObserver !== "function") return;
+    stageObserver = new ResizeObserver(resizeOrthographicView);
+    stageObserver.observe(stage);
+  }
+
   function focusTarget() {
     var stage = document.querySelector("[data-camera-focus-x]");
     if (!stage) return { x: 0, y: 0, z: 0 };
@@ -79,7 +113,8 @@
     }
     var preset = presets[view];
     if (!preset) return false;
-    preset.left = -span; preset.right = span; preset.top = span; preset.bottom = -span; preset.zoom = 1;
+    var aspect = stageAspect() || 1;
+    preset.left = -span * aspect; preset.right = span * aspect; preset.top = span; preset.bottom = -span; preset.zoom = 1;
     lastPose = preset;
     return setSignal(preset);
   }
@@ -151,10 +186,12 @@
   });
 
   document.addEventListener("gosx:navigate", function () {
-    window.setTimeout(syncButtons, 0);
+    window.setTimeout(function () { syncButtons(); observeStage(); resizeOrthographicView(); }, 0);
   });
+  window.addEventListener("resize", resizeOrthographicView);
 
   subscribePose();
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", syncButtons);
-  else syncButtons();
+  function initialize() { syncButtons(); observeStage(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialize);
+  else initialize();
 })();

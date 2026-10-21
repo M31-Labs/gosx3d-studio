@@ -21,7 +21,7 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "__gosx_page_nav", "studio.viewport.selectedID", "applyLocalSelection", "a[data-entity-id]", "[data-hierarchy-row]", "markInspectorSelectionPending", "form[data-selection-bound]", "data-selection-pending-enabled", "gosx:navigate", "__gosxStudioSelection"} {
+	for _, required := range []string{"gosx:scene3d:input", `input.type !== "select"`, "input.selectedID", "/api/studio/viewport-selection", "input.worldX", "payload.world", "confirmation.selected", "input.rayOriginX", "payload.ray", `headers["X-CSRF-Token"]`, "selectInPlace(confirmed)", "studio.viewport.selectedID", "applyLocalSelection", "a[data-entity-id]", "[data-hierarchy-row]", "markInspectorSelectionPending", "form[data-selection-bound]", "data-selection-pending-enabled", "gosx:navigate", "__gosxStudioSelection"} {
 		if !strings.Contains(string(asset), required) {
 			t.Fatalf("selection bridge missing %q", required)
 		}
@@ -41,6 +41,21 @@ func TestViewportSelectionBridgeConsumesSceneMountInput(t *testing.T) {
 	}
 	if !strings.Contains(string(page), `data-gosx-key={"material-" + data.inspector.id + "-" + data.inspector.materialId}`) {
 		t.Fatal("material editor key does not reset when either entity or bound material changes")
+	}
+}
+
+func TestSelectionReconcilesOnlyTheCanonicalInspectorWithoutNavigation(t *testing.T) {
+	asset, err := os.ReadFile("public/studio-selection.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{"event.preventDefault()", "generation !== selectionGeneration", "selectionController.abort()", "new DOMParser()", `getElementById("inspector-panel")`, "inspector.replaceChildren", "currentRevision(nextInspector) !== expectedRevision", "window.history.pushState", `"popstate"`, "event.stopImmediatePropagation()", "Reload workspace", "Retry selection"} {
+		if !strings.Contains(string(asset), required) {
+			t.Errorf("bounded selection is missing %q", required)
+		}
+	}
+	if strings.Contains(string(asset), "__gosx_page_nav") || strings.Contains(string(asset), "window.location.assign") {
+		t.Fatal("selection must not silently navigate or reload the workspace")
 	}
 }
 
